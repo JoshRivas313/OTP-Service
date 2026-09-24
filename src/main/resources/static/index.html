@@ -301,7 +301,10 @@
         body: JSON.stringify(body)
       });
       const data = await response.json();
-      showResult(resultId, response.ok, data.message || data.code);
+      const message = data.demoCode
+          ? `${data.message} — código: ${data.demoCode}`
+          : (data.message || data.code);
+      showResult(resultId, response.ok, message);
     } catch (error) {
       showResult(resultId, false, 'No se pudo conectar con el servidor');
     } finally {

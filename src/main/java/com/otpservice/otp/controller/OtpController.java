@@ -25,12 +25,15 @@ public class OtpController {
     public ResponseEntity<OtpGenerateResponse> generateOtp(@Valid @RequestBody OtpGenerateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(otpService
-                        .generateOtp(request));
+                        .generateOtp(request)
+                );
     }
 
     @PostMapping("/verify")
     public ResponseEntity<OtpVerifyResponse> verifyOtp(@Valid @RequestBody OtpVerifyRequest request) {
         return ResponseEntity
-                .ok(otpService.verifyOtp(request));
+                .ok(otpService
+                        .verifyOtp(request)
+                );
     }
 }

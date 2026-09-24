@@ -10,6 +10,18 @@ otp:
   max-attempts: 3
   retention-seconds: 86400
   hash-secret: ${OTP_HASH_SECRET:dev-only-secret-change-me}
+  # true = el codigo se devuelve en la respuesta de /otps, para poder probar
+  # el demo publico sin acceso al log del servidor. Incompatible con un
+  # proveedor de SMS real (falla al arrancar si se combinan).
+  demo-mode: ${OTP_DEMO_MODE:false}
 
 sms:
   provider: ${SMS_PROVIDER:console}
+  twilio:
+    account-sid: ${TWILIO_ACCOUNT_SID:}
+    auth-token: ${TWILIO_AUTH_TOKEN:}
+    phone-number: ${TWILIO_PHONE_NUMBER:}
+  infobip:
+    base-url: ${INFOBIP_BASE_URL:}
+    api-key: ${INFOBIP_API_KEY:}
+    sender: ${INFOBIP_SENDER:}

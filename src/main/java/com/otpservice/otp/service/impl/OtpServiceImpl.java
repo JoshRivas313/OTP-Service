@@ -52,7 +52,9 @@ public class OtpServiceImpl implements OtpService {
 
         smsSender.send(cellphone, properties.messageTemplate().formatted(code.getValue(), durationSeconds));
 
-        return OtpGenerateResponse.sent();
+        return properties.demoMode()
+                ? OtpGenerateResponse.sentInDemoMode(code.getValue())
+                : OtpGenerateResponse.sent();
     }
 
     @Override
