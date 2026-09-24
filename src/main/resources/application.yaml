@@ -22,6 +22,3 @@ sms:
     base-url: ${INFOBIP_BASE_URL:}
     api-key: ${INFOBIP_API_KEY:}
     sender: ${INFOBIP_SENDER:}
-
-twilio-connect:
-  enabled: ${TWILIO_CONNECT_ENABLED:false}

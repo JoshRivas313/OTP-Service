@@ -11,23 +11,21 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-// Con el flag prendido, tanto "/" como "/index.html" mandan a conectar
-// Twilio primero si esa sesion todavia no conecto nada. Una vez conectada
-// (o con el flag apagado) pasa de largo y sirve el index normal.
+// index.html (raiz) ya es la pantalla de conectar Twilio, no necesita guardia.
+// Este filtro solo protege otp-service.html: sin sesion Twilio conectada,
+// no hay forma de saltarse la configuracion escribiendo la URL directo.
 @Component
 @RequiredArgsConstructor
 public class TwilioOnboardingFilter extends OncePerRequestFilter {
 
-    private final TwilioConnectProperties twilioConnectProperties;
     private final TwilioSessionService twilioSessionService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        boolean isIndexRequest = "/".equals(request.getServletPath()) || "/index.html".equals(request.getServletPath());
-        if (twilioConnectProperties.enabled() && isIndexRequest
-                && !twilioSessionService.isConnected(request.getSession(true))) {
-            response.sendRedirect("/twilio.html");
+        boolean isOtpServiceRequest = "/otp-service.html".equals(request.getServletPath());
+        if (isOtpServiceRequest && !twilioSessionService.isConnected(request.getSession(true))) {
+            response.sendRedirect("/");
             return;
         }
         chain.doFilter(request, response);

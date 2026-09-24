@@ -12,7 +12,6 @@ import com.otpservice.otp.sms.TwilioSessionService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,7 +25,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/twilio/otps")
 @RequiredArgsConstructor
-@ConditionalOnProperty(prefix = "twilio-connect", name = "enabled", havingValue = "true")
 public class TwilioOtpController {
 
     private final TwilioSessionService sessionService;
@@ -51,4 +49,5 @@ public class TwilioOtpController {
         return sessionService.get(session)
                 .orElseThrow(() -> new OtpException(ErrorCode.TWILIO_NOT_CONNECTED));
     }
+
 }

@@ -21,6 +21,7 @@ class TwilioOnboardingFilterTest {
     private FilterChain chain;
     private HttpSession session;
     private TwilioSessionService sessionService;
+    private TwilioOnboardingFilter filter;
 
     @BeforeEach
     void setUp() {
@@ -30,47 +31,24 @@ class TwilioOnboardingFilterTest {
         session = mock(HttpSession.class);
         sessionService = mock(TwilioSessionService.class);
         when(request.getSession(true)).thenReturn(session);
+        filter = new TwilioOnboardingFilter(sessionService);
     }
 
     @Test
-    void conFlagApagadoDejaPasarAunSinConectar() throws Exception {
-        when(request.getServletPath()).thenReturn("/");
-        TwilioOnboardingFilter filter = filter(false);
-
-        filter.doFilter(request, response, chain);
-
-        verify(chain).doFilter(request, response);
-        verify(response, never()).sendRedirect(anyString());
-    }
-
-    @Test
-    void conFlagPrendidoYSinConectarRedirigeAConectar() throws Exception {
-        when(request.getServletPath()).thenReturn("/");
+    void otpServiceSinConectarRedirigeALaRaiz() throws Exception {
+        when(request.getServletPath()).thenReturn("/otp-service.html");
         when(sessionService.isConnected(session)).thenReturn(false);
-        TwilioOnboardingFilter filter = filter(true);
 
         filter.doFilter(request, response, chain);
 
-        verify(response).sendRedirect("/twilio.html");
+        verify(response).sendRedirect("/");
         verify(chain, never()).doFilter(request, response);
     }
 
     @Test
-    void indexHtmlDirectoTambienQuedaGateado() throws Exception {
-        when(request.getServletPath()).thenReturn("/index.html");
-        when(sessionService.isConnected(session)).thenReturn(false);
-        TwilioOnboardingFilter filter = filter(true);
-
-        filter.doFilter(request, response, chain);
-
-        verify(response).sendRedirect("/twilio.html");
-    }
-
-    @Test
-    void conFlagPrendidoYYaConectadoDejaPasar() throws Exception {
-        when(request.getServletPath()).thenReturn("/");
+    void otpServiceYaConectadoDejaPasar() throws Exception {
+        when(request.getServletPath()).thenReturn("/otp-service.html");
         when(sessionService.isConnected(session)).thenReturn(true);
-        TwilioOnboardingFilter filter = filter(true);
 
         filter.doFilter(request, response, chain);
 
@@ -79,17 +57,12 @@ class TwilioOnboardingFilterTest {
     }
 
     @Test
-    void laPaginaDeTwilioNuncaSeIntercepta() throws Exception {
-        when(request.getServletPath()).thenReturn("/twilio.html");
-        TwilioOnboardingFilter filter = filter(true);
+    void laRaizNuncaSeIntercepta() throws Exception {
+        when(request.getServletPath()).thenReturn("/");
 
         filter.doFilter(request, response, chain);
 
         verify(chain).doFilter(request, response);
         verify(response, never()).sendRedirect(anyString());
-    }
-
-    private TwilioOnboardingFilter filter(boolean enabled) {
-        return new TwilioOnboardingFilter(new TwilioConnectProperties(enabled), sessionService);
     }
 }

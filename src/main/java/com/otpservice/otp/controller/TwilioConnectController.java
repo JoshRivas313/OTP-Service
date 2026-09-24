@@ -10,7 +10,6 @@ import com.otpservice.otp.sms.TwilioVerifyService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,13 +17,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-// Solo existe cuando twilio-connect.enabled=true: si esta apagado, estas
-// rutas ni se registran (404), no hace falta chequear el flag a mano en
-// cada metodo.
 @RestController
 @RequestMapping("/api/twilio")
 @RequiredArgsConstructor
-@ConditionalOnProperty(prefix = "twilio-connect", name = "enabled", havingValue = "true")
 public class TwilioConnectController {
 
     private final TwilioSessionService sessionService;
@@ -38,8 +33,6 @@ public class TwilioConnectController {
         TwilioCredentials credentials = toCredentials(request);
         verifyService.validateCredentials(credentials);
         sessionService.connect(session, credentials);
-        // sesion corta a proposito: es una credencial ajena, no queremos que
-        // quede conectada indefinidamente si alguien se olvida de desconectar
         session.setMaxInactiveInterval(SESSION_TIMEOUT_SECONDS);
         return ResponseEntity.ok(TwilioStatusResponse.connected(credentials.masked()));
     }
