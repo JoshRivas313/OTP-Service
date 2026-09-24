@@ -4,93 +4,69 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OTP Service</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23052e2b'/%3E%3Cpath d='M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z' fill='none' stroke='%2334d399' stroke-width='1.6'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%2314210d'/%3E%3Cpath d='M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z' fill='none' stroke='%236db33f' stroke-width='1.6'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500;600&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <div class="app">
+  <div class="app app-narrow">
     <header>
       <div class="badge" aria-hidden="true">
-        <svg width="34" height="34" viewBox="0 0 24 24" fill="none">
-          <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" stroke="#34d399" stroke-width="1.5"/>
-          <path d="M9 12l2 2 4-4" stroke="#34d399" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" stroke="#6db33f" stroke-width="1.5"/>
+          <path d="M9 12l2 2 4-4" stroke="#6db33f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
-      <h1>OTP Service</h1>
-      <p>Autenticación por código de un solo uso</p>
+      <h1>Probar con SMS real</h1>
+      <p>Conectá tu propia cuenta de Twilio Verify</p>
     </header>
 
-    <div class="cards-row">
-      <div class="card">
-        <div class="card-head">
-          <span class="step">1</span>
-          <h2>Generar código</h2>
+    <div class="card twilio-card">
+      <div id="tw-form-state">
+        <p class="hint" style="margin-top:0;">Conectá tu propia cuenta de Twilio Verify para probar el flujo con un SMS real, sin usar la cuota del dueño de esta demo. Las credenciales quedan solo en tu sesión — nunca se guardan en el servidor.</p>
+        <div class="field">
+          <label for="tw-account-sid">Account SID</label>
+          <input id="tw-account-sid" type="text" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
         </div>
         <div class="field">
-          <label for="gen-cellphone">Celular</label>
-          <div class="field-wrap">
-            <span class="prefix">+51</span>
-            <input id="gen-cellphone" class="with-prefix" type="tel" inputmode="numeric" placeholder="987654321" maxlength="9">
-          </div>
+          <label for="tw-auth-token">Auth Token</label>
+          <input id="tw-auth-token" type="password" placeholder="••••••••••••••••••••••••••••••••">
         </div>
-        <div class="field-row">
-          <div class="field">
-            <label for="gen-duration">Duración (segundos)</label>
-            <input id="gen-duration" type="text" inputmode="numeric" placeholder="30" maxlength="4">
-          </div>
-          <div class="field">
-            <label for="gen-digits">Cantidad de dígitos</label>
-            <input id="gen-digits" type="text" inputmode="numeric" placeholder="6" maxlength="2">
-          </div>
+        <div class="field">
+          <label for="tw-verify-sid">Verify Service SID</label>
+          <input id="tw-verify-sid" type="text" placeholder="VAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+          <p class="field-help"><a href="https://console.twilio.com/us1/develop/verify/services" target="_blank" rel="noopener noreferrer" class="twilio-link">¿No sabés dónde encontrarlo? Crear un Verify Service →</a></p>
         </div>
-        <button id="gen-btn" onclick="generateOtp()">
+        <button id="tw-connect-btn" onclick="connectTwilio()">
           <span class="spinner"></span>
-          <span class="btn-label">Enviar código</span>
+          <span class="btn-label">Conectar con Twilio</span>
         </button>
-        <div id="gen-result" class="result" role="status" aria-live="polite"></div>
-        <p class="hint">En modo consola, el código aparece en la terminal del servidor, no aquí.</p>
+        <div id="tw-connect-result" class="result" role="status" aria-live="polite"></div>
+        <p class="hint">¿No tenés una cuenta? <a href="https://console.twilio.com/" target="_blank" rel="noopener noreferrer" class="twilio-link">Conseguí una gratis en Twilio →</a></p>
+        <p class="hint tw-warning">La sesión se desconecta sola a los 15 minutos de inactividad — cuidá tu cuota.</p>
       </div>
 
-      <div class="card">
-        <div class="card-head">
-          <span class="step">2</span>
-          <h2>Verificar código</h2>
+      <div id="tw-success-state" class="success-panel" style="display:none;" role="status" aria-live="polite">
+        <div class="success-check-wrap">
+          <svg class="success-check" viewBox="0 0 52 52" width="52" height="52">
+            <circle class="success-check-circle" cx="26" cy="26" r="24" fill="none"/>
+            <path class="success-check-mark" fill="none" d="M14 27l7 7 17-17"/>
+          </svg>
+          <span class="success-particles"></span>
         </div>
-        <div class="field">
-          <label for="ver-cellphone">Celular</label>
-          <div class="field-wrap">
-            <span class="prefix">+51</span>
-            <input id="ver-cellphone" class="with-prefix" type="tel" inputmode="numeric" placeholder="987654321" maxlength="9">
-          </div>
-        </div>
-        <div class="field">
-          <label for="ver-code">Código</label>
-          <input id="ver-code" class="code-input" type="text" inputmode="numeric" placeholder="000000" maxlength="10">
-        </div>
-        <button id="ver-btn" onclick="verifyOtp()">
-          <span class="spinner"></span>
-          <span class="btn-label">Verificar</span>
-        </button>
-        <div id="ver-result" class="result" role="status" aria-live="polite"></div>
+        <h2 class="success-title">¡Conexión realizada!</h2>
+        <p class="success-text">Tus credenciales de Twilio fueron verificadas correctamente.</p>
+        <p class="success-subtext">Ya podés probar el envío de tu primer OTP.</p>
+        <button id="tw-continue-btn" onclick="goToOtpService()">Probar envío OTP →</button>
       </div>
-    </div>
-
-    <div id="twilio-status-bar" style="display:none; text-align:center; font-size:13px;">
-      <span id="twilio-connected-badge" style="display:none;">
-        <a href="/twilio.html" class="twilio-link"><span class="tw-dot"></span>Twilio conectado</a>
-        · <a href="#" onclick="changeTwilioConfig(); return false;" class="twilio-link">Cambiar configuración</a>
-      </span>
-      <a id="twilio-connect-link" href="/twilio.html" class="twilio-link" style="display:none;">¿Querés probar con SMS real? Conectá tu cuenta de Twilio →</a>
     </div>
 
     <footer>Spring Boot · MongoDB · HMAC-SHA256</footer>
   </div>
 
 <script>
-  const ICON_OK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const ICON_ERR = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
   document.querySelectorAll('input[inputmode="numeric"]').forEach(input => {
@@ -99,73 +75,70 @@
     });
   });
 
-  async function generateOtp() {
-    const cellphone = document.getElementById('gen-cellphone').value.trim();
-    const durationRaw = document.getElementById('gen-duration').value.trim();
-    const digitsRaw = document.getElementById('gen-digits').value.trim();
-    const body = { cellphone };
-    if (durationRaw) body.durationSeconds = Number(durationRaw);
-    if (digitsRaw) body.digits = Number(digitsRaw);
-    await submit('gen-btn', 'gen-result', '/otps', body);
+  function showError(elementId, message) {
+    const el = document.getElementById(elementId);
+    el.innerHTML = ICON_ERR + '<span>' + message + '</span>';
+    el.className = 'result show err';
   }
 
-  async function verifyOtp() {
-    const cellphone = document.getElementById('ver-cellphone').value.trim();
-    const code = document.getElementById('ver-code').value.trim();
-    await submit('ver-btn', 'ver-result', '/otps/verify', { cellphone, code });
+  function spawnParticles(container) {
+    if (!container || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const count = 10;
+    for (let i = 0; i < count; i++) {
+      const particle = document.createElement('span');
+      particle.className = 'success-particle';
+      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.3;
+      const distance = 40 + Math.random() * 26;
+      particle.style.setProperty('--dx', Math.cos(angle) * distance + 'px');
+      particle.style.setProperty('--dy', Math.sin(angle) * distance + 'px');
+      particle.style.animationDelay = Math.round(Math.random() * 80) + 'ms';
+      container.appendChild(particle);
+      setTimeout(() => particle.remove(), 1100);
+    }
   }
 
-  async function submit(buttonId, resultId, url, body) {
-    const btn = document.getElementById(buttonId);
+  function showSuccess() {
+    document.getElementById('tw-form-state').style.display = 'none';
+    document.getElementById('tw-success-state').style.display = 'block';
+    spawnParticles(document.querySelector('.success-particles'));
+  }
+
+  function goToOtpService() {
+    window.location.href = '/otp-service.html';
+  }
+
+  async function connectTwilio() {
+    const btn = document.getElementById('tw-connect-btn');
+    const label = btn.querySelector('.btn-label');
     btn.disabled = true;
     btn.classList.add('loading');
+    label.textContent = 'Verificando credenciales...';
     try {
-      const response = await fetch(url, {
+      const response = await fetch('/api/twilio/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify({
+          accountSid: document.getElementById('tw-account-sid').value.trim(),
+          authToken: document.getElementById('tw-auth-token').value.trim(),
+          verifyServiceSid: document.getElementById('tw-verify-sid').value.trim()
+        })
       });
       const data = await response.json();
-      const message = data.demoCode
-          ? `${data.message} — código: ${data.demoCode}`
-          : (data.message || data.code);
-      showResult(resultId, response.ok, message);
+      if (response.ok) {
+        document.getElementById('tw-auth-token').value = '';
+        showSuccess();
+        return;
+      }
+      showError('tw-connect-result',
+          'No pudimos validar estas credenciales.<span class="result-detail">' + (data.message || data.code) + '</span>');
     } catch (error) {
-      showResult(resultId, false, 'No se pudo conectar con el servidor');
+      showError('tw-connect-result', 'No se pudo conectar con el servidor');
     } finally {
       btn.disabled = false;
       btn.classList.remove('loading');
+      label.textContent = 'Conectar con Twilio';
     }
   }
-
-  function showResult(elementId, ok, message) {
-    const el = document.getElementById(elementId);
-    el.innerHTML = (ok ? ICON_OK : ICON_ERR) + '<span>' + message + '</span>';
-    el.className = 'result show ' + (ok ? 'ok' : 'err');
-  }
-
-  async function checkTwilioBanner() {
-    try {
-      const configResponse = await fetch('/api/config');
-      const config = await configResponse.json();
-      if (!config.twilioConnectEnabled) return;
-
-      document.getElementById('twilio-status-bar').style.display = 'block';
-      const statusResponse = await fetch('/api/twilio/status');
-      const status = await statusResponse.json();
-      document.getElementById('twilio-connected-badge').style.display = status.connected ? 'inline' : 'none';
-      document.getElementById('twilio-connect-link').style.display = status.connected ? 'none' : 'inline';
-    } catch (error) {
-      // si /api/config o /api/twilio/status fallan, la barra se queda oculta y el resto de la demo sigue andando
-    }
-  }
-
-  async function changeTwilioConfig() {
-    await fetch('/api/twilio/disconnect', { method: 'POST' });
-    window.location.href = '/twilio.html';
-  }
-
-  checkTwilioBanner();
 </script>
 </body>
 </html>
