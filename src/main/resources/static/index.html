@@ -4,17 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OTP Service</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23052e2b'/%3E%3Cpath d='M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z' fill='none' stroke='%2334d399' stroke-width='1.6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500;600&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0f172a;
-    --card: #1e293b;
-    --border: #334155;
-    --text: #e2e8f0;
-    --muted: #94a3b8;
-    --accent: #6366f1;
-    --accent-hover: #4f46e5;
-    --success: #22c55e;
-    --error: #ef4444;
+    --bg: #0a0f14;
+    --bg-radial: radial-gradient(circle at 50% -10%, #0f1f1b 0%, #0a0f14 55%);
+    --card: #101820;
+    --card-border: #1e2a30;
+    --text: #e6ede9;
+    --muted: #7c8a86;
+    --accent: #34d399;
+    --accent-dim: #059669;
+    --accent-text: #04140f;
+    --success: #34d399;
+    --error: #f87171;
+    --radius: 14px;
   }
   * { box-sizing: border-box; }
   body {
@@ -23,24 +30,39 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--bg);
+    background: var(--bg-radial), var(--bg);
     color: var(--text);
-    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-    padding: 24px;
+    font-family: 'Manrope', -apple-system, "Segoe UI", sans-serif;
+    padding: 32px 20px;
   }
   .app {
     width: 100%;
     max-width: 420px;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 18px;
   }
   header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     text-align: center;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .badge {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   header h1 {
-    font-size: 22px;
-    margin: 0 0 4px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 21px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.01em;
   }
   header p {
     color: var(--muted);
@@ -49,158 +71,248 @@
   }
   .card {
     background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 22px;
+    box-shadow: 0 12px 24px -12px rgba(0, 0, 0, 0.5);
   }
-  .card h2 {
-    font-size: 15px;
-    margin: 0 0 14px;
+  .card-head {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    margin-bottom: 16px;
   }
   .step {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
-    background: var(--accent);
-    color: white;
+    background: rgba(52, 211, 153, 0.12);
+    color: var(--accent);
+    font-family: 'Space Grotesk', sans-serif;
     font-size: 12px;
+    font-weight: 600;
     flex-shrink: 0;
+  }
+  .card-head h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0;
   }
   label {
     display: block;
-    font-size: 12px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
     color: var(--muted);
-    margin-bottom: 4px;
+    margin-bottom: 6px;
+  }
+  .field {
+    margin-bottom: 14px;
+  }
+  .field-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .prefix {
+    position: absolute;
+    left: 13px;
+    color: var(--muted);
+    font-size: 14px;
+    pointer-events: none;
   }
   input {
     width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border);
+    background: #0a0f14;
+    border: 1px solid var(--card-border);
     color: var(--text);
-    border-radius: 8px;
-    padding: 10px 12px;
+    border-radius: 9px;
+    padding: 11px 13px;
     font-size: 14px;
-    margin-bottom: 12px;
+    font-family: inherit;
+    transition: border-color 0.15s ease;
+  }
+  input.with-prefix { padding-left: 40px; }
+  input#gen-code-view, input.code-input {
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.35em;
+    text-align: center;
+    font-size: 16px;
   }
   input:focus {
     outline: none;
-    border-color: var(--accent);
+    border-color: var(--accent-dim);
   }
+  input::placeholder { color: #3d4a48; letter-spacing: normal; }
   button {
     width: 100%;
     background: var(--accent);
-    color: white;
+    color: var(--accent-text);
     border: none;
-    border-radius: 8px;
-    padding: 11px;
+    border-radius: 9px;
+    padding: 12px;
     font-size: 14px;
     font-weight: 600;
+    font-family: inherit;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background 0.15s ease, transform 0.1s ease;
   }
-  button:hover { background: var(--accent-hover); }
-  button:disabled { opacity: 0.6; cursor: not-allowed; }
+  button:hover:not(:disabled) { background: #6ee7b7; }
+  button:active:not(:disabled) { transform: scale(0.98); }
+  button:disabled { opacity: 0.55; cursor: not-allowed; }
+  .spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(4, 20, 15, 0.3);
+    border-top-color: var(--accent-text);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+  button.loading .spinner { display: inline-block; }
+  button.loading .btn-label { opacity: 0.85; }
+  @keyframes spin { to { transform: rotate(360deg); } }
   .result {
     margin-top: 12px;
     padding: 10px 12px;
-    border-radius: 8px;
+    border-radius: 9px;
     font-size: 13px;
     display: none;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
   }
-  .result.show { display: block; }
-  .result.ok {
-    background: rgba(34, 197, 94, 0.12);
-    border: 1px solid var(--success);
-    color: var(--success);
-  }
-  .result.err {
-    background: rgba(239, 68, 68, 0.12);
-    border: 1px solid var(--error);
-    color: var(--error);
-  }
+  .result.show { display: flex; opacity: 1; transform: translateY(0); }
+  .result.ok { background: rgba(52, 211, 153, 0.1); border: 1px solid rgba(52, 211, 153, 0.35); color: var(--success); }
+  .result.err { background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.35); color: var(--error); }
+  .result svg { flex-shrink: 0; }
   .hint {
     font-size: 11px;
     color: var(--muted);
-    margin-top: 8px;
-    line-height: 1.4;
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+  footer {
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
   }
 </style>
 </head>
 <body>
   <div class="app">
     <header>
+      <div class="badge" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none">
+          <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" stroke="#34d399" stroke-width="1.5"/>
+          <path d="M9 12l2 2 4-4" stroke="#34d399" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
       <h1>OTP Service</h1>
       <p>Autenticación por código de un solo uso</p>
     </header>
 
     <div class="card">
-      <h2><span class="step">1</span> Generar código</h2>
-      <label for="gen-cellphone">Celular</label>
-      <input id="gen-cellphone" type="text" placeholder="987654321" maxlength="9">
-      <button id="gen-btn" onclick="generateOtp()">Enviar código</button>
-      <div id="gen-result" class="result"></div>
+      <div class="card-head">
+        <span class="step">1</span>
+        <h2>Generar código</h2>
+      </div>
+      <div class="field">
+        <label for="gen-cellphone">Celular</label>
+        <div class="field-wrap">
+          <span class="prefix">+51</span>
+          <input id="gen-cellphone" class="with-prefix" type="tel" inputmode="numeric" placeholder="987654321" maxlength="9">
+        </div>
+      </div>
+      <button id="gen-btn" onclick="generateOtp()">
+        <span class="spinner"></span>
+        <span class="btn-label">Enviar código</span>
+      </button>
+      <div id="gen-result" class="result" role="status" aria-live="polite"></div>
       <p class="hint">En modo consola, el código aparece en la terminal del servidor, no aquí.</p>
     </div>
 
     <div class="card">
-      <h2><span class="step">2</span> Verificar código</h2>
-      <label for="ver-cellphone">Celular</label>
-      <input id="ver-cellphone" type="text" placeholder="987654321" maxlength="9">
-      <label for="ver-code">Código</label>
-      <input id="ver-code" type="text" placeholder="000000" maxlength="10">
-      <button id="ver-btn" onclick="verifyOtp()">Verificar</button>
-      <div id="ver-result" class="result"></div>
+      <div class="card-head">
+        <span class="step">2</span>
+        <h2>Verificar código</h2>
+      </div>
+      <div class="field">
+        <label for="ver-cellphone">Celular</label>
+        <div class="field-wrap">
+          <span class="prefix">+51</span>
+          <input id="ver-cellphone" class="with-prefix" type="tel" inputmode="numeric" placeholder="987654321" maxlength="9">
+        </div>
+      </div>
+      <div class="field">
+        <label for="ver-code">Código</label>
+        <input id="ver-code" class="code-input" type="text" inputmode="numeric" placeholder="000000" maxlength="10">
+      </div>
+      <button id="ver-btn" onclick="verifyOtp()">
+        <span class="spinner"></span>
+        <span class="btn-label">Verificar</span>
+      </button>
+      <div id="ver-result" class="result" role="status" aria-live="polite"></div>
     </div>
+
+    <footer>Spring Boot · MongoDB · HMAC-SHA256</footer>
   </div>
 
 <script>
+  const ICON_OK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ICON_ERR = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  document.querySelectorAll('input[inputmode="numeric"]').forEach(input => {
+    input.addEventListener('input', () => {
+      input.value = input.value.replace(/\D/g, '');
+    });
+  });
+
   async function generateOtp() {
     const cellphone = document.getElementById('gen-cellphone').value.trim();
-    const btn = document.getElementById('gen-btn');
-    btn.disabled = true;
-    try {
-      const response = await fetch('/otps', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cellphone })
-      });
-      const data = await response.json();
-      showResult('gen-result', response.ok, data.message || data.code);
-    } catch (error) {
-      showResult('gen-result', false, 'No se pudo conectar con el servidor');
-    } finally {
-      btn.disabled = false;
-    }
+    await submit('gen-btn', 'gen-result', '/otps', { cellphone });
   }
 
   async function verifyOtp() {
     const cellphone = document.getElementById('ver-cellphone').value.trim();
     const code = document.getElementById('ver-code').value.trim();
-    const btn = document.getElementById('ver-btn');
+    await submit('ver-btn', 'ver-result', '/otps/verify', { cellphone, code });
+  }
+
+  async function submit(buttonId, resultId, url, body) {
+    const btn = document.getElementById(buttonId);
     btn.disabled = true;
+    btn.classList.add('loading');
     try {
-      const response = await fetch('/otps/verify', {
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cellphone, code })
+        body: JSON.stringify(body)
       });
       const data = await response.json();
-      showResult('ver-result', response.ok, data.message || data.code);
+      showResult(resultId, response.ok, data.message || data.code);
     } catch (error) {
-      showResult('ver-result', false, 'No se pudo conectar con el servidor');
+      showResult(resultId, false, 'No se pudo conectar con el servidor');
     } finally {
       btn.disabled = false;
+      btn.classList.remove('loading');
     }
   }
 
   function showResult(elementId, ok, message) {
     const el = document.getElementById(elementId);
-    el.textContent = message;
+    el.innerHTML = (ok ? ICON_OK : ICON_ERR) + '<span>' + message + '</span>';
     el.className = 'result show ' + (ok ? 'ok' : 'err');
   }
 </script>
