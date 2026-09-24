@@ -4,6 +4,7 @@ import com.otpservice.otp.dto.valueobject.Cellphone;
 import com.otpservice.otp.dto.valueobject.ValidityWindow;
 import com.otpservice.otp.dto.valueobject.VerificationStatus;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
@@ -15,6 +16,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.Instant;
 
 @Getter
+@Builder
 @AllArgsConstructor
 @NoArgsConstructor
 @ToString
@@ -40,10 +42,19 @@ public class OtpDocument {
     @Indexed(name = "otp_purge_ttl_idx", expireAfterSeconds = 0)
     private Instant purgeAt;
 
-    public static OtpDocument issue(Cellphone cellphone, String codeHash, int digits,
-                                     ValidityWindow validityWindow, Instant purgeAt) {
-        return new OtpDocument(null, cellphone.getValue(), codeHash, digits,
-                validityWindow, new VerificationStatus(), purgeAt);
+    public record IssueRequest(Cellphone cellphone, String codeHash, int digits,
+                                ValidityWindow validityWindow, Instant purgeAt) {
+    }
+
+    public static OtpDocument issue(IssueRequest request) {
+        return OtpDocument.builder()
+                .cellphone(request.cellphone().getValue())
+                .codeHash(request.codeHash())
+                .digits(request.digits())
+                .validityWindow(request.validityWindow())
+                .verificationStatus(new VerificationStatus())
+                .purgeAt(request.purgeAt())
+                .build();
     }
 
     public boolean isExpired(Instant now) {

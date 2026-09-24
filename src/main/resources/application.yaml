@@ -3,3 +3,13 @@ spring:
     name: otp-service
   mongodb:
     uri: ${MONGODB_URI:mongodb://localhost:27017/otp_service}
+
+otp:
+  digits: 6
+  duration-seconds: 30
+  max-attempts: 3
+  retention-seconds: 86400
+  hash-secret: ${OTP_HASH_SECRET:dev-only-secret-change-me}
+
+sms:
+  provider: ${SMS_PROVIDER:console}
