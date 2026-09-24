@@ -25,3 +25,10 @@ sms:
     base-url: ${INFOBIP_BASE_URL:}
     api-key: ${INFOBIP_API_KEY:}
     sender: ${INFOBIP_SENDER:}
+
+twilio-connect:
+  # Habilita la pantalla publica para que un visitante conecte su propia
+  # cuenta de Twilio y pruebe el flujo con SMS real, sin usar la cuenta del
+  # dueño del proyecto. Apagado por defecto: se activa solo al mostrar la
+  # demo en vivo, no se deja abierto en el deploy publico sin supervisar.
+  enabled: ${TWILIO_CONNECT_ENABLED:false}
