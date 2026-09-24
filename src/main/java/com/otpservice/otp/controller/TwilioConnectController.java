@@ -30,12 +30,17 @@ public class TwilioConnectController {
     private final TwilioSessionService sessionService;
     private final TwilioVerifyService verifyService;
 
+    private static final int SESSION_TIMEOUT_SECONDS = 15 * 60;
+
     @PostMapping("/connect")
     public ResponseEntity<TwilioStatusResponse> connect(@Valid @RequestBody TwilioConnectRequest request,
                                                           HttpSession session) {
         TwilioCredentials credentials = toCredentials(request);
         verifyService.validateCredentials(credentials);
         sessionService.connect(session, credentials);
+        // sesion corta a proposito: es una credencial ajena, no queremos que
+        // quede conectada indefinidamente si alguien se olvida de desconectar
+        session.setMaxInactiveInterval(SESSION_TIMEOUT_SECONDS);
         return ResponseEntity.ok(TwilioStatusResponse.connected(credentials.masked()));
     }
 

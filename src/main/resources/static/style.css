@@ -57,6 +57,7 @@ body {
 }
 .twilio-link:hover { text-decoration: underline; }
 .twilio-card { border-color: rgba(52, 211, 153, 0.25); }
+.tw-warning { color: #fbbf24; }
 .twilio-card .hint { margin-top: 0; margin-bottom: 16px; }
 .tw-status {
   display: flex;
