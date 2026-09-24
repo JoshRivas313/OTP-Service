@@ -11,19 +11,28 @@
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <div class="app">
-    <header>
-      <div class="badge" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none">
-          <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" stroke="#6db33f" stroke-width="1.5"/>
-          <path d="M9 12l2 2 4-4" stroke="#6db33f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-      <h1>OTP Service</h1>
-      <p>Autenticación por código de un solo uso</p>
-    </header>
+  <div class="app-wrapper">
+    <div class="app">
+      <header>
+        <div class="badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" stroke="#6db33f" stroke-width="1.5"/>
+            <path d="M9 12l2 2 4-4" stroke="#6db33f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h1>OTP Service</h1>
+        <p>Autenticación por código de un solo uso</p>
+      </header>
 
-    <div class="cards-row">
+      <div id="twilio-status-bar" class="twilio-status-bar" style="display:none;" role="status" aria-live="polite">
+        <span id="twilio-connected-badge" style="display:none;">
+          <span class="tw-dot"></span>Twilio conectado <span id="tw-masked-inline"></span>
+          <button onclick="changeTwilioConfig(); return false;" class="twilio-link-btn">Cambiar configuración</button>
+        </span>
+        <a id="twilio-connect-link" href="/" class="twilio-link" style="display:none;">Conectá tu cuenta de Twilio para continuar →</a>
+      </div>
+
+      <div class="cards-row">
       <div class="card">
         <div class="card-head">
           <span class="step">1</span>
@@ -66,17 +75,23 @@
         </button>
         <div id="ver-result" class="result" role="status" aria-live="polite"></div>
       </div>
+
+      <footer>Spring Boot · MongoDB · HMAC-SHA256</footer>
     </div>
 
-    <div id="twilio-status-bar" style="display:none; text-align:center; font-size:13px;">
-      <span id="twilio-connected-badge" style="display:none;">
-        <span class="tw-dot"></span>Twilio conectado <span id="tw-masked-inline"></span>
-        · <a href="#" onclick="changeTwilioConfig(); return false;" class="twilio-link">Cambiar configuración</a>
-      </span>
-      <a id="twilio-connect-link" href="/" class="twilio-link" style="display:none;">Conectá tu cuenta de Twilio para continuar →</a>
+    <div id="otp-success-overlay" class="otp-success-overlay" style="display:none;" role="status" aria-live="assertive">
+      <div class="otp-success-modal">
+        <div class="otp-success-check-wrap">
+          <svg class="otp-success-check" viewBox="0 0 52 52" width="60" height="60">
+            <circle class="otp-success-check-circle" cx="26" cy="26" r="24" fill="none"/>
+            <path class="otp-success-check-mark" fill="none" d="M14 27l7 7 17-17"/>
+          </svg>
+          <span class="otp-success-particles"></span>
+        </div>
+        <h2 class="otp-success-title">¡Código verificado!</h2>
+        <p class="otp-success-text">El OTP es válido.</p>
+      </div>
     </div>
-
-    <footer>Spring Boot · MongoDB · HMAC-SHA256</footer>
   </div>
 
 <script>
@@ -102,6 +117,7 @@
 
   async function submit(buttonId, resultId, url, body) {
     const btn = document.getElementById(buttonId);
+    const label = btn.querySelector('.btn-label');
     btn.disabled = true;
     btn.classList.add('loading');
     try {
@@ -111,7 +127,14 @@
         body: JSON.stringify(body)
       });
       const data = await response.json();
-      showResult(resultId, response.ok, data.message || data.code);
+
+      if (response.ok && resultId === 'ver-result') {
+        // Mostrar celebración OTP verificado
+        showOtpSuccessOverlay();
+        showResult(resultId, true, data.message || data.code);
+      } else {
+        showResult(resultId, response.ok, data.message || data.code);
+      }
     } catch (error) {
       showResult(resultId, false, 'No se pudo conectar con el servidor');
     } finally {
@@ -124,6 +147,31 @@
     const el = document.getElementById(elementId);
     el.innerHTML = (ok ? ICON_OK : ICON_ERR) + '<span>' + message + '</span>';
     el.className = 'result show ' + (ok ? 'ok' : 'err');
+  }
+
+  function spawnOtpSuccessParticles(container) {
+    if (!container || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const count = 12;
+    for (let i = 0; i < count; i++) {
+      const particle = document.createElement('span');
+      particle.className = 'otp-success-particle';
+      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.4;
+      const distance = 50 + Math.random() * 35;
+      particle.style.setProperty('--dx', Math.cos(angle) * distance + 'px');
+      particle.style.setProperty('--dy', Math.sin(angle) * distance + 'px');
+      particle.style.animationDelay = Math.round(Math.random() * 100) + 'ms';
+      container.appendChild(particle);
+      setTimeout(() => particle.remove(), 1300);
+    }
+  }
+
+  function showOtpSuccessOverlay() {
+    const overlay = document.getElementById('otp-success-overlay');
+    overlay.style.display = 'flex';
+    spawnOtpSuccessParticles(document.querySelector('.otp-success-particles'));
+    setTimeout(() => {
+      overlay.style.display = 'none';
+    }, 1800);
   }
 
   async function checkTwilioBanner() {
