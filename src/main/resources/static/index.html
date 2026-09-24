@@ -159,6 +159,11 @@
   .field {
     margin-bottom: 14px;
   }
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
   .field-wrap {
     position: relative;
     display: flex;
@@ -282,9 +287,15 @@
             <input id="gen-cellphone" class="with-prefix" type="tel" inputmode="numeric" placeholder="987654321" maxlength="9">
           </div>
         </div>
-        <div class="field">
-          <label for="gen-duration">Duración (segundos)</label>
-          <input id="gen-duration" type="text" inputmode="numeric" placeholder="30" maxlength="4">
+        <div class="field-row">
+          <div class="field">
+            <label for="gen-duration">Duración (segundos)</label>
+            <input id="gen-duration" type="text" inputmode="numeric" placeholder="30" maxlength="4">
+          </div>
+          <div class="field">
+            <label for="gen-digits">Cantidad de dígitos</label>
+            <input id="gen-digits" type="text" inputmode="numeric" placeholder="6" maxlength="2">
+          </div>
         </div>
         <button id="gen-btn" onclick="generateOtp()">
           <span class="spinner"></span>
@@ -393,9 +404,10 @@
   async function generateOtp() {
     const cellphone = document.getElementById('gen-cellphone').value.trim();
     const durationRaw = document.getElementById('gen-duration').value.trim();
-    const body = durationRaw
-        ? { cellphone, durationSeconds: Number(durationRaw) }
-        : { cellphone };
+    const digitsRaw = document.getElementById('gen-digits').value.trim();
+    const body = { cellphone };
+    if (durationRaw) body.durationSeconds = Number(durationRaw);
+    if (digitsRaw) body.digits = Number(digitsRaw);
     await submit('gen-btn', 'gen-result', '/otps', body);
   }
 
