@@ -37,10 +37,19 @@
   }
   .app {
     width: 100%;
-    max-width: 420px;
+    max-width: 800px;
     display: flex;
     flex-direction: column;
     gap: 18px;
+  }
+  .cards-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+  @media (max-width: 680px) {
+    .cards-row { grid-template-columns: 1fr; }
   }
   header {
     display: flex;
@@ -223,47 +232,49 @@
       <p>Autenticación por código de un solo uso</p>
     </header>
 
-    <div class="card">
-      <div class="card-head">
-        <span class="step">1</span>
-        <h2>Generar código</h2>
-      </div>
-      <div class="field">
-        <label for="gen-cellphone">Celular</label>
-        <div class="field-wrap">
-          <span class="prefix">+51</span>
-          <input id="gen-cellphone" class="with-prefix" type="tel" inputmode="numeric" placeholder="987654321" maxlength="9">
+    <div class="cards-row">
+      <div class="card">
+        <div class="card-head">
+          <span class="step">2</span>
+          <h2>Verificar código</h2>
         </div>
+        <div class="field">
+          <label for="ver-cellphone">Celular</label>
+          <div class="field-wrap">
+            <span class="prefix">+51</span>
+            <input id="ver-cellphone" class="with-prefix" type="tel" inputmode="numeric" placeholder="987654321" maxlength="9">
+          </div>
+        </div>
+        <div class="field">
+          <label for="ver-code">Código</label>
+          <input id="ver-code" class="code-input" type="text" inputmode="numeric" placeholder="000000" maxlength="10">
+        </div>
+        <button id="ver-btn" onclick="verifyOtp()">
+          <span class="spinner"></span>
+          <span class="btn-label">Verificar</span>
+        </button>
+        <div id="ver-result" class="result" role="status" aria-live="polite"></div>
       </div>
-      <button id="gen-btn" onclick="generateOtp()">
-        <span class="spinner"></span>
-        <span class="btn-label">Enviar código</span>
-      </button>
-      <div id="gen-result" class="result" role="status" aria-live="polite"></div>
-      <p class="hint">En modo consola, el código aparece en la terminal del servidor, no aquí.</p>
-    </div>
 
-    <div class="card">
-      <div class="card-head">
-        <span class="step">2</span>
-        <h2>Verificar código</h2>
-      </div>
-      <div class="field">
-        <label for="ver-cellphone">Celular</label>
-        <div class="field-wrap">
-          <span class="prefix">+51</span>
-          <input id="ver-cellphone" class="with-prefix" type="tel" inputmode="numeric" placeholder="987654321" maxlength="9">
+      <div class="card">
+        <div class="card-head">
+          <span class="step">1</span>
+          <h2>Generar código</h2>
         </div>
+        <div class="field">
+          <label for="gen-cellphone">Celular</label>
+          <div class="field-wrap">
+            <span class="prefix">+51</span>
+            <input id="gen-cellphone" class="with-prefix" type="tel" inputmode="numeric" placeholder="987654321" maxlength="9">
+          </div>
+        </div>
+        <button id="gen-btn" onclick="generateOtp()">
+          <span class="spinner"></span>
+          <span class="btn-label">Enviar código</span>
+        </button>
+        <div id="gen-result" class="result" role="status" aria-live="polite"></div>
+        <p class="hint">En modo consola, el código aparece en la terminal del servidor, no aquí.</p>
       </div>
-      <div class="field">
-        <label for="ver-code">Código</label>
-        <input id="ver-code" class="code-input" type="text" inputmode="numeric" placeholder="000000" maxlength="10">
-      </div>
-      <button id="ver-btn" onclick="verifyOtp()">
-        <span class="spinner"></span>
-        <span class="btn-label">Verificar</span>
-      </button>
-      <div id="ver-result" class="result" role="status" aria-live="polite"></div>
     </div>
 
     <footer>Spring Boot · MongoDB · HMAC-SHA256</footer>
