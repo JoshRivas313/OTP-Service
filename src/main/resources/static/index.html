@@ -51,6 +51,43 @@
   @media (max-width: 680px) {
     .cards-row { grid-template-columns: 1fr; }
   }
+  .twilio-card {
+    display: none;
+    border-color: rgba(52, 211, 153, 0.25);
+  }
+  .twilio-card .hint { margin-top: 0; margin-bottom: 16px; }
+  .tw-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: rgba(52, 211, 153, 0.08);
+    border: 1px solid rgba(52, 211, 153, 0.25);
+    border-radius: 9px;
+    padding: 10px 12px;
+    margin-bottom: 16px;
+  }
+  .tw-status span {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+  }
+  .tw-disconnect {
+    width: auto;
+    background: transparent;
+    border: 1px solid var(--card-border);
+    color: var(--muted);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+  .tw-disconnect:hover:not(:disabled) {
+    background: rgba(248, 113, 113, 0.1);
+    color: var(--error);
+    border-color: rgba(248, 113, 113, 0.35);
+  }
+  .tw-verify-block { margin-top: 16px; }
   header {
     display: flex;
     flex-direction: column;
@@ -281,6 +318,65 @@
       </div>
     </div>
 
+    <div class="card twilio-card" id="twilio-card">
+      <div class="card-head">
+        <span class="step">✓</span>
+        <h2>Probar con SMS real (tu cuenta Twilio)</h2>
+      </div>
+
+      <div id="tw-connect-form">
+        <p class="hint">Conectá tu propia cuenta de Twilio Verify para probar el flujo con un SMS real, sin usar la cuota del dueño de esta demo. Las credenciales quedan solo en tu sesión — nunca se guardan en el servidor.</p>
+        <div class="field">
+          <label for="tw-account-sid">Account SID</label>
+          <input id="tw-account-sid" type="text" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+        </div>
+        <div class="field">
+          <label for="tw-auth-token">Auth Token</label>
+          <input id="tw-auth-token" type="password" placeholder="••••••••••••••••••••••••••••••••">
+        </div>
+        <div class="field">
+          <label for="tw-verify-sid">Verify Service SID</label>
+          <input id="tw-verify-sid" type="text" placeholder="VAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+        </div>
+        <button id="tw-connect-btn" onclick="connectTwilio()">
+          <span class="spinner"></span>
+          <span class="btn-label">Conectar</span>
+        </button>
+        <div id="tw-connect-result" class="result" role="status" aria-live="polite"></div>
+      </div>
+
+      <div id="tw-connected-panel" style="display:none;">
+        <div class="tw-status">
+          <span id="tw-masked"></span>
+          <button class="tw-disconnect" onclick="disconnectTwilio()">Desconectar</button>
+        </div>
+        <div class="field">
+          <label for="tw-gen-cellphone">Celular</label>
+          <div class="field-wrap">
+            <span class="prefix">+51</span>
+            <input id="tw-gen-cellphone" class="with-prefix" type="tel" inputmode="numeric" placeholder="987654321" maxlength="9">
+          </div>
+        </div>
+        <button id="tw-gen-btn" onclick="generateTwilioOtp()">
+          <span class="spinner"></span>
+          <span class="btn-label">Enviar SMS real</span>
+        </button>
+        <div id="tw-gen-result" class="result" role="status" aria-live="polite"></div>
+
+        <div class="tw-verify-block">
+          <div class="field">
+            <label for="tw-ver-code">Código recibido</label>
+            <input id="tw-ver-code" class="code-input" type="text" inputmode="numeric" placeholder="000000" maxlength="10">
+          </div>
+          <button id="tw-ver-btn" onclick="verifyTwilioOtp()">
+            <span class="spinner"></span>
+            <span class="btn-label">Verificar</span>
+          </button>
+          <div id="tw-ver-result" class="result" role="status" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+
     <footer>Spring Boot · MongoDB · HMAC-SHA256</footer>
   </div>
 
@@ -337,6 +433,78 @@
     el.innerHTML = (ok ? ICON_OK : ICON_ERR) + '<span>' + message + '</span>';
     el.className = 'result show ' + (ok ? 'ok' : 'err');
   }
+
+  async function initTwilioCard() {
+    try {
+      const response = await fetch('/api/config');
+      const config = await response.json();
+      if (config.twilioConnectEnabled) {
+        document.getElementById('twilio-card').style.display = 'block';
+        await refreshTwilioStatus();
+      }
+    } catch (error) {
+      // si /api/config falla, la tarjeta se queda oculta y el resto de la demo sigue andando
+    }
+  }
+
+  async function refreshTwilioStatus() {
+    const response = await fetch('/api/twilio/status');
+    const status = await response.json();
+    document.getElementById('tw-connect-form').style.display = status.connected ? 'none' : 'block';
+    document.getElementById('tw-connected-panel').style.display = status.connected ? 'block' : 'none';
+    if (status.connected) {
+      document.getElementById('tw-masked').textContent = status.maskedCredentials;
+    }
+  }
+
+  async function connectTwilio() {
+    const btn = document.getElementById('tw-connect-btn');
+    btn.disabled = true;
+    btn.classList.add('loading');
+    try {
+      const response = await fetch('/api/twilio/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountSid: document.getElementById('tw-account-sid').value.trim(),
+          authToken: document.getElementById('tw-auth-token').value.trim(),
+          verifyServiceSid: document.getElementById('tw-verify-sid').value.trim()
+        })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        document.getElementById('tw-auth-token').value = '';
+        await refreshTwilioStatus();
+      } else {
+        showResult('tw-connect-result', false, data.message || data.code);
+      }
+    } catch (error) {
+      showResult('tw-connect-result', false, 'No se pudo conectar con el servidor');
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+    }
+  }
+
+  async function disconnectTwilio() {
+    await fetch('/api/twilio/disconnect', { method: 'POST' });
+    document.getElementById('tw-gen-result').className = 'result';
+    document.getElementById('tw-ver-result').className = 'result';
+    await refreshTwilioStatus();
+  }
+
+  async function generateTwilioOtp() {
+    const cellphone = document.getElementById('tw-gen-cellphone').value.trim();
+    await submit('tw-gen-btn', 'tw-gen-result', '/api/twilio/otps', { cellphone });
+  }
+
+  async function verifyTwilioOtp() {
+    const cellphone = document.getElementById('tw-gen-cellphone').value.trim();
+    const code = document.getElementById('tw-ver-code').value.trim();
+    await submit('tw-ver-btn', 'tw-ver-result', '/api/twilio/otps/verify', { cellphone, code });
+  }
+
+  initTwilioCard();
 </script>
 </body>
 </html>
