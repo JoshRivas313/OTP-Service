@@ -16,7 +16,11 @@ public enum ErrorCode {
     OTP_BLOCKED(HttpStatus.LOCKED, "El código fue bloqueado por demasiados intentos fallidos"),
     OTP_INVALID(HttpStatus.UNAUTHORIZED, "El código es incorrecto"),
     SMS_DELIVERY_FAILED(HttpStatus.BAD_GATEWAY, "No se pudo enviar el SMS"),
-    VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "Solicitud inválida");
+    VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "Solicitud inválida"),
+    TWILIO_CONNECT_DISABLED(HttpStatus.FORBIDDEN, "Esta demo no tiene habilitado conectar una cuenta de Twilio"),
+    TWILIO_CREDENTIALS_INVALID(HttpStatus.UNAUTHORIZED,
+            "Twilio rechazó esas credenciales o el Verify Service indicado"),
+    TWILIO_NOT_CONNECTED(HttpStatus.BAD_REQUEST, "Primero conectá tu cuenta de Twilio");
 
     private final HttpStatus status;
     private final String defaultMessage;
