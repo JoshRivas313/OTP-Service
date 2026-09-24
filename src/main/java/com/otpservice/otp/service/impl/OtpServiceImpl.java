@@ -9,6 +9,7 @@ import com.otpservice.otp.dto.response.OtpVerifyResponse;
 import com.otpservice.otp.dto.valueobject.Cellphone;
 import com.otpservice.otp.dto.valueobject.OtpCode;
 import com.otpservice.otp.dto.valueobject.ValidityWindow;
+import com.otpservice.otp.exception.ErrorCode;
 import com.otpservice.otp.exception.OtpException;
 import com.otpservice.otp.repository.OtpRepository;
 import com.otpservice.otp.security.CodeHasher;
@@ -65,19 +66,19 @@ public class OtpServiceImpl implements OtpService {
 
         OtpDocument otp = otpRepository
                 .findFirstByCellphoneOrderByValidityWindowGeneratedAtDesc(cellphone.getValue())
-                .orElseThrow(() -> new OtpException("OTP_NOT_FOUND", "No existe un código para este número"));
+                .orElseThrow(() -> new OtpException(ErrorCode.OTP_NOT_FOUND));
 
         if (otp.isInvalidated()) {
-            throw new OtpException("OTP_INVALIDATED", "El código fue reemplazado por uno más reciente");
+            throw new OtpException(ErrorCode.OTP_INVALIDATED);
         }
         if (otp.isUsed()) {
-            throw new OtpException("OTP_ALREADY_USED", "El código ya fue utilizado");
+            throw new OtpException(ErrorCode.OTP_ALREADY_USED);
         }
         if (otp.isExpired(now)) {
-            throw new OtpException("OTP_EXPIRED", "El código ha expirado");
+            throw new OtpException(ErrorCode.OTP_EXPIRED);
         }
         if (otp.isBlocked(maxAttempts)) {
-            throw new OtpException("OTP_BLOCKED", "El código fue bloqueado por demasiados intentos fallidos");
+            throw new OtpException(ErrorCode.OTP_BLOCKED);
         }
 
         String codeHash = codeHasher.hash(request.getCode().getValue());
@@ -87,12 +88,12 @@ public class OtpServiceImpl implements OtpService {
         }
 
         OtpDocument updated = otpRepository.registerFailedAttempt(otp.getId())
-                .orElseThrow(() -> new OtpException("OTP_NOT_FOUND", "No existe un código para este número"));
+                .orElseThrow(() -> new OtpException(ErrorCode.OTP_NOT_FOUND));
 
         if (updated.isBlocked(maxAttempts)) {
-            throw new OtpException("OTP_BLOCKED", "El código fue bloqueado por demasiados intentos fallidos");
+            throw new OtpException(ErrorCode.OTP_BLOCKED);
         }
-        throw new OtpException("OTP_INVALID",
+        throw new OtpException(ErrorCode.OTP_INVALID,
                 "El código es incorrecto (intento %d de %d)".formatted(updated.getAttempts(), maxAttempts));
     }
 }

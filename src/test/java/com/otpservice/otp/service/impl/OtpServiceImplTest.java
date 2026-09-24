@@ -8,6 +8,7 @@ import com.otpservice.otp.dto.valueobject.Cellphone;
 import com.otpservice.otp.dto.valueobject.OtpCode;
 import com.otpservice.otp.dto.valueobject.ValidityWindow;
 import com.otpservice.otp.dto.valueobject.VerificationStatus;
+import com.otpservice.otp.exception.ErrorCode;
 import com.otpservice.otp.exception.OtpException;
 import com.otpservice.otp.repository.OtpRepository;
 import com.otpservice.otp.security.CodeHasher;
@@ -84,7 +85,7 @@ class OtpServiceImplTest {
 
         assertThatThrownBy(() -> service.verifyOtp(verificar("472981")))
                 .isInstanceOf(OtpException.class)
-                .hasFieldOrPropertyWithValue("code", "OTP_EXPIRED");
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.OTP_EXPIRED);
     }
 
     @Test
@@ -99,7 +100,7 @@ class OtpServiceImplTest {
 
         assertThatThrownBy(() -> service.verifyOtp(verificar("000000")))
                 .isInstanceOf(OtpException.class)
-                .hasFieldOrPropertyWithValue("code", "OTP_BLOCKED");
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.OTP_BLOCKED);
     }
 
     private OtpDocument otp(String codigo, VerificationStatus status) {

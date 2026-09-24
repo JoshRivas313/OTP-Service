@@ -2,14 +2,18 @@ package com.otpservice.otp.exception;
 
 public class OtpException extends RuntimeException {
 
-    private final String code;
+    private final ErrorCode errorCode;
 
-    public OtpException(String code, String message) {
-        super(message);
-        this.code = code;
+    public OtpException(ErrorCode errorCode) {
+        this(errorCode, errorCode.getDefaultMessage());
     }
 
-    public String getCode() {
-        return code;
+    public OtpException(ErrorCode errorCode, String message) {
+        super(message);
+        this.errorCode = errorCode;
+    }
+
+    public ErrorCode getErrorCode() {
+        return errorCode;
     }
 }

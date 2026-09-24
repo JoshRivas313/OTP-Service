@@ -2,6 +2,7 @@ package com.otpservice.otp.sms;
 
 import com.otpservice.otp.config.SmsProperties;
 import com.otpservice.otp.dto.valueobject.Cellphone;
+import com.otpservice.otp.exception.ErrorCode;
 import com.otpservice.otp.exception.OtpException;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -49,7 +50,7 @@ public class InfobipSmsSender implements SmsSender {
 
             log.info("SMS entregado a Infobip para={}", destination.masked());
         } catch (RestClientException exception) {
-            throw new OtpException("SMS_DELIVERY_FAILED", "No se pudo enviar el SMS");
+            throw new OtpException(ErrorCode.SMS_DELIVERY_FAILED);
         }
     }
 
