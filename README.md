@@ -1,12 +1,12 @@
 # OTP Service
 
-Servicio de autenticación por código de un solo uso (OTP), hecho con Spring Boot y MongoDB. El código nunca se guarda en texto plano: se hashea con HMAC-SHA256 antes de persistirse, y cada intento fallido queda registrado para bloquear el código después de N intentos.
+Servicio de autenticación por código de un solo uso (OTP), hecho con Spring Boot, MongoDB y Twilio Verify. El código nunca se guarda en texto plano: se hashea con HMAC-SHA256 antes de persistirse, y cada intento fallido queda registrado para bloquear el código después de N intentos.
 
 Incluye una UI mínima servida por el propio Spring Boot (`src/main/resources/static`), así que es un solo deployable, sin CORS ni un frontend aparte.
 
-## Cómo correrlo
+## Cómo probarlo
 
-Necesita Java 21, Maven (o el wrapper `mvnw` que ya viene) y una instancia de MongoDB corriendo en `localhost:27017` (o la que le pases por `MONGODB_URI`).
+Necesita Java 21, Maven (o el wrapper `mvnw` que ya viene), una instancia de MongoDB corriendo en `localhost:27017` (o la que le pases por `MONGODB_URI`), y una cuenta de Twilio (la trial gratuita alcanza).
 
 ```bash
 cp .env.example .env
@@ -14,7 +14,13 @@ cp .env.example .env
 ./mvnw spring-boot:run
 ```
 
-La app levanta en `http://localhost:8080` con la UI de prueba en la raíz.
+1. Abrí `http://localhost:8080` — es la pantalla de conectar Twilio, no la demo directamente.
+2. Ingresá tu **Account SID**, **Auth Token** y **Verify Service SID** de Twilio.
+3. Al conectar, la app te lleva a `/otp-service.html`.
+4. Escribí tu celular (el mismo con el que te registraste en Twilio, si tu cuenta es trial) y mandate un código.
+5. Verificá el código que te llegó por SMS real.
+
+Las credenciales viven **solo en tu sesión del backend** — nunca se persisten en Mongo, en un archivo ni en el navegador. Si reiniciás la app o cerrás la sesión, hay que volver a conectarlas.
 
 ## Diseño
 
@@ -25,7 +31,7 @@ La app levanta en `http://localhost:8080` con la UI de prueba en la raíz.
 
 ## Modos de ejecución
 
-El proveedor de SMS se elige con `SMS_PROVIDER`:
+Estos modos son del motor local (`POST /otps`, `POST /otps/verify`) — la UI ya no los usa (ver más abajo), pero siguen ahí y se pueden probar directo con `curl`/Postman. El proveedor de SMS se elige con `SMS_PROVIDER`:
 
 | Valor | Qué hace |
 |---|---|
@@ -37,16 +43,14 @@ El proveedor de SMS se elige con `SMS_PROVIDER`:
 
 Pensado para un deploy público: el código generado se devuelve en la respuesta de `POST /otps` y se muestra en la UI, para que alguien pueda probar el flujo completo sin acceso al log del servidor. La app **no arranca** si esto se combina con `SMS_PROVIDER=twilio` o `infobip` — no tiene sentido mostrar un código que además se mandó de verdad, y es una forma barata de evitar quemar cuota de SMS sin querer.
 
-### Conectar tu propia cuenta de Twilio (`TWILIO_CONNECT_ENABLED=true`)
+### Conectar tu propia cuenta de Twilio
 
-Para que alguien pruebe con un SMS real sin gastar la cuota del dueño del proyecto ni usar sus credenciales. Con el flag prendido aparece una tarjeta extra en la UI donde cualquiera puede conectar su propia cuenta de Twilio Verify:
+`index.html` (la raíz del sitio) es la pantalla para conectar una cuenta de Twilio Verify — no hay un flag ni una variable de entorno que la habilite o la esconda, es simplemente la primera pantalla del proyecto. `/otp-service.html` (donde se genera y verifica el código) está protegida: si no hay una sesión Twilio conectada, un `Filter` (`TwilioOnboardingFilter`) redirige de vuelta a `/` antes de mostrar nada.
 
-- La credencial vive **solo en la `HttpSession`** de ese visitante — nunca se escribe en Mongo ni en un log, y desaparece cuando la sesión expira o el visitante desconecta.
+- La credencial vive **solo en la `HttpSession`** de ese visitante — nunca se escribe en Mongo ni en un log, y desaparece cuando la sesión expira (15 minutos de inactividad) o el visitante toca "Cambiar configuración".
 - Antes de guardar nada, el servidor llama de verdad a Twilio (fetch del Verify Service) para confirmar que la credencial es válida, no solo que tiene el formato correcto.
-- Cada request arma su propio `TwilioRestClient` a partir de la credencial de la sesión — a diferencia del modo `twilio` de arriba, acá **no** se usa un `Twilio.init()` global, porque con varias sesiones conectadas a la vez eso las haría pisarse entre sí.
-- Este modo no toca Mongo para nada: el estado del código (expiración, intentos) lo maneja Twilio Verify del otro lado.
-
-Este flag queda **apagado por defecto** a propósito. La razón no es de confidencialidad de la credencial (eso ya está resuelto arriba) sino de superficie de exposición: dejar un endpoint público que acepta y usa credenciales de terceros, abierto sin supervisión, es un riesgo distinto al de simplemente guardarlas mal. Se prende solo para mostrar la demo en vivo.
+- Cada request arma su propio `TwilioRestClient` a partir de la credencial de la sesión — nunca se usa un `Twilio.init()` global, porque con varias sesiones conectadas a la vez eso las haría pisarse entre sí.
+- No toca Mongo para nada: el estado del código (expiración, intentos) lo maneja Twilio Verify del otro lado. El motor local (`/otps`, `/otps/verify`, con Mongo + HMAC) sigue ahí y sigue andando si lo llamás directo, pero ninguna pantalla de la UI lo usa — la única página del OTP Service que existe siempre trabaja contra la cuenta de Twilio conectada.
 
 #### Cómo conseguir credenciales de Twilio para probarlo
 
