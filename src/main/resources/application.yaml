@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: otp-service
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://localhost:27017/otp_service}
