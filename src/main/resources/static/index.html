@@ -78,8 +78,12 @@
       </div>
     </div>
 
-    <div id="twilio-banner" style="display:none; text-align:center;">
-      <a href="/twilio.html" class="twilio-link">¿Querés probar con SMS real? Conectá tu cuenta de Twilio →</a>
+    <div id="twilio-status-bar" style="display:none; text-align:center; font-size:13px;">
+      <span id="twilio-connected-badge" style="display:none;">
+        <a href="/twilio.html" class="twilio-link"><span class="tw-dot"></span>Twilio conectado</a>
+        · <a href="#" onclick="changeTwilioConfig(); return false;" class="twilio-link">Cambiar configuración</a>
+      </span>
+      <a id="twilio-connect-link" href="/twilio.html" class="twilio-link" style="display:none;">¿Querés probar con SMS real? Conectá tu cuenta de Twilio →</a>
     </div>
 
     <footer>Spring Boot · MongoDB · HMAC-SHA256</footer>
@@ -142,14 +146,23 @@
 
   async function checkTwilioBanner() {
     try {
-      const response = await fetch('/api/config');
-      const config = await response.json();
-      if (config.twilioConnectEnabled) {
-        document.getElementById('twilio-banner').style.display = 'block';
-      }
+      const configResponse = await fetch('/api/config');
+      const config = await configResponse.json();
+      if (!config.twilioConnectEnabled) return;
+
+      document.getElementById('twilio-status-bar').style.display = 'block';
+      const statusResponse = await fetch('/api/twilio/status');
+      const status = await statusResponse.json();
+      document.getElementById('twilio-connected-badge').style.display = status.connected ? 'inline' : 'none';
+      document.getElementById('twilio-connect-link').style.display = status.connected ? 'none' : 'inline';
     } catch (error) {
-      // si /api/config falla, el banner se queda oculto y el resto de la demo sigue andando
+      // si /api/config o /api/twilio/status fallan, la barra se queda oculta y el resto de la demo sigue andando
     }
+  }
+
+  async function changeTwilioConfig() {
+    await fetch('/api/twilio/disconnect', { method: 'POST' });
+    window.location.href = '/twilio.html';
   }
 
   checkTwilioBanner();
