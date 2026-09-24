@@ -235,6 +235,30 @@
     <div class="cards-row">
       <div class="card">
         <div class="card-head">
+          <span class="step">1</span>
+          <h2>Generar código</h2>
+        </div>
+        <div class="field">
+          <label for="gen-cellphone">Celular</label>
+          <div class="field-wrap">
+            <span class="prefix">+51</span>
+            <input id="gen-cellphone" class="with-prefix" type="tel" inputmode="numeric" placeholder="987654321" maxlength="9">
+          </div>
+        </div>
+        <div class="field">
+          <label for="gen-duration">Duración (segundos)</label>
+          <input id="gen-duration" type="text" inputmode="numeric" placeholder="30" maxlength="4">
+        </div>
+        <button id="gen-btn" onclick="generateOtp()">
+          <span class="spinner"></span>
+          <span class="btn-label">Enviar código</span>
+        </button>
+        <div id="gen-result" class="result" role="status" aria-live="polite"></div>
+        <p class="hint">En modo consola, el código aparece en la terminal del servidor, no aquí.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
           <span class="step">2</span>
           <h2>Verificar código</h2>
         </div>
@@ -255,26 +279,6 @@
         </button>
         <div id="ver-result" class="result" role="status" aria-live="polite"></div>
       </div>
-
-      <div class="card">
-        <div class="card-head">
-          <span class="step">1</span>
-          <h2>Generar código</h2>
-        </div>
-        <div class="field">
-          <label for="gen-cellphone">Celular</label>
-          <div class="field-wrap">
-            <span class="prefix">+51</span>
-            <input id="gen-cellphone" class="with-prefix" type="tel" inputmode="numeric" placeholder="987654321" maxlength="9">
-          </div>
-        </div>
-        <button id="gen-btn" onclick="generateOtp()">
-          <span class="spinner"></span>
-          <span class="btn-label">Enviar código</span>
-        </button>
-        <div id="gen-result" class="result" role="status" aria-live="polite"></div>
-        <p class="hint">En modo consola, el código aparece en la terminal del servidor, no aquí.</p>
-      </div>
     </div>
 
     <footer>Spring Boot · MongoDB · HMAC-SHA256</footer>
@@ -292,7 +296,11 @@
 
   async function generateOtp() {
     const cellphone = document.getElementById('gen-cellphone').value.trim();
-    await submit('gen-btn', 'gen-result', '/otps', { cellphone });
+    const durationRaw = document.getElementById('gen-duration').value.trim();
+    const body = durationRaw
+        ? { cellphone, durationSeconds: Number(durationRaw) }
+        : { cellphone };
+    await submit('gen-btn', 'gen-result', '/otps', body);
   }
 
   async function verifyOtp() {
