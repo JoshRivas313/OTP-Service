@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: otp-mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: otpadmin
+      MONGO_INITDB_ROOT_PASSWORD: otppassword
+      MONGO_INITDB_DATABASE: otp_service
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - otp-network
+    healthcheck:
+      test: echo 'db.adminCommand("ping")' | mongosh -u otpadmin -p otppassword --authenticationDatabase admin
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: otp-service
+    ports:
+      - "8080:8080"
+    environment:
+      MONGODB_URI: mongodb://otpadmin:otppassword@mongodb:27017/otp_service?authSource=admin
+      OTP_HASH_SECRET: tu-clave-secreta-minimo-32-caracteres-para-desarrollo
+      SMS_PROVIDER: console
+      OTP_DEMO_MODE: "false"
+      SERVER_PORT: 8080
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - otp-network
+    stdin_open: true
+    tty: true
+
+volumes:
+  mongo_data:
+
+networks:
+  otp-network:
+    driver: bridge
