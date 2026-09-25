@@ -10,7 +10,7 @@ import com.otpservice.otp.dto.valueobject.TwilioCredentials;
 // aca no se persiste nada.
 public interface TwilioOtpService {
 
-    OtpGenerateResponse generateOtp(TwilioCredentials credentials, Cellphone cellphone);
+    OtpGenerateResponse generateOtp(TwilioCredentials credentials, Cellphone cellphone, Integer digits);
 
     OtpVerifyResponse verifyOtp(TwilioCredentials credentials, Cellphone cellphone, String code);
 }

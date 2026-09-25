@@ -30,9 +30,15 @@ class TwilioOtpServiceImplTest {
     }
 
     @Test
-    void generarPideAVerifyQueEnvieElCodigo() {
-        assertThat(service.generateOtp(CREDENTIALS, CELULAR).success()).isTrue();
-        verify(twilioVerifyService).sendVerificationCode(CREDENTIALS, CELULAR);
+    void generarSinDigitsPideAVerifyQueEnvieElCodigoQueGeneraTwilio() {
+        assertThat(service.generateOtp(CREDENTIALS, CELULAR, null).success()).isTrue();
+        verify(twilioVerifyService).sendVerificationCode(CREDENTIALS, CELULAR, null);
+    }
+
+    @Test
+    void generarConDigitsLosPasaParaQueVerifyUseCustomCode() {
+        assertThat(service.generateOtp(CREDENTIALS, CELULAR, 8).success()).isTrue();
+        verify(twilioVerifyService).sendVerificationCode(CREDENTIALS, CELULAR, 8);
     }
 
     @Test

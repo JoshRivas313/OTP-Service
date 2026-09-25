@@ -35,7 +35,7 @@ public class TwilioOtpController {
                                                              HttpSession session) {
         TwilioCredentials credentials = requireConnected(session);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(twilioOtpService.generateOtp(credentials, request.getCellphone()));
+                .body(twilioOtpService.generateOtp(credentials, request.getCellphone(), request.getDigits()));
     }
 
     @PostMapping("/verify")

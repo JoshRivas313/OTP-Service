@@ -1,6 +1,7 @@
 package com.otpservice.otp.sms;
 
 import com.otpservice.otp.dto.valueobject.Cellphone;
+import com.otpservice.otp.dto.valueobject.OtpCode;
 import com.otpservice.otp.dto.valueobject.TwilioCredentials;
 import com.otpservice.otp.exception.ErrorCode;
 import com.otpservice.otp.exception.OtpException;
@@ -9,6 +10,7 @@ import com.twilio.http.TwilioRestClient;
 import com.twilio.rest.verify.v2.Service;
 import com.twilio.rest.verify.v2.service.Verification;
 import com.twilio.rest.verify.v2.service.VerificationCheck;
+import com.twilio.rest.verify.v2.service.VerificationCreator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -29,9 +31,21 @@ public class TwilioVerifyService {
     }
 
     public void sendVerificationCode(TwilioCredentials credentials, Cellphone destination) {
+        sendVerificationCode(credentials, destination, null);
+    }
+
+    // Twilio Verify NO acepta un tiempo de expiracion por request (solo se
+    // configura en el Service, desde el dashboard). La cantidad de digitos si
+    // se puede controlar: generamos el codigo nosotros con OtpCode.generate(digits)
+    // y se lo pasamos a Twilio via setCustomCode en vez de dejar que Twilio
+    // genere el suyo propio (que siempre usa la longitud del Service).
+    public void sendVerificationCode(TwilioCredentials credentials, Cellphone destination, Integer digits) {
         try {
-            Verification.creator(credentials.getVerifyServiceSid(), destination.getValue(), "sms")
-                    .create(buildClient(credentials));
+            VerificationCreator creator = Verification.creator(credentials.getVerifyServiceSid(), destination.getValue(), "sms");
+            if (digits != null) {
+                creator.setCustomCode(OtpCode.generate(digits).getValue());
+            }
+            creator.create(buildClient(credentials));
             log.info("Verificacion Twilio enviada para={}", destination.masked());
         } catch (ApiException exception) {
             throw new OtpException(ErrorCode.SMS_DELIVERY_FAILED);

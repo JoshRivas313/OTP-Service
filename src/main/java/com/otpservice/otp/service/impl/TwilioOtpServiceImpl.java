@@ -18,8 +18,8 @@ public class TwilioOtpServiceImpl implements TwilioOtpService {
     private final TwilioVerifyService twilioVerifyService;
 
     @Override
-    public OtpGenerateResponse generateOtp(TwilioCredentials credentials, Cellphone cellphone) {
-        twilioVerifyService.sendVerificationCode(credentials, cellphone);
+    public OtpGenerateResponse generateOtp(TwilioCredentials credentials, Cellphone cellphone, Integer digits) {
+        twilioVerifyService.sendVerificationCode(credentials, cellphone, digits);
         return OtpGenerateResponse.sent();
     }
 
