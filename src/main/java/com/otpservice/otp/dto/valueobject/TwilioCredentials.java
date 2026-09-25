@@ -15,10 +15,6 @@ public final class TwilioCredentials {
     private final String verifyServiceSid;
     private final String phoneNumber;
 
-    // phoneNumber es el numero Twilio propio del usuario (formato E.164, ej.
-    // +15017122661): hace falta para mandar un SMS simple (Message.creator),
-    // a diferencia de Twilio Verify que no lo necesita porque el Verify
-    // Service ya sabe desde donde mandar.
     public TwilioCredentials(String accountSid, String authToken, String verifyServiceSid, String phoneNumber) {
         this.accountSid = requireMatch(accountSid, ACCOUNT_SID, "Account SID");
         this.authToken = requireMatch(authToken, AUTH_TOKEN, "Auth Token");
@@ -42,9 +38,6 @@ public final class TwilioCredentials {
         return phoneNumber;
     }
 
-    // El auth token no se muestra ni siquiera parcialmente: a diferencia del
-    // account/verify SID (identificadores visibles en la consola de Twilio),
-    // el auth token es la credencial secreta en si.
     public String masked() {
         return "%s···%s / verify %s···%s".formatted(
                 accountSid.substring(0, 6), accountSid.substring(accountSid.length() - 4),

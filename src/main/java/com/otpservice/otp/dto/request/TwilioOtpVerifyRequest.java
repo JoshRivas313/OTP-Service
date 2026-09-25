@@ -7,9 +7,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// El codigo va como String plano, no como OtpCode: ese VO valida el formato
-// de los codigos que generamos nosotros, y el de Twilio Verify es un
-// sistema externo con sus propias reglas.
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor

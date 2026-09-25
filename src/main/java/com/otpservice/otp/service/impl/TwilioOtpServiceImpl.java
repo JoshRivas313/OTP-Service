@@ -15,10 +15,6 @@ import com.otpservice.otp.sms.TwilioSessionSmsSender;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-// Reusa toda la logica de OtpService (generar, hashear, guardar en Mongo,
-// verificar intentos/expiracion): lo unico que cambia respecto al flujo local
-// es que el SMS sale por TwilioSessionSmsSender, con la cuenta que el
-// visitante conecto, en vez del SmsSender global del servidor.
 @Service
 @RequiredArgsConstructor
 public class TwilioOtpServiceImpl implements TwilioOtpService {

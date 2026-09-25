@@ -5,8 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// DTO crudo del cliente: strings sin validar formato todavia. El formato
-// (prefijo AC/VA, largo) lo valida TwilioCredentials al construirse.
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor

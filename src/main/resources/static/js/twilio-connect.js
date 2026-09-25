@@ -33,7 +33,6 @@ async function connectTwilio() {
     const data = await response.json();
     if (response.ok) {
       document.getElementById('tw-auth-token').value = '';
-      // Feedback breve dentro del propio boton, despues navega directo a OTP Service
       btn.classList.remove('loading');
       btn.classList.add('success');
       label.innerHTML = ICON_OK + ' Conectado';

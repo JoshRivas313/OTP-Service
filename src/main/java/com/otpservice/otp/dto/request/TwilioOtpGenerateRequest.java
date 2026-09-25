@@ -9,9 +9,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// digits y durationSeconds son opcionales, con los mismos limites que
-// OtpGenerateRequest (el backend que realmente los usa: el OTP se genera y
-// guarda en Mongo igual que en /otps, solo cambia por donde sale el SMS).
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor

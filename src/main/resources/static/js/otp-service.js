@@ -13,7 +13,6 @@ async function generateOtp() {
   const durationSeconds = parseInt(document.getElementById('gen-expiration').value, 10);
   const ok = await submit('gen-btn', 'gen-result', '/api/twilio/otps', { cellphone, digits, durationSeconds });
   if (ok) {
-    // Sincroniza el celular al paso 2 (mismo numero, no hace falta tipearlo de nuevo)
     document.getElementById('ver-cellphone').value = cellphone;
     document.getElementById('verify-card').classList.add('active-step');
     const codeInput = document.getElementById('ver-code');
@@ -97,7 +96,6 @@ async function checkTwilioBanner() {
       document.getElementById('tw-masked-inline').textContent = status.maskedCredentials;
     }
   } catch (error) {
-    // si /api/twilio/status falla, la barra se queda oculta y el resto de la pagina sigue andando
   }
 }
 

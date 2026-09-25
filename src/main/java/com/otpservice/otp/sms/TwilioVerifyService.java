@@ -9,11 +9,6 @@ import com.twilio.rest.verify.v2.Service;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-// Solo valida que el Verify Service SID exista y sea accesible con esas
-// credenciales, para el paso de "Conectar con Twilio". La generacion y
-// verificacion del OTP ya no pasan por Twilio Verify (ver TwilioOtpServiceImpl):
-// el backend propio genera el codigo y TwilioSessionSmsSender lo manda como
-// SMS simple, asi digits y durationSeconds funcionan de verdad.
 @Slf4j
 @Component
 public class TwilioVerifyService {

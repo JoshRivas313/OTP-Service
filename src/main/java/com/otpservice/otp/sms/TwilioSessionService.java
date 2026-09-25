@@ -6,9 +6,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 
-// La credencial vive solo en la HttpSession del visitante: nunca se escribe
-// en Mongo, nunca en un log, y desaparece sola cuando la sesion expira o el
-// visitante llama a disconnect().
 @Component
 public class TwilioSessionService {
 

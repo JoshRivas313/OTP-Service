@@ -11,11 +11,6 @@ import com.twilio.type.PhoneNumber;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-// Analogo a TwilioSmsSender, pero para el modo "trae tu propia cuenta": en vez
-// de credenciales globales del servidor, arma el cliente y el numero remitente
-// a partir de la TwilioCredentials de la sesion del visitante. Se usa cuando
-// el OTP lo genera nuestro backend (Mongo+HMAC) y solo necesitamos que el SMS
-// salga por la cuenta conectada, sin pasar por Twilio Verify.
 @Slf4j
 @Component
 public class TwilioSessionSmsSender {
