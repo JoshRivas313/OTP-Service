@@ -5,6 +5,7 @@ import com.otpservice.otp.dto.request.OtpVerifyRequest;
 import com.otpservice.otp.dto.response.OtpGenerateResponse;
 import com.otpservice.otp.dto.response.OtpVerifyResponse;
 import com.otpservice.otp.service.OtpService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Tag(name = "OTP local", description = "Genera y verifica códigos con el backend propio (Mongo + HMAC-SHA256)")
 @RestController
 @RequestMapping("/otps")
 @RequiredArgsConstructor

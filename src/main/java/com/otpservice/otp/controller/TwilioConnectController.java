@@ -7,6 +7,7 @@ import com.otpservice.otp.exception.ErrorCode;
 import com.otpservice.otp.exception.OtpException;
 import com.otpservice.otp.sms.TwilioSessionService;
 import com.otpservice.otp.sms.TwilioVerifyService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Tag(name = "Conexión Twilio", description = "Conecta, desconecta y consulta el estado de la cuenta de Twilio en la sesión")
 @RestController
 @RequestMapping("/api/twilio")
 @RequiredArgsConstructor

@@ -9,6 +9,7 @@ import com.otpservice.otp.exception.ErrorCode;
 import com.otpservice.otp.exception.OtpException;
 import com.otpservice.otp.service.TwilioOtpService;
 import com.otpservice.otp.sms.TwilioSessionService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,9 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-// Analogo a OtpController pero exigiendo sesion Twilio conectada: el OTP se
-// genera y guarda igual que en /otps (Mongo+HMAC), solo cambia por donde sale
-// el SMS (la cuenta que el visitante conecto, no la del servidor).
+@Tag(name = "OTP con Twilio", description = "Genera y verifica códigos usando la cuenta de Twilio conectada en sesión")
 @RestController
 @RequestMapping("/api/twilio/otps")
 @RequiredArgsConstructor
