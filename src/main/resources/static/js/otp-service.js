@@ -61,6 +61,8 @@ function resetProgress() {
 
 let codeInputListenerAttached = false;
 let timerInterval = null;
+let lastCellphone = null;
+let lastDurationSeconds = null;
 
 function attachCodeBoxListeners() {
   const boxes = document.querySelectorAll('.code-box');
@@ -138,6 +140,8 @@ function resetOtpFlow() {
   showOtpStep(1);
   resetProgress();
   clearInterval(timerInterval);
+  lastCellphone = null;
+  lastDurationSeconds = null;
   document.getElementById('gen-cellphone').value = '';
   document.getElementById('gen-result').className = 'result';
   document.getElementById('gen-result').innerHTML = '';
@@ -174,6 +178,8 @@ async function generateOtp() {
   const durationSeconds = parseInt(document.getElementById('gen-expiration').value, 10);
   const ok = await submit('gen-btn', 'gen-result', '/api/twilio/otps', { cellphone, digits, durationSeconds });
   if (ok) {
+    lastCellphone = cellphone;
+    lastDurationSeconds = durationSeconds;
     resetProgress();
     setProgressStep(1, 'done');
 
@@ -214,10 +220,14 @@ async function verifyOtp() {
     return;
   }
 
-  const cellphone = document.getElementById('gen-cellphone').value.trim();
+  if (!lastCellphone) {
+    console.error('No cellphone stored');
+    return;
+  }
 
   clearInterval(timerInterval);
-  const ok = await submit('ver-btn', 'ver-result', '/api/twilio/otps/verify', { cellphone, code });
+  console.log('Verifying OTP for:', lastCellphone, 'Code:', code);
+  const ok = await submit('ver-btn', 'ver-result', '/api/twilio/otps/verify', { cellphone: lastCellphone, code });
   if (ok) {
     document.querySelectorAll('.code-box').forEach(box => box.disabled = true);
     setProgressStep(2, 'done');
@@ -240,6 +250,7 @@ async function submit(buttonId, resultId, url, body) {
   btn.setAttribute('aria-busy', 'true');
   let ok = false;
   try {
+    console.log('Sending request to:', url, 'Body:', body);
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -247,12 +258,14 @@ async function submit(buttonId, resultId, url, body) {
     });
     const data = await response.json();
     ok = response.ok;
+    console.log('Response status:', response.status, 'ok:', ok, 'Data:', data);
 
     if (ok && resultId === 'ver-result') {
       showOtpSuccessOverlay();
     }
     showResult(resultId, ok, data.message || data.code);
   } catch (error) {
+    console.error('Fetch error:', error);
     showResult(resultId, false, 'No se pudo conectar con el servidor');
   } finally {
     btn.disabled = false;
