@@ -61,6 +61,26 @@ function resetProgress() {
 
 let codeInputListenerAttached = false;
 
+function showOtpStep(stepNumber) {
+  document.querySelectorAll('.otp-step').forEach(step => {
+    step.style.display = 'none';
+  });
+  const step = document.getElementById('otp-step-' + stepNumber);
+  if (step) step.style.display = 'block';
+}
+
+function resetOtpFlow() {
+  showOtpStep(1);
+  resetProgress();
+  document.getElementById('gen-cellphone').value = '';
+  document.getElementById('gen-result').className = 'result';
+  document.getElementById('gen-result').innerHTML = '';
+  document.getElementById('ver-cellphone').value = '';
+  document.getElementById('ver-code').value = '';
+  document.getElementById('ver-result').className = 'result';
+  document.getElementById('ver-result').innerHTML = '';
+}
+
 async function generateOtp() {
   const cellphoneInput = document.getElementById('gen-cellphone');
   const cellphone = cellphoneInput.value.trim();
@@ -83,10 +103,12 @@ async function generateOtp() {
     resetProgress();
     setProgressStep(1, 'done');
     document.getElementById('ver-cellphone').value = cellphone;
-    document.getElementById('verify-card').classList.add('active-step');
+
+    showOtpStep(2);
     const codeInput = document.getElementById('ver-code');
     codeInput.value = '';
     codeInput.focus();
+
     if (!codeInputListenerAttached) {
       codeInputListenerAttached = true;
       codeInput.addEventListener('input', () => {
@@ -130,6 +152,9 @@ async function verifyOtp() {
   if (ok) {
     setProgressStep(2, 'done');
     setProgressStep(3, 'done');
+    setTimeout(() => {
+      showOtpStep(3);
+    }, 300);
   }
 }
 

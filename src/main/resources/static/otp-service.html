@@ -49,71 +49,114 @@
         </div>
       </div>
 
-      <div class="cards-row">
-        <div class="card">
-          <div class="card-head">
+      <div class="otp-card-container">
+        <div class="card otp-card otp-card-glass">
 
-            <h2>Generar código</h2>
-          </div>
-          <div class="field">
-            <label for="gen-cellphone">Celular</label>
-            <div class="field-wrap">
-              <span class="prefix">+51</span>
-              <input id="gen-cellphone" class="with-prefix" type="tel" inputmode="numeric" placeholder="987654321" maxlength="9">
+          <!-- PASO 1: Generar Código -->
+          <div class="otp-step" id="otp-step-1" data-step="1">
+            <div class="step-header">
+              <div class="step-number">Paso 1/3</div>
+              <h2>Generar código OTP</h2>
+              <p>Solicita un código de verificación por SMS</p>
             </div>
-          </div>
-          <div class="field-row">
-            <div class="field">
-              <label for="gen-digits">Dígitos</label>
-              <select id="gen-digits">
-                <option value="4">4</option>
-                <option value="5">5</option>
-                <option value="6" selected>6</option>
-                <option value="7">7</option>
-                <option value="8">8</option>
-                <option value="9">9</option>
-                <option value="10">10</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="gen-expiration">Expira en</label>
-              <select id="gen-expiration">
-                <option value="30" selected>30 segundos</option>
-                <option value="60">60 segundos</option>
-                <option value="120">2 minutos</option>
-                <option value="300">5 minutos</option>
-              </select>
-            </div>
-          </div>
-          <button id="gen-btn" onclick="generateOtp()">
-            <span class="spinner"></span>
-            <span class="btn-label">Enviar código</span>
-          </button>
-          <div id="gen-result" class="result" role="status" aria-live="polite"></div>
-          <p class="hint">El código llega por SMS real a través de tu cuenta de Twilio conectada.</p>
-        </div>
 
-        <div id="verify-card" class="card">
-          <div class="card-head">
-           
-            <h2>Verificar código</h2>
-          </div>
-          <div class="field">
-            <label for="ver-cellphone">Celular</label>
-            <div class="field-wrap">
-              <span class="prefix">+51</span>
-              <input id="ver-cellphone" class="with-prefix" type="tel" inputmode="numeric" placeholder="987654321" maxlength="9">
+            <div class="form-section">
+              <div class="field">
+                <label for="gen-cellphone">Celular</label>
+                <div class="field-wrap">
+                  <span class="prefix">+51</span>
+                  <input id="gen-cellphone" class="with-prefix" type="tel" inputmode="numeric" placeholder="987654321" maxlength="9">
+                </div>
+              </div>
+
+              <div class="field-row">
+                <div class="field">
+                  <label for="gen-digits">Dígitos</label>
+                  <select id="gen-digits">
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6" selected>6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9</option>
+                    <option value="10">10</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="gen-expiration">Expira en</label>
+                  <select id="gen-expiration">
+                    <option value="30" selected>30 segundos</option>
+                    <option value="60">60 segundos</option>
+                    <option value="120">2 minutos</option>
+                    <option value="300">5 minutos</option>
+                  </select>
+                </div>
+              </div>
+
+              <p class="field-help">El código llega por SMS real a través de tu cuenta de Twilio conectada.</p>
             </div>
+
+            <button id="gen-btn" onclick="generateOtp()" class="btn-primary">
+              <span class="spinner"></span>
+              <span class="btn-label">Enviar código</span>
+            </button>
+            <div id="gen-result" class="result" role="status" aria-live="polite"></div>
           </div>
-          <div class="field">
-            <label for="ver-code">Código</label>
-            <input id="ver-code" class="code-input" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" maxlength="10">
+
+          <!-- PASO 2: Verificar Código -->
+          <div class="otp-step" id="otp-step-2" data-step="2" style="display:none;">
+            <div class="step-header">
+              <div class="step-number">Paso 2/3</div>
+              <h2>Verificar código</h2>
+              <p>Ingresá el código que recibiste por SMS</p>
+            </div>
+
+            <div class="form-section">
+              <div class="field">
+                <label for="ver-cellphone">Celular</label>
+                <div class="field-wrap">
+                  <span class="prefix">+51</span>
+                  <input id="ver-cellphone" class="with-prefix" type="tel" inputmode="numeric" placeholder="987654321" maxlength="9" disabled>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="ver-code">Código OTP</label>
+                <input id="ver-code" class="code-input" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" maxlength="10">
+              </div>
+            </div>
+
+            <div class="step-actions">
+              <button id="ver-btn" onclick="verifyOtp()" class="btn-primary">
+                <span class="spinner"></span>
+                <span class="btn-label">Verificar</span>
+              </button>
+              <button onclick="resetOtpFlow()" class="btn-secondary">← Volver</button>
+            </div>
+            <div id="ver-result" class="result" role="status" aria-live="polite"></div>
           </div>
-          <button id="ver-btn" onclick="verifyOtp()">
-            <span class="spinner"></span>
-            <span class="btn-label">Verificar</span>
-          </button>
-          <div id="ver-result" class="result" role="status" aria-live="polite"></div>
+
+          <!-- PASO 3: Verificado (Success State) -->
+          <div class="otp-step" id="otp-step-3" data-step="3" style="display:none;">
+            <div class="step-header">
+              <div class="step-number">Paso 3/3</div>
+              <h2>¡Verificado!</h2>
+              <p>Tu código OTP fue validado correctamente</p>
+            </div>
+
+            <div class="success-state">
+              <svg class="success-icon" viewBox="0 0 52 52" width="80" height="80">
+                <circle class="success-circle" cx="26" cy="26" r="24" fill="none"/>
+                <path class="success-mark" fill="none" d="M14 27l7 7 17-17"/>
+              </svg>
+              <p class="success-text">Tu sesión está autenticada. Puedes continuar.</p>
+            </div>
+
+            <button onclick="resetOtpFlow()" class="btn-secondary btn-full">
+              Generar otro código
+            </button>
+          </div>
+
         </div>
       </div>
 
