@@ -18,3 +18,7 @@ target/
 .env
 .env.local
 !.env.example
+
+### Logs locales ###
+boot.log
+boot-err.log
