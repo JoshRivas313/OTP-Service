@@ -7,23 +7,61 @@ document.querySelectorAll('input[inputmode="numeric"]').forEach(input => {
   });
 });
 
+function setProgressStep(number, state) {
+  const step = document.getElementById('progress-step-' + number);
+  const dot = step.querySelector('.otp-progress-dot');
+  step.classList.remove('active', 'done');
+  dot.classList.remove('active', 'done');
+  if (state) {
+    step.classList.add(state);
+    dot.classList.add(state);
+  }
+  const line = document.getElementById('progress-line-' + number);
+  if (line) {
+    line.classList.toggle('done', state === 'done');
+  }
+}
+
+function resetProgress() {
+  setProgressStep(1, null);
+  setProgressStep(2, null);
+  setProgressStep(3, null);
+}
+
+let codeInputListenerAttached = false;
+
 async function generateOtp() {
   const cellphone = document.getElementById('gen-cellphone').value.trim();
   const digits = parseInt(document.getElementById('gen-digits').value, 10);
   const durationSeconds = parseInt(document.getElementById('gen-expiration').value, 10);
   const ok = await submit('gen-btn', 'gen-result', '/api/twilio/otps', { cellphone, digits, durationSeconds });
   if (ok) {
+    resetProgress();
+    setProgressStep(1, 'done');
     document.getElementById('ver-cellphone').value = cellphone;
     document.getElementById('verify-card').classList.add('active-step');
     const codeInput = document.getElementById('ver-code');
+    codeInput.value = '';
     codeInput.focus();
+    if (!codeInputListenerAttached) {
+      codeInputListenerAttached = true;
+      codeInput.addEventListener('input', () => {
+        if (codeInput.value.length > 0) {
+          setProgressStep(2, 'active');
+        }
+      });
+    }
   }
 }
 
 async function verifyOtp() {
   const cellphone = document.getElementById('ver-cellphone').value.trim();
   const code = document.getElementById('ver-code').value.trim();
-  await submit('ver-btn', 'ver-result', '/api/twilio/otps/verify', { cellphone, code });
+  const ok = await submit('ver-btn', 'ver-result', '/api/twilio/otps/verify', { cellphone, code });
+  if (ok) {
+    setProgressStep(2, 'done');
+    setProgressStep(3, 'done');
+  }
 }
 
 async function submit(buttonId, resultId, url, body) {

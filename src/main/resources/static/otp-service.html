@@ -32,10 +32,27 @@
         <a id="twilio-connect-link" href="/" class="twilio-link" style="display:none;">Conectá tu cuenta de Twilio para continuar →</a>
       </div>
 
+      <div class="otp-progress" role="status" aria-live="polite">
+        <div class="otp-progress-step" id="progress-step-1">
+          <span class="otp-progress-dot">1</span>
+          <span class="otp-progress-label">Código enviado</span>
+        </div>
+        <div class="otp-progress-line" id="progress-line-1"></div>
+        <div class="otp-progress-step" id="progress-step-2">
+          <span class="otp-progress-dot">2</span>
+          <span class="otp-progress-label">Escribiendo código</span>
+        </div>
+        <div class="otp-progress-line" id="progress-line-2"></div>
+        <div class="otp-progress-step" id="progress-step-3">
+          <span class="otp-progress-dot">3</span>
+          <span class="otp-progress-label">Verificado</span>
+        </div>
+      </div>
+
       <div class="cards-row">
         <div class="card">
           <div class="card-head">
-            <span class="step">1</span>
+
             <h2>Generar código</h2>
           </div>
           <div class="field">
@@ -78,7 +95,7 @@
 
         <div id="verify-card" class="card">
           <div class="card-head">
-            <span class="step">2</span>
+           
             <h2>Verificar código</h2>
           </div>
           <div class="field">
