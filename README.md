@@ -316,28 +316,83 @@ Response: `{ "message": "Desconectado" }`
 
 ### Flujo 1: Generación Local (Motor Interno)
 
-1. POST `/api/otps` con número de teléfono
-2. Código se genera con SecureRandom, se hashea y se guarda en Mongo
-3. SmsSender (console/twilio/infobip) manda el SMS
-4. Cliente recibe código en SMS real
-5. POST `/api/otps/verify` con código
-6. Backend valida hash y comprueba intentos/expiración
-7. Si OK: código se marca como usado y sesión queda verificada
+```mermaid
+sequenceDiagram
+    participant Cliente
+    participant Backend
+    participant SMS as SMS Provider
+    participant Mongo as MongoDB
+
+    Cliente->>Backend: POST /api/otps<br/>{cellphone, digits, duration}
+    Backend->>Backend: Generar código con SecureRandom
+    Backend->>Backend: Hashear con HMAC-SHA256
+    Backend->>Mongo: Guardar {hash, intentos, expira}
+    Backend->>SMS: Mandar SMS con código
+    SMS-->>Cliente: SMS recibido
+    Backend-->>Cliente: 200 OTP_GENERATED
+
+    Cliente->>Backend: POST /api/otps/verify<br/>{cellphone, code}
+    Backend->>Mongo: Buscar código por celular
+    Backend->>Backend: Validar hash, intentos, expiración
+    alt Código válido
+        Backend->>Mongo: Marcar como usado
+        Backend-->>Cliente: 200 OTP_VERIFIED
+    else Inválido/Expirado/Bloqueado
+        Backend->>Mongo: Incrementar intentos
+        Backend-->>Cliente: 422 OTP_BLOCKED/EXPIRED
+    end
+```
 
 **Cuándo usar**: Tests, demo local, cuando no tenés Twilio.
 
 ### Flujo 2: Twilio Verify (Por Sesión)
 
-1. Usuario abre `http://localhost:8080` (index.html)
-2. Ingresa Account SID, Auth Token, Verify Service SID, Número de Twilio
-3. POST `/api/twilio/connect` — backend valida contra Twilio, guarda en HttpSession
-4. Redirect a `/otp-service.html` (protegida por `TwilioOnboardingFilter`)
-5. Usuario ingresa número, elige dígitos y expiración
-6. POST `/api/twilio/otps` — genera código local y manda SMS con credenciales de sesión
-7. Usuario recibe SMS y lo verifica
-8. POST `/api/twilio/otps/verify` — valida código
-9. Celebración con overlay modal + animación
-10. Botón "Cambiar configuración" limpia la sesión
+```mermaid
+sequenceDiagram
+    participant Usuario
+    participant index.html
+    participant Backend
+    participant Twilio
+    participant otp-service.html
+    participant Mongo
+
+    Usuario->>index.html: Abre http://localhost:8080
+    Usuario->>index.html: Ingresa credenciales Twilio
+    index.html->>Backend: POST /api/twilio/connect<br/>{accountSid, authToken, verify, phone}
+    Backend->>Twilio: Validar credenciales (fetch Service)
+    Twilio-->>Backend: OK / Error
+    alt Credenciales válidas
+        Backend->>Backend: Guardar en HttpSession (15 min)
+        Backend-->>index.html: 200 TWILIO_CONNECTED
+        index.html->>otp-service.html: Redirect
+    else Inválidas
+        Backend-->>index.html: 401 INVALID_CREDENTIALS
+    end
+
+    Usuario->>otp-service.html: Ingresa número, dígitos, expiración
+    otp-service.html->>Backend: POST /api/twilio/otps<br/>{cellphone, digits, duration}
+    Backend->>Backend: Generar código + hashear
+    Backend->>Mongo: Guardar OTP
+    Backend->>Twilio: Crear cliente desde sesión
+    Twilio->>Twilio: Mandar SMS con código
+    Backend-->>otp-service.html: 200 SMS_SENT
+
+    Usuario->>otp-service.html: Ingresa código verificado
+    otp-service.html->>Backend: POST /api/twilio/otps/verify<br/>{cellphone, code}
+    Backend->>Mongo: Validar hash + estado
+    alt Correcto
+        Backend->>Mongo: Marcar usado
+        Backend-->>otp-service.html: 200 OTP_VERIFIED
+        otp-service.html->>otp-service.html: Overlay celebración + animación
+    else Incorrecto
+        Backend-->>otp-service.html: 422 ERROR
+    end
+
+    Usuario->>otp-service.html: Botón Cambiar configuración
+    otp-service.html->>Backend: POST /api/twilio/disconnect
+    Backend->>Backend: Limpiar HttpSession
+    Backend-->>index.html: Redirect
+```
 
 **Cuándo usar**: Producción, control total de dígitos/expiración, múltiples usuarios simultáneamente.
 
