@@ -27,6 +27,18 @@ body {
   color: var(--text);
   font-family: 'Manrope', -apple-system, "Segoe UI", sans-serif;
   padding: 32px 20px;
+  position: relative;
+  overflow-x: hidden;
+}
+body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background-image: radial-gradient(circle, rgba(109, 179, 63, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+  z-index: -1;
 }
 .app-wrapper {
   flex: 1;
@@ -142,6 +154,10 @@ header h1 {
   font-weight: 600;
   margin: 0;
   letter-spacing: -0.01em;
+  background: linear-gradient(135deg, #6db33f 0%, #8bc463 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 header p {
   color: var(--muted);
@@ -149,12 +165,43 @@ header p {
   margin: 0;
 }
 .card {
-  background: var(--card);
-  border: 1px solid var(--card-border);
+  background: linear-gradient(135deg, #101820 0%, #0f1620 100%);
+  border: 1px solid;
+  border-image: linear-gradient(135deg, rgba(109, 179, 63, 0.3), rgba(109, 179, 63, 0.1)) 1;
   border-radius: var(--radius);
   padding: 22px;
-  box-shadow: 0 12px 24px -12px rgba(0, 0, 0, 0.5);
-  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  box-shadow: 0 12px 24px -12px rgba(0, 0, 0, 0.5), 0 0 1px rgba(109, 179, 63, 0.1) inset;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+  position: relative;
+  overflow: hidden;
+  animation: slideUpFade 0.5s ease-out;
+}
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 1px; height: 20px;
+  background: linear-gradient(to bottom, rgba(109, 179, 63, 0.3), transparent);
+  border-radius: 0 14px 0 0;
+  pointer-events: none;
+}
+.card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 12px; right: 12px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(109, 179, 63, 0.15), transparent);
+  pointer-events: none;
 }
 #verify-card {
   opacity: 0.7;
@@ -243,7 +290,7 @@ input#gen-code-view, input.code-input {
 input:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(109, 179, 63, 0.15);
+  box-shadow: 0 0 0 3px rgba(109, 179, 63, 0.15), inset 0 1px 2px rgba(109, 179, 63, 0.1);
 }
 input::placeholder { color: var(--placeholder); letter-spacing: normal; }
 select {
@@ -305,9 +352,32 @@ button {
   justify-content: center;
   gap: 8px;
   transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+  position: relative;
+  overflow: hidden;
 }
-button:hover:not(:disabled) { background: #7fc054; }
+button:hover:not(:disabled) {
+  background: #7fc054;
+  box-shadow: 0 8px 24px rgba(109, 179, 63, 0.25);
+  transform: translateY(-2px);
+}
 button:active:not(:disabled) { transform: scale(0.98); }
+button::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, rgba(255,255,255, 0.2) 0%, transparent 70%);
+  transform: translate(-50%, -50%) scale(0);
+  pointer-events: none;
+  animation: ripple 0.6s ease-out;
+}
+button:active::after {
+  animation: ripple 0.6s ease-out;
+}
+@keyframes ripple {
+  to { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+}
 button:focus-visible {
   outline: 2px solid var(--accent-dim);
   outline-offset: 2px;
@@ -421,6 +491,7 @@ button.loading .btn-label { opacity: 0.9; }
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-text);
+  box-shadow: 0 0 12px rgba(109, 179, 63, 0.5);
 }
 .otp-progress-step.done .otp-progress-label { color: var(--accent-dim); }
 .otp-progress-line.done { background: var(--accent); }
