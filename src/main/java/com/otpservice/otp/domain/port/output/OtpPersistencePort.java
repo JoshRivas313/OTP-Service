@@ -1,6 +1,6 @@
 package com.otpservice.otp.domain.port.output;
 
-import com.otpservice.otp.domain.model.OtpDocument;
+import com.otpservice.otp.domain.model.Otp;
 import java.time.Instant;
 import java.util.Optional;
 
@@ -13,11 +13,11 @@ public interface OtpPersistencePort {
 
   long invalidateActive(String cellphone);
 
-  void save(OtpDocument document);
+  void save(Otp otp);
 
-  Optional<OtpDocument> findLatestByCellphone(String cellphone);
+  Optional<Otp> findLatestByCellphone(String cellphone);
 
-  Optional<OtpDocument> claimIfMatches(String id, String codeHash, Instant now, int maxAttempts);
+  Optional<Otp> claimIfMatches(String id, String codeHash, Instant now, int maxAttempts);
 
-  Optional<OtpDocument> registerFailedAttempt(String id);
+  Optional<Otp> registerFailedAttempt(String id);
 }

@@ -7,8 +7,7 @@ import com.otpservice.otp.adapter.in.http.dto.request.TwilioOtpGenerateRequest;
 import com.otpservice.otp.adapter.in.http.dto.request.TwilioOtpVerifyRequest;
 import com.otpservice.otp.adapter.in.http.dto.response.OtpGenerateResponse;
 import com.otpservice.otp.adapter.in.http.dto.response.OtpVerifyResponse;
-import com.otpservice.otp.shared.exception.ErrorCode;
-import com.otpservice.otp.shared.exception.OtpException;
+import com.otpservice.otp.domain.exception.TwilioNotConnectedException;
 import com.otpservice.otp.adapter.out.sms.twilio.TwilioSessionService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpSession;
@@ -53,6 +52,6 @@ public class TwilioOtpHttpAdapter {
 
   private TwilioCredentials requireConnected(HttpSession session) {
     return sessionService.get(session)
-      .orElseThrow(() -> new OtpException(ErrorCode.TWILIO_NOT_CONNECTED));
+      .orElseThrow(TwilioNotConnectedException::new);
   }
 }

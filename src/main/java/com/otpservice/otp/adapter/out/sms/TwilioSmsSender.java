@@ -3,8 +3,7 @@ package com.otpservice.otp.adapter.out.sms;
 import com.otpservice.otp.adapter.config.SmsProperties;
 import com.otpservice.otp.domain.port.output.SmsSender;
 import com.otpservice.otp.domain.valueobject.Cellphone;
-import com.otpservice.otp.shared.exception.ErrorCode;
-import com.otpservice.otp.shared.exception.OtpException;
+import com.otpservice.otp.domain.exception.SmsDeliveryFailedException;
 import com.twilio.Twilio;
 import com.twilio.exception.TwilioException;
 import com.twilio.rest.api.v2010.account.Message;
@@ -44,7 +43,7 @@ public class TwilioSmsSender implements SmsSender {
 
             log.info("SMS entregado a Twilio para={} sid={}", destination.masked(), sent.getSid());
         } catch (TwilioException exception) {
-            throw new OtpException(ErrorCode.SMS_DELIVERY_FAILED);
+            throw new SmsDeliveryFailedException();
         }
     }
 }

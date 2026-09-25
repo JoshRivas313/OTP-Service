@@ -1,8 +1,7 @@
 package com.otpservice.otp.adapter.out.sms.twilio;
 
+import com.otpservice.otp.domain.exception.TwilioCredentialsInvalidException;
 import com.otpservice.otp.domain.valueobject.TwilioCredentials;
-import com.otpservice.otp.shared.exception.ErrorCode;
-import com.otpservice.otp.shared.exception.OtpException;
 import com.twilio.exception.ApiException;
 import com.twilio.http.TwilioRestClient;
 import com.twilio.rest.verify.v2.Service;
@@ -17,7 +16,7 @@ public class TwilioVerifyService {
         try {
             Service.fetcher(credentials.getVerifyServiceSid()).fetch(buildClient(credentials));
         } catch (ApiException exception) {
-            throw new OtpException(ErrorCode.TWILIO_CREDENTIALS_INVALID);
+            throw new TwilioCredentialsInvalidException();
         }
     }
 

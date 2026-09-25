@@ -1,7 +1,7 @@
 package com.otpservice.otp.application.usecase;
 
 import com.otpservice.otp.adapter.config.OtpProperties;
-import com.otpservice.otp.domain.model.OtpDocument;
+import com.otpservice.otp.domain.model.Otp;
 import com.otpservice.otp.domain.port.input.GenerateOtpUseCase;
 import com.otpservice.otp.domain.port.output.OtpPersistencePort;
 import com.otpservice.otp.domain.port.output.SmsSender;
@@ -44,8 +44,8 @@ public class GenerateOtpUseCaseImpl implements GenerateOtpUseCase {
     String codeHash = codeHasher.hash(code.getValue());
     Instant purgeAt = window.getExpiresAt().plusSeconds(properties.retentionSeconds());
 
-    persistencePort.save(OtpDocument.issue(
-      new OtpDocument.IssueRequest(cellphone, codeHash, digits, window, purgeAt)));
+    persistencePort.save(Otp.issue(
+      new Otp.IssueRequest(cellphone, codeHash, digits, window, purgeAt)));
 
     sender.send(cellphone, properties.messageTemplate().formatted(code.getValue(), durationSeconds));
 

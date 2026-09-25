@@ -3,8 +3,7 @@ package com.otpservice.otp.adapter.out.sms.twilio;
 import com.otpservice.otp.domain.port.output.SmsSender;
 import com.otpservice.otp.domain.valueobject.Cellphone;
 import com.otpservice.otp.domain.valueobject.TwilioCredentials;
-import com.otpservice.otp.shared.exception.ErrorCode;
-import com.otpservice.otp.shared.exception.OtpException;
+import com.otpservice.otp.domain.exception.SmsDeliveryFailedException;
 import com.twilio.exception.ApiException;
 import com.twilio.http.TwilioRestClient;
 import com.twilio.rest.api.v2010.account.Message;
@@ -24,7 +23,7 @@ public class TwilioSessionSmsSender {
                     message).create(buildClient(credentials));
             log.info("SMS entregado a Twilio (sesion) para={} sid={}", destination.masked(), sent.getSid());
         } catch (ApiException exception) {
-            throw new OtpException(ErrorCode.SMS_DELIVERY_FAILED);
+            throw new SmsDeliveryFailedException();
         }
     }
 

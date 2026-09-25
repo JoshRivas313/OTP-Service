@@ -1,8 +1,8 @@
 package com.otpservice.otp.adapter.out.persistence;
 
-import com.otpservice.otp.domain.model.OtpDocument;
+import com.otpservice.otp.adapter.out.persistence.mapper.OtpPersistenceMapper;
+import com.otpservice.otp.domain.model.Otp;
 import com.otpservice.otp.domain.port.output.OtpPersistencePort;
-import com.otpservice.otp.adapter.out.persistence.OtpRepository;
 import java.time.Instant;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -10,13 +10,16 @@ import org.springframework.stereotype.Repository;
 
 /**
  * Adapts the Spring Data MongoDB repository to the domain's persistence port.
- * Keeps Spring Data / MongoDB details out of the domain layer.
+ * Keeps Spring Data / MongoDB details (and the OtpDocument representation)
+ * out of the domain layer; OtpPersistenceMapper does the Otp <-> OtpDocument
+ * conversion at this boundary.
  */
 @Repository
 @RequiredArgsConstructor
 public class OtpPersistenceAdapter implements OtpPersistencePort {
 
   private final OtpRepository repository;
+  private final OtpPersistenceMapper mapper;
 
   @Override
   public long invalidateActive(String cellphone) {
@@ -24,22 +27,25 @@ public class OtpPersistenceAdapter implements OtpPersistencePort {
   }
 
   @Override
-  public void save(OtpDocument document) {
-    repository.save(document);
+  public void save(Otp otp) {
+    repository.save(mapper.toDocument(otp));
   }
 
   @Override
-  public Optional<OtpDocument> findLatestByCellphone(String cellphone) {
-    return repository.findFirstByCellphoneOrderByValidityWindowGeneratedAtDesc(cellphone);
+  public Optional<Otp> findLatestByCellphone(String cellphone) {
+    return repository.findFirstByCellphoneOrderByValidityWindowGeneratedAtDesc(cellphone)
+      .map(mapper::toDomain);
   }
 
   @Override
-  public Optional<OtpDocument> claimIfMatches(String id, String codeHash, Instant now, int maxAttempts) {
-    return repository.claimIfMatches(id, codeHash, now, maxAttempts);
+  public Optional<Otp> claimIfMatches(String id, String codeHash, Instant now, int maxAttempts) {
+    return repository.claimIfMatches(id, codeHash, now, maxAttempts)
+      .map(mapper::toDomain);
   }
 
   @Override
-  public Optional<OtpDocument> registerFailedAttempt(String id) {
-    return repository.registerFailedAttempt(id);
+  public Optional<Otp> registerFailedAttempt(String id) {
+    return repository.registerFailedAttempt(id)
+      .map(mapper::toDomain);
   }
 }

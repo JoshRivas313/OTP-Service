@@ -1,14 +1,18 @@
 package com.otpservice.otp.application.usecase;
 
 import com.otpservice.otp.adapter.config.OtpProperties;
-import com.otpservice.otp.domain.model.OtpDocument;
+import com.otpservice.otp.domain.exception.InvalidOtpException;
+import com.otpservice.otp.domain.exception.OtpAlreadyUsedException;
+import com.otpservice.otp.domain.exception.OtpBlockedException;
+import com.otpservice.otp.domain.exception.OtpExpiredException;
+import com.otpservice.otp.domain.exception.OtpInvalidatedException;
+import com.otpservice.otp.domain.exception.OtpNotFoundException;
+import com.otpservice.otp.domain.model.Otp;
 import com.otpservice.otp.domain.port.input.VerifyOtpUseCase;
+import com.otpservice.otp.domain.port.output.CodeHasherPort;
 import com.otpservice.otp.domain.port.output.OtpPersistencePort;
 import com.otpservice.otp.domain.valueobject.Cellphone;
 import com.otpservice.otp.adapter.in.http.dto.response.OtpVerifyResponse;
-import com.otpservice.otp.shared.exception.ErrorCode;
-import com.otpservice.otp.shared.exception.OtpException;
-import com.otpservice.otp.domain.port.output.CodeHasherPort;
 import java.time.Clock;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
@@ -31,20 +35,20 @@ public class VerifyOtpUseCaseImpl implements VerifyOtpUseCase {
     Instant now = clock.instant();
     int maxAttempts = properties.maxAttempts();
 
-    OtpDocument otp = persistencePort.findLatestByCellphone(cellphone.getValue())
-      .orElseThrow(() -> new OtpException(ErrorCode.OTP_NOT_FOUND));
+    Otp otp = persistencePort.findLatestByCellphone(cellphone.getValue())
+      .orElseThrow(OtpNotFoundException::new);
 
     if (otp.isInvalidated()) {
-      throw new OtpException(ErrorCode.OTP_INVALIDATED);
+      throw new OtpInvalidatedException();
     }
     if (otp.isUsed()) {
-      throw new OtpException(ErrorCode.OTP_ALREADY_USED);
+      throw new OtpAlreadyUsedException();
     }
     if (otp.isExpired(now)) {
-      throw new OtpException(ErrorCode.OTP_EXPIRED);
+      throw new OtpExpiredException();
     }
     if (otp.isBlocked(maxAttempts)) {
-      throw new OtpException(ErrorCode.OTP_BLOCKED);
+      throw new OtpBlockedException();
     }
 
     String codeHash = codeHasher.hash(command.code().getValue());
@@ -53,13 +57,13 @@ public class VerifyOtpUseCaseImpl implements VerifyOtpUseCase {
       return OtpVerifyResponse.verified();
     }
 
-    OtpDocument updated = persistencePort.registerFailedAttempt(otp.getId())
-      .orElseThrow(() -> new OtpException(ErrorCode.OTP_NOT_FOUND));
+    Otp updated = persistencePort.registerFailedAttempt(otp.getId())
+      .orElseThrow(OtpNotFoundException::new);
 
     if (updated.isBlocked(maxAttempts)) {
-      throw new OtpException(ErrorCode.OTP_BLOCKED);
+      throw new OtpBlockedException();
     }
-    throw new OtpException(ErrorCode.OTP_INVALID,
+    throw new InvalidOtpException(
       "El código es incorrecto (intento %d de %d)".formatted(updated.getAttempts(), maxAttempts));
   }
 }
