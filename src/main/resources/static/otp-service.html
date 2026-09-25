@@ -27,70 +27,89 @@
       <div id="twilio-status-bar" class="twilio-status-bar" style="display:none;" role="status" aria-live="polite">
         <span id="twilio-connected-badge" style="display:none;">
           <span class="tw-dot"></span>Twilio conectado <span id="tw-masked-inline"></span>
-          <button onclick="changeTwilioConfig(); return false;" class="twilio-link-btn">Cambiar configuración</button>
         </span>
+        <button id="twilio-disconnect-btn" onclick="changeTwilioConfig(); return false;" class="twilio-link-btn" style="display:none;">Cambiar configuración</button>
         <a id="twilio-connect-link" href="/" class="twilio-link" style="display:none;">Conectá tu cuenta de Twilio para continuar →</a>
       </div>
 
       <div class="cards-row">
-      <div class="card">
-        <div class="card-head">
-          <span class="step">1</span>
-          <h2>Generar código</h2>
-        </div>
-        <div class="field">
-          <label for="gen-cellphone">Celular</label>
-          <div class="field-wrap">
-            <span class="prefix">+51</span>
-            <input id="gen-cellphone" class="with-prefix" type="tel" inputmode="numeric" placeholder="987654321" maxlength="9">
+        <div class="card">
+          <div class="card-head">
+            <span class="step">1</span>
+            <h2>Generar código</h2>
           </div>
+          <div class="field">
+            <label for="gen-cellphone">Celular</label>
+            <div class="field-wrap">
+              <span class="prefix">+51</span>
+              <input id="gen-cellphone" class="with-prefix" type="tel" inputmode="numeric" placeholder="987654321" maxlength="9">
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="gen-digits">Dígitos</label>
+              <select id="gen-digits">
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6" selected>6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="gen-expiration">Expira en</label>
+              <input id="gen-expiration" type="text" value="Definido en Twilio" disabled title="Twilio Verify controla la expiración desde la configuración de tu cuenta, no por cada envío">
+            </div>
+          </div>
+          <button id="gen-btn" onclick="generateOtp()">
+            <span class="spinner"></span>
+            <span class="btn-label">Enviar código</span>
+          </button>
+          <div id="gen-result" class="result" role="status" aria-live="polite"></div>
+          <p class="hint">El código llega por SMS real a través de tu cuenta de Twilio conectada. La expiración la define tu cuenta de Twilio, no esta pantalla.</p>
         </div>
-        <button id="gen-btn" onclick="generateOtp()">
-          <span class="spinner"></span>
-          <span class="btn-label">Enviar código</span>
-        </button>
-        <div id="gen-result" class="result" role="status" aria-live="polite"></div>
-        <p class="hint">El código llega por SMS real a través de tu cuenta de Twilio conectada.</p>
-      </div>
 
-      <div class="card">
-        <div class="card-head">
-          <span class="step">2</span>
-          <h2>Verificar código</h2>
-        </div>
-        <div class="field">
-          <label for="ver-cellphone">Celular</label>
-          <div class="field-wrap">
-            <span class="prefix">+51</span>
-            <input id="ver-cellphone" class="with-prefix" type="tel" inputmode="numeric" placeholder="987654321" maxlength="9">
+        <div id="verify-card" class="card">
+          <div class="card-head">
+            <span class="step">2</span>
+            <h2>Verificar código</h2>
           </div>
+          <div class="field">
+            <label for="ver-cellphone">Celular</label>
+            <div class="field-wrap">
+              <span class="prefix">+51</span>
+              <input id="ver-cellphone" class="with-prefix" type="tel" inputmode="numeric" placeholder="987654321" maxlength="9">
+            </div>
+          </div>
+          <div class="field">
+            <label for="ver-code">Código</label>
+            <input id="ver-code" class="code-input" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" maxlength="10">
+          </div>
+          <button id="ver-btn" onclick="verifyOtp()">
+            <span class="spinner"></span>
+            <span class="btn-label">Verificar</span>
+          </button>
+          <div id="ver-result" class="result" role="status" aria-live="polite"></div>
         </div>
-        <div class="field">
-          <label for="ver-code">Código</label>
-          <input id="ver-code" class="code-input" type="text" inputmode="numeric" placeholder="000000" maxlength="10">
-        </div>
-        <button id="ver-btn" onclick="verifyOtp()">
-          <span class="spinner"></span>
-          <span class="btn-label">Verificar</span>
-        </button>
-        <div id="ver-result" class="result" role="status" aria-live="polite"></div>
       </div>
 
       <footer>Spring Boot · MongoDB · HMAC-SHA256</footer>
     </div>
+  </div>
 
-    <div id="otp-success-overlay" class="otp-success-overlay" style="display:none;" role="status" aria-live="assertive">
-      <div class="otp-success-modal">
-        <div class="otp-success-check-wrap">
-          <svg class="otp-success-check" viewBox="0 0 52 52" width="60" height="60">
-            <circle class="otp-success-check-circle" cx="26" cy="26" r="24" fill="none"/>
-            <path class="otp-success-check-mark" fill="none" d="M14 27l7 7 17-17"/>
-          </svg>
-          <span class="otp-success-particles"></span>
-        </div>
-        <h2 class="otp-success-title">¡Código verificado!</h2>
-        <p class="otp-success-text">El OTP es válido.</p>
+  <div id="otp-success-overlay" class="otp-success-overlay" style="display:none;" role="status" aria-live="assertive">
+    <div class="otp-success-modal">
+      <div class="otp-success-check-wrap">
+        <svg class="otp-success-check" viewBox="0 0 52 52" width="60" height="60">
+          <circle class="otp-success-check-circle" cx="26" cy="26" r="24" fill="none"/>
+          <path class="otp-success-check-mark" fill="none" d="M14 27l7 7 17-17"/>
+        </svg>
+        <span class="otp-success-particles"></span>
       </div>
+      <h2 class="otp-success-title">¡Código verificado!</h2>
+      <p class="otp-success-text">El OTP es válido.</p>
     </div>
   </div>
 
@@ -106,7 +125,15 @@
 
   async function generateOtp() {
     const cellphone = document.getElementById('gen-cellphone').value.trim();
-    await submit('gen-btn', 'gen-result', '/api/twilio/otps', { cellphone });
+    const digits = parseInt(document.getElementById('gen-digits').value, 10);
+    const ok = await submit('gen-btn', 'gen-result', '/api/twilio/otps', { cellphone, digits });
+    if (ok) {
+      // Sincroniza el celular al paso 2 (mismo numero, no hace falta tipearlo de nuevo)
+      document.getElementById('ver-cellphone').value = cellphone;
+      document.getElementById('verify-card').classList.add('active-step');
+      const codeInput = document.getElementById('ver-code');
+      codeInput.focus();
+    }
   }
 
   async function verifyOtp() {
@@ -117,9 +144,9 @@
 
   async function submit(buttonId, resultId, url, body) {
     const btn = document.getElementById(buttonId);
-    const label = btn.querySelector('.btn-label');
     btn.disabled = true;
     btn.classList.add('loading');
+    let ok = false;
     try {
       const response = await fetch(url, {
         method: 'POST',
@@ -127,20 +154,19 @@
         body: JSON.stringify(body)
       });
       const data = await response.json();
+      ok = response.ok;
 
-      if (response.ok && resultId === 'ver-result') {
-        // Mostrar celebración OTP verificado
+      if (ok && resultId === 'ver-result') {
         showOtpSuccessOverlay();
-        showResult(resultId, true, data.message || data.code);
-      } else {
-        showResult(resultId, response.ok, data.message || data.code);
       }
+      showResult(resultId, ok, data.message || data.code);
     } catch (error) {
       showResult(resultId, false, 'No se pudo conectar con el servidor');
     } finally {
       btn.disabled = false;
       btn.classList.remove('loading');
     }
+    return ok;
   }
 
   function showResult(elementId, ok, message) {
@@ -176,10 +202,11 @@
 
   async function checkTwilioBanner() {
     try {
-      document.getElementById('twilio-status-bar').style.display = 'block';
       const statusResponse = await fetch('/api/twilio/status');
       const status = await statusResponse.json();
-      document.getElementById('twilio-connected-badge').style.display = status.connected ? 'inline' : 'none';
+      document.getElementById('twilio-status-bar').style.display = 'flex';
+      document.getElementById('twilio-connected-badge').style.display = status.connected ? 'flex' : 'none';
+      document.getElementById('twilio-disconnect-btn').style.display = status.connected ? 'inline' : 'none';
       document.getElementById('twilio-connect-link').style.display = status.connected ? 'none' : 'inline';
       if (status.connected) {
         document.getElementById('tw-masked-inline').textContent = status.maskedCredentials;
