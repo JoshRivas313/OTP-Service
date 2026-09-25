@@ -1,8 +1,8 @@
 package com.otpservice.otp.adapter.out.persistence;
 
-import com.otpservice.otp.document.OtpDocument;
+import com.otpservice.otp.domain.model.OtpDocument;
 import com.otpservice.otp.domain.port.output.OtpPersistencePort;
-import com.otpservice.otp.repository.OtpRepository;
+import com.otpservice.otp.adapter.out.persistence.OtpRepository;
 import java.time.Instant;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;

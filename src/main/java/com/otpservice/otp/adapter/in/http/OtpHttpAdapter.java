@@ -2,10 +2,10 @@ package com.otpservice.otp.adapter.in.http;
 
 import com.otpservice.otp.domain.port.input.GenerateOtpUseCase;
 import com.otpservice.otp.domain.port.input.VerifyOtpUseCase;
-import com.otpservice.otp.dto.request.OtpGenerateRequest;
-import com.otpservice.otp.dto.request.OtpVerifyRequest;
-import com.otpservice.otp.dto.response.OtpGenerateResponse;
-import com.otpservice.otp.dto.response.OtpVerifyResponse;
+import com.otpservice.otp.adapter.in.http.dto.request.OtpGenerateRequest;
+import com.otpservice.otp.adapter.in.http.dto.request.OtpVerifyRequest;
+import com.otpservice.otp.adapter.in.http.dto.response.OtpGenerateResponse;
+import com.otpservice.otp.adapter.in.http.dto.response.OtpVerifyResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

@@ -1,6 +1,6 @@
 package com.otpservice.otp.domain.port.output;
 
-import com.otpservice.otp.document.OtpDocument;
+import com.otpservice.otp.domain.model.OtpDocument;
 import java.time.Instant;
 import java.util.Optional;
 

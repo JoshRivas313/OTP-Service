@@ -1,12 +1,12 @@
 package com.otpservice.otp.adapter.in.http;
 
 import com.otpservice.otp.domain.valueobject.TwilioCredentials;
-import com.otpservice.otp.dto.request.TwilioConnectRequest;
-import com.otpservice.otp.dto.response.TwilioStatusResponse;
-import com.otpservice.otp.exception.ErrorCode;
-import com.otpservice.otp.exception.OtpException;
-import com.otpservice.otp.sms.twilioconnect.TwilioSessionService;
-import com.otpservice.otp.sms.twilioconnect.TwilioVerifyService;
+import com.otpservice.otp.adapter.in.http.dto.request.TwilioConnectRequest;
+import com.otpservice.otp.adapter.in.http.dto.response.TwilioStatusResponse;
+import com.otpservice.otp.shared.exception.ErrorCode;
+import com.otpservice.otp.shared.exception.OtpException;
+import com.otpservice.otp.adapter.out.sms.twilio.TwilioSessionService;
+import com.otpservice.otp.adapter.out.sms.twilio.TwilioVerifyService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;

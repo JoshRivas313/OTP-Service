@@ -4,8 +4,8 @@ import com.otpservice.otp.domain.port.input.GenerateOtpUseCase;
 import com.otpservice.otp.domain.port.input.TwilioGenerateOtpUseCase;
 import com.otpservice.otp.domain.valueobject.Cellphone;
 import com.otpservice.otp.domain.valueobject.TwilioCredentials;
-import com.otpservice.otp.dto.response.OtpGenerateResponse;
-import com.otpservice.otp.sms.twilioconnect.TwilioSessionSmsSender;
+import com.otpservice.otp.adapter.in.http.dto.response.OtpGenerateResponse;
+import com.otpservice.otp.adapter.out.sms.twilio.TwilioSessionSmsSender;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

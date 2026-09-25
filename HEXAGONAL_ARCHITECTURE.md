@@ -2,63 +2,74 @@
 
 ## Descripción
 
-El backend está organizado en arquitectura hexagonal: el dominio (reglas de negocio y value objects) no depende de Spring, MongoDB ni de ningún framework. Todo lo técnico entra o sale a través de **puertos** (interfaces), implementados por **adaptadores** concretos.
+El backend está organizado en arquitectura hexagonal: el dominio (reglas de negocio, modelo y value objects) no depende de Spring MVC, Spring Data ni de ningún SDK externo. Todo lo técnico entra o sale a través de **puertos** (interfaces en `domain/port`), implementados por **adaptadores** concretos en `adapter/`. Solo quedan 4 paquetes de primer nivel: `domain`, `application`, `adapter`, `shared`.
 
-## Estructura de Capas
+## Estructura de Carpetas (real, verificada por compilación)
 
 ```
 src/main/java/com/otpservice/otp/
-├── domain/                          # Núcleo del negocio (sin dependencias de framework)
-│   ├── valueobject/                 # Value Objects inmutables y autovalidados
-│   │   ├── Cellphone                # Teléfono E.164, deserializable desde JSON
-│   │   ├── OtpCode                  # Código OTP (4-10 dígitos), generación con SecureRandom
-│   │   ├── ValidityWindow           # Ventana de validez (generatedAt/expiresAt)
-│   │   ├── VerificationStatus       # Intentos, usado, invalidado
-│   │   └── TwilioCredentials        # Credenciales Twilio validadas por regex
+├── domain/                              # Núcleo del negocio
+│   ├── model/
+│   │   └── OtpDocument                   # Modelo de estado del OTP (isExpired,
+│   │                                      # isBlocked, isUsed). Ver "Decisiones" abajo.
+│   ├── valueobject/
+│   │   ├── Cellphone                     # Teléfono E.164, deserializable desde JSON
+│   │   ├── OtpCode                       # Código OTP (4-10 dígitos)
+│   │   ├── ValidityWindow                # Ventana de validez
+│   │   ├── VerificationStatus            # Intentos, usado, invalidado
+│   │   └── TwilioCredentials             # Credenciales Twilio validadas por regex
 │   └── port/
-│       ├── input/                   # Casos de uso (lo que el mundo exterior puede pedir)
+│       ├── input/                        # Casos de uso
 │       │   ├── GenerateOtpUseCase
 │       │   ├── VerifyOtpUseCase
 │       │   ├── TwilioGenerateOtpUseCase
 │       │   └── TwilioVerifyOtpUseCase
-│       └── output/                  # Lo que el dominio necesita del mundo exterior
-│           ├── OtpPersistencePort   # Persistencia (invalidar, guardar, claim atómico)
-│           └── SmsSender            # Envío de SMS (implementado por 3 proveedores)
+│       └── output/                       # Lo que el dominio necesita del exterior
+│           ├── OtpPersistencePort         # Persistencia (atómica)
+│           ├── SmsSender                  # Envío de SMS
+│           └── CodeHasherPort             # Hash de códigos OTP
 │
-├── application/usecase/             # Orquestación de los casos de uso
-│   ├── GenerateOtpUseCaseImpl        # Genera código, hashea, persiste, envía SMS
-│   ├── VerifyOtpUseCaseImpl          # Valida expiración/bloqueo/hash, intentos atómicos
-│   ├── TwilioGenerateOtpUseCaseImpl  # Delega a GenerateOtpUseCase con SmsSender de sesión
-│   └── TwilioVerifyOtpUseCaseImpl    # Delega a VerifyOtpUseCase
+├── application/usecase/                  # Orquestación (los únicos @Service de caso de uso)
+│   ├── GenerateOtpUseCaseImpl
+│   ├── VerifyOtpUseCaseImpl
+│   ├── TwilioGenerateOtpUseCaseImpl       # Delega a GenerateOtpUseCase con otro SmsSender
+│   └── TwilioVerifyOtpUseCaseImpl         # Delega a VerifyOtpUseCase
 │
-├── adapter/                         # Detalles técnicos (entrada y salida)
-│   ├── in/http/                     # Controllers REST (adaptadores de entrada)
-│   │   ├── OtpHttpAdapter            # POST /otps, /otps/verify
-│   │   ├── TwilioOtpHttpAdapter      # POST /api/twilio/otps[/verify]
-│   │   └── TwilioConnectHttpAdapter  # POST/GET /api/twilio/connect|status|disconnect
-│   └── out/persistence/
-│       └── OtpPersistenceAdapter     # Implementa OtpPersistencePort delegando a OtpRepository
+├── adapter/
+│   ├── in/http/                          # Adaptadores de entrada (los únicos controllers)
+│   │   ├── OtpHttpAdapter                 # POST /otps, /otps/verify
+│   │   ├── TwilioOtpHttpAdapter           # POST /api/twilio/otps[/verify]
+│   │   ├── TwilioConnectHttpAdapter       # POST/GET /api/twilio/connect|status|disconnect
+│   │   ├── GlobalExceptionHandler         # @RestControllerAdvice: OtpException -> HTTP
+│   │   └── dto/
+│   │       ├── request/                   # 5 DTOs de request (con @Valid)
+│   │       └── response/                  # 4 DTOs de response
+│   │
+│   ├── out/
+│   │   ├── persistence/
+│   │   │   ├── OtpPersistenceAdapter       # Implementa OtpPersistencePort
+│   │   │   ├── OtpRepository               # Spring Data MongoRepository
+│   │   │   ├── OtpRepositoryCustom         # Operaciones atómicas (interfaz)
+│   │   │   └── impl/OtpRepositoryImpl      # Update atómico vía MongoTemplate
+│   │   ├── security/
+│   │   │   └── CodeHasher                  # Implementa CodeHasherPort (HMAC-SHA256)
+│   │   └── sms/
+│   │       ├── ConsoleSmsSender            # Implementa SmsSender (debug, default)
+│   │       ├── TwilioSmsSender             # Implementa SmsSender (credenciales globales)
+│   │       ├── InfobipSmsSender            # Implementa SmsSender (Infobip)
+│   │       └── twilio/
+│   │           ├── TwilioSessionService     # Guarda/lee TwilioCredentials en HttpSession
+│   │           ├── TwilioSessionSmsSender   # Envía SMS con credenciales de sesión
+│   │           └── TwilioVerifyService      # Valida credenciales contra la API de Twilio
+│   │
+│   └── config/                           # Beans y filtros técnicos de Spring
+│       ├── ClockConfig, OtpProperties, SmsProperties
+│       ├── DemoModeGuard, OpenApiConfig
+│       └── TwilioOnboardingFilter
 │
-├── document/OtpDocument             # Documento Mongo (TTL index, compound index) con
-│                                     # lógica de estado (isExpired, isBlocked, isUsed)
-├── repository/                      # Adaptador técnico Spring Data Mongo
-│   ├── OtpRepository                 # MongoRepository + OtpRepositoryCustom
-│   ├── OtpRepositoryCustom            # Operaciones atómicas (claimIfMatches, etc.)
-│   └── impl/OtpRepositoryImpl         # Update atómico vía MongoTemplate
-│
-├── sms/                              # Adaptadores de salida SMS (implementan SmsSender)
-│   ├── ConsoleSmsSender               # Debug: imprime en logs (default)
-│   ├── TwilioSmsSender                # SMS real vía credenciales globales del proyecto
-│   ├── InfobipSmsSender               # SMS real vía Infobip
-│   └── twilioconnect/
-│       ├── TwilioSessionService        # Guarda/lee TwilioCredentials en HttpSession
-│       ├── TwilioSessionSmsSender      # Envía SMS con credenciales de sesión (no global)
-│       └── TwilioVerifyService         # Valida credenciales contra la API de Twilio
-│
-├── dto/{request,response}            # DTOs de entrada/salida HTTP
-├── security/CodeHasher               # HMAC-SHA256 de códigos OTP
-├── exception/                        # ErrorCode, OtpException, GlobalExceptionHandler
-└── config/                           # ClockConfig, OtpProperties, SmsProperties, filtros
+└── shared/exception/                     # Vocabulario de error compartido
+    ├── ErrorCode                          # Enum: código estable + HttpStatus + mensaje
+    └── OtpException                       # Excepción de negocio (lanzada por use cases)
 ```
 
 ## Flujo de Dependencias
@@ -66,20 +77,20 @@ src/main/java/com/otpservice/otp/
 ```
 HTTP Request
     ↓
-HttpAdapter (adapter/in/http)          ← traduce HTTP a comandos de dominio
+adapter/in/http/*HttpAdapter            ← traduce HTTP a comandos
     ↓
-UseCase (application/usecase)          ← orquesta reglas de negocio
+application/usecase/*UseCaseImpl        ← orquesta reglas de negocio
     ↓
-Value Objects (domain/valueobject)     ← validan e invariantes puras
+domain/valueobject + domain/model       ← validan e invariantes puras
     ↓
-Puertos de salida (domain/port/output) ← interfaces (OtpPersistencePort, SmsSender)
+domain/port/output (interfaces)         ← OtpPersistencePort, SmsSender, CodeHasherPort
     ↓
-Adaptadores de salida                  ← OtpPersistenceAdapter, ConsoleSmsSender, etc.
+adapter/out/*                            ← OtpPersistenceAdapter, ConsoleSmsSender, CodeHasher...
     ↓
 MongoDB / Twilio / Infobip
 ```
 
-El dominio nunca importa Spring Data, Tomcat ni el SDK de Twilio directamente; solo conoce sus propios puertos.
+`domain/` y `application/` nunca importan una clase de `adapter/`. La única dirección permitida es `adapter → application → domain`.
 
 ## Casos de Uso
 
@@ -88,9 +99,9 @@ El dominio nunca importa Spring Data, Tomcat ni el SDK de Twilio directamente; s
 Input:  { cellphone, digits?, durationSeconds? }
 1. Invalida cualquier OTP activo previo del mismo celular (operación atómica)
 2. Genera OtpCode con SecureRandom
-3. Hashea con HMAC-SHA256 (CodeHasher)
-4. Persiste OtpDocument con TTL de purga
-5. Envía SMS (sender por defecto o uno inyectado — ver Twilio)
+3. Hashea con HMAC-SHA256 (CodeHasherPort)
+4. Persiste OtpDocument con TTL de purga (OtpPersistencePort)
+5. Envía SMS (SmsSender por defecto, o uno inyectado — ver Twilio)
 Output: OtpGenerateResponse (success, message, demoCode si demoMode=true)
 ```
 
@@ -105,39 +116,31 @@ Output: OtpVerifyResponse | OtpException (401/422/423 según ErrorCode)
 ```
 
 ### TwilioGenerateOtpUseCase / TwilioVerifyOtpUseCase
-No duplican lógica: delegan a `GenerateOtpUseCase`/`VerifyOtpUseCase`, sustituyendo el `SmsSender` por uno que usa las credenciales Twilio guardadas en la sesión HTTP (`TwilioSessionSmsSender`), en vez del proveedor global configurado por `sms.provider`.
-
-## Por qué las operaciones de persistencia son atómicas
-
-`VerifyOtpUseCase` no hace "leer documento → mutar en memoria → guardar": eso sería vulnerable a condiciones de carrera con verificaciones concurrentes del mismo código. En su lugar, `OtpPersistencePort.claimIfMatches(...)` y `registerFailedAttempt(...)` ejecutan updates atómicos directamente en MongoDB (vía `OtpRepositoryImpl` + `MongoTemplate`), igual que antes de la migración. El puerto refleja esas operaciones en vez de forzar un agregado de dominio "rico" que rompería esa garantía.
+No duplican lógica: delegan a `GenerateOtpUseCase`/`VerifyOtpUseCase`, sustituyendo el `SmsSender` por uno que usa las credenciales Twilio de la sesión HTTP (`TwilioSessionSmsSender`), en vez del proveedor global configurado por `sms.provider`.
 
 ## Endpoints
 
-| Método | Ruta | Adaptador | Descripción |
-|---|---|---|---|
-| POST | `/otps` | OtpHttpAdapter | Genera OTP local |
-| POST | `/otps/verify` | OtpHttpAdapter | Verifica OTP local |
-| POST | `/api/twilio/connect` | TwilioConnectHttpAdapter | Conecta credenciales Twilio a la sesión |
-| GET | `/api/twilio/status` | TwilioConnectHttpAdapter | Estado de conexión |
-| POST | `/api/twilio/disconnect` | TwilioConnectHttpAdapter | Limpia la sesión |
-| POST | `/api/twilio/otps` | TwilioOtpHttpAdapter | Genera OTP vía Twilio (SMS real) |
-| POST | `/api/twilio/otps/verify` | TwilioOtpHttpAdapter | Verifica OTP vía Twilio |
+| Método | Ruta | Adaptador |
+|---|---|---|
+| POST | `/otps` | OtpHttpAdapter |
+| POST | `/otps/verify` | OtpHttpAdapter |
+| POST | `/api/twilio/connect` | TwilioConnectHttpAdapter |
+| GET | `/api/twilio/status` | TwilioConnectHttpAdapter |
+| POST | `/api/twilio/disconnect` | TwilioConnectHttpAdapter |
+| POST | `/api/twilio/otps` | TwilioOtpHttpAdapter |
+| POST | `/api/twilio/otps/verify` | TwilioOtpHttpAdapter |
 
-Todos verificados end-to-end tras la migración (curl + MongoDB real).
+Todos verificados end-to-end con MongoDB real corriendo en Docker (generar, verificar, código incorrecto, credenciales Twilio inválidas, sesión no conectada).
 
-## Ventajas
+## Decisiones Pragmáticas (y por qué)
 
-1. **Testabilidad**: Use Cases se testean con mocks de `OtpPersistencePort`/`SmsSender`, sin Spring ni Mongo.
-2. **Extensibilidad**: un nuevo proveedor SMS = una clase nueva implementando `SmsSender` con `@ConditionalOnProperty`.
-3. **Claridad**: la regla de negocio (expiración, bloqueo, hash) vive en un solo lugar por caso de uso.
-4. **Cero acoplamiento de dominio**: `domain/valueobject` y `domain/port` no importan `org.springframework.*` (excepto `@Service` en las implementaciones de `application`, que sí son detalles de infraestructura de inyección, no de dominio puro).
-
-## Decisiones Pragmáticas
-
-- **`OtpDocument` vive fuera de `domain/`**: tiene anotaciones de Spring Data Mongo (`@Document`, `@Indexed` con TTL). Se trata como el modelo de persistencia que los puertos de salida referencian directamente, evitando una capa de mapeo 1:1 sin valor añadido real para este tamaño de proyecto.
-- **`SmsSender` es el puerto de salida SMS**, no una interfaz nueva duplicada: ya era una interfaz pura (`send(Cellphone, String)`) antes de la migración, así que se movió a `domain/port/output` en vez de reinventarse.
-- **No hay un "OtpAggregate" separado de `OtpDocument`**: introducirlo forzaría reconstruir en memoria una entidad y perder las operaciones atómicas de Mongo (`findAndModify`) que garantizan consistencia bajo concurrencia.
+- **`OtpDocument` vive en `domain/model`, no en `adapter/out/persistence`.** Tiene anotaciones de Spring Data Mongo (`@Document`, `@Indexed` con TTL), pero los casos de uso (`application/usecase`) necesitan construirlo y leer su estado (`isExpired`, `isBlocked`, `isUsed`) directamente. Ponerlo en `adapter/` habría hecho que `application` importara desde `adapter`, invirtiendo la dirección de dependencia permitida. La alternativa "pura" (un agregado de dominio sin anotaciones + una capa de mapeo hacia un documento Mongo separado) se descartó: no aporta valor real a este tamaño de proyecto y complica sin necesidad.
+- **No hay una capa de mapeo entre `OtpDocument` y Mongo.** `OtpRepository`/`OtpRepositoryImpl` (en `adapter/out/persistence`) operan directamente sobre `OtpDocument` vía Spring Data.
+- **`OtpPersistencePort` refleja operaciones atómicas de Mongo**, no un CRUD genérico: `claimIfMatches` y `registerFailedAttempt` son updates atómicos (`findAndModify`) para que verificaciones concurrentes del mismo código no generen condiciones de carrera. Un agregado "rico" reconstruido en memoria habría roto esa garantía.
+- **`SmsSender` y `CodeHasherPort` son los únicos puertos de salida "técnicos".** `SmsSender` ya era una interfaz pura antes de la migración (se movió, no se duplicó). `CodeHasherPort` se creó nuevo para que `CodeHasher` (HMAC-SHA256, en `adapter/out/security`) sea intercambiable sin tocar los casos de uso.
+- **`OtpProperties`/`SmsProperties` (en `adapter/config`) se inyectan directamente en `application/usecase`.** Son `record`s de solo configuración (`@ConfigurationProperties`, sin lógica ni dependencias pesadas). Crear un puerto para "leer configuración" habría sido sobre-ingeniería para este proyecto.
+- **`ErrorCode`/`OtpException` viven en `shared/exception`**, no en `domain/`, porque `ErrorCode` incluye un `HttpStatus` de Spring Web — es vocabulario de error compartido entre capas, no una regla de negocio pura.
 
 ## Estado
 
-✅ Migración completa. Sin controllers ni servicios legacy — `adapter/in/http/*` son los únicos controllers, `application/usecase/*` son los únicos orquestadores. Compilación limpia (`BUILD SUCCESS`) y endpoints verificados con MongoDB real corriendo en Docker.
+✅ Migración completa. Sin controllers ni servicios legacy, sin carpetas técnicas sueltas en la raíz del paquete. Compilación limpia (`BUILD SUCCESS`), arranque de Spring sin beans faltantes/duplicados, y los 7 endpoints verificados con MongoDB real.

@@ -1,15 +1,15 @@
 package com.otpservice.otp.application.usecase;
 
-import com.otpservice.otp.config.OtpProperties;
-import com.otpservice.otp.document.OtpDocument;
+import com.otpservice.otp.adapter.config.OtpProperties;
+import com.otpservice.otp.domain.model.OtpDocument;
 import com.otpservice.otp.domain.port.input.GenerateOtpUseCase;
 import com.otpservice.otp.domain.port.output.OtpPersistencePort;
 import com.otpservice.otp.domain.port.output.SmsSender;
 import com.otpservice.otp.domain.valueobject.Cellphone;
 import com.otpservice.otp.domain.valueobject.OtpCode;
 import com.otpservice.otp.domain.valueobject.ValidityWindow;
-import com.otpservice.otp.dto.response.OtpGenerateResponse;
-import com.otpservice.otp.security.CodeHasher;
+import com.otpservice.otp.adapter.in.http.dto.response.OtpGenerateResponse;
+import com.otpservice.otp.domain.port.output.CodeHasherPort;
 import java.time.Clock;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ public class GenerateOtpUseCaseImpl implements GenerateOtpUseCase {
 
   private final OtpPersistencePort persistencePort;
   private final SmsSender defaultSmsSender;
-  private final CodeHasher codeHasher;
+  private final CodeHasherPort codeHasher;
   private final OtpProperties properties;
   private final Clock clock;
 

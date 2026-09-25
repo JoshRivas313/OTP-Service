@@ -1,14 +1,14 @@
 package com.otpservice.otp.application.usecase;
 
-import com.otpservice.otp.config.OtpProperties;
-import com.otpservice.otp.document.OtpDocument;
+import com.otpservice.otp.adapter.config.OtpProperties;
+import com.otpservice.otp.domain.model.OtpDocument;
 import com.otpservice.otp.domain.port.input.VerifyOtpUseCase;
 import com.otpservice.otp.domain.port.output.OtpPersistencePort;
 import com.otpservice.otp.domain.valueobject.Cellphone;
-import com.otpservice.otp.dto.response.OtpVerifyResponse;
-import com.otpservice.otp.exception.ErrorCode;
-import com.otpservice.otp.exception.OtpException;
-import com.otpservice.otp.security.CodeHasher;
+import com.otpservice.otp.adapter.in.http.dto.response.OtpVerifyResponse;
+import com.otpservice.otp.shared.exception.ErrorCode;
+import com.otpservice.otp.shared.exception.OtpException;
+import com.otpservice.otp.domain.port.output.CodeHasherPort;
 import java.time.Clock;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
 public class VerifyOtpUseCaseImpl implements VerifyOtpUseCase {
 
   private final OtpPersistencePort persistencePort;
-  private final CodeHasher codeHasher;
+  private final CodeHasherPort codeHasher;
   private final OtpProperties properties;
   private final Clock clock;
 
