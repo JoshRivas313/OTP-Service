@@ -34,16 +34,19 @@
           <label for="tw-auth-token">Auth Token</label>
           <input id="tw-auth-token" type="password" placeholder="••••••••••••••••••••••••••••••••">
         </div>
-        <div class="field">
-          <label for="tw-verify-sid">Verify Service SID</label>
-          <input id="tw-verify-sid" type="text" placeholder="VAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
-          <p class="field-help"><a href="https://console.twilio.com/us1/develop/verify/services" target="_blank" rel="noopener noreferrer" class="twilio-link">¿No sabés dónde encontrarlo? Crear un Verify Service →</a></p>
-        </div>
+
         <div class="field">
           <label for="tw-phone-number">Número de Twilio</label>
           <input id="tw-phone-number" type="text" placeholder="+15017122661">
           <p class="field-help">El número que compraste en tu cuenta Twilio — se usa para mandar el SMS del código.</p>
         </div>
+
+        <div class="field">
+          <label for="tw-verify-sid">Verify Service SID</label>
+          <input id="tw-verify-sid" type="text" placeholder="VAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+          <p class="field-help"><a href="https://console.twilio.com/us1/develop/verify/services" target="_blank" rel="noopener noreferrer" class="twilio-link">¿No sabés dónde encontrarlo? Crear un Verify Service →</a></p>
+        </div>
+
         <button id="tw-connect-btn" onclick="connectTwilio()">
           <span class="spinner"></span>
           <span class="btn-label">Conectar con Twilio</span>
