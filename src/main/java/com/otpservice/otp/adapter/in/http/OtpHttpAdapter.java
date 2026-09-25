@@ -7,36 +7,40 @@ import com.otpservice.otp.dto.request.OtpVerifyRequest;
 import com.otpservice.otp.dto.response.OtpGenerateResponse;
 import com.otpservice.otp.dto.response.OtpVerifyResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
+@Tag(name = "OTP local", description = "Genera y verifica códigos con el backend propio (Mongo + HMAC-SHA256)")
 @RestController
-@RequestMapping("/api/otps")
-@Tag(name = "OTP Local", description = "OTP generation and verification")
+@RequestMapping("/otps")
 @RequiredArgsConstructor
 public class OtpHttpAdapter {
+
   private final GenerateOtpUseCase generateUseCase;
   private final VerifyOtpUseCase verifyUseCase;
 
   @PostMapping
-  public ResponseEntity<OtpGenerateResponse> generate(@RequestBody OtpGenerateRequest request) {
+  public ResponseEntity<OtpGenerateResponse> generateOtp(@Valid @RequestBody OtpGenerateRequest request) {
     var command = new GenerateOtpUseCase.GenerateOtpCommand(
       request.getCellphone(),
       request.getDigits(),
       request.getDurationSeconds()
     );
-    generateUseCase.generate(command);
-    return ResponseEntity.ok(new OtpGenerateResponse("Código generado", "OTP_GENERATED"));
+    return ResponseEntity.status(HttpStatus.CREATED).body(generateUseCase.generate(command));
   }
 
   @PostMapping("/verify")
-  public ResponseEntity<OtpVerifyResponse> verify(@RequestBody OtpVerifyRequest request) {
+  public ResponseEntity<OtpVerifyResponse> verifyOtp(@Valid @RequestBody OtpVerifyRequest request) {
     var command = new VerifyOtpUseCase.VerifyOtpCommand(
       request.getCellphone(),
       request.getCode()
     );
-    verifyUseCase.verify(command);
-    return ResponseEntity.ok(new OtpVerifyResponse("Código verificado", "OTP_VERIFIED"));
+    return ResponseEntity.ok(verifyUseCase.verify(command));
   }
 }

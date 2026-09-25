@@ -1,17 +1,15 @@
 package com.otpservice.otp.domain.port.input;
 
+import com.otpservice.otp.domain.valueobject.Cellphone;
+import com.otpservice.otp.domain.valueobject.TwilioCredentials;
+import com.otpservice.otp.dto.response.OtpGenerateResponse;
+
 public interface TwilioGenerateOtpUseCase {
-  TwilioGenerateOtpResult generate(TwilioGenerateOtpCommand command);
 
-  record TwilioGenerateOtpCommand(
-    String cellphone,
-    int digits,
-    int durationSeconds,
-    String accountSid,
-    String authToken,
-    String verifyServiceSid,
-    String phoneNumber
-  ) {}
-
-  record TwilioGenerateOtpResult(String message, String code) {}
+  OtpGenerateResponse generate(
+    TwilioCredentials credentials,
+    Cellphone cellphone,
+    Integer digits,
+    Integer durationSeconds
+  );
 }

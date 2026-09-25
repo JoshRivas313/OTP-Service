@@ -1,8 +1,8 @@
 package com.otpservice.otp.document;
 
-import com.otpservice.otp.dto.valueobject.Cellphone;
-import com.otpservice.otp.dto.valueobject.ValidityWindow;
-import com.otpservice.otp.dto.valueobject.VerificationStatus;
+import com.otpservice.otp.domain.valueobject.Cellphone;
+import com.otpservice.otp.domain.valueobject.ValidityWindow;
+import com.otpservice.otp.domain.valueobject.VerificationStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

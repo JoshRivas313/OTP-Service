@@ -1,15 +1,9 @@
 package com.otpservice.otp.domain.port.input;
 
+import com.otpservice.otp.domain.valueobject.Cellphone;
+import com.otpservice.otp.dto.response.OtpVerifyResponse;
+
 public interface TwilioVerifyOtpUseCase {
-  TwilioVerifyOtpResult verify(TwilioVerifyOtpCommand command);
 
-  record TwilioVerifyOtpCommand(
-    String cellphone,
-    String code,
-    String accountSid,
-    String authToken,
-    String verifyServiceSid
-  ) {}
-
-  record TwilioVerifyOtpResult(String message, String code) {}
+  OtpVerifyResponse verify(Cellphone cellphone, String code);
 }

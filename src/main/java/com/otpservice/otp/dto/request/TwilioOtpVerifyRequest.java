@@ -1,6 +1,6 @@
 package com.otpservice.otp.dto.request;
 
-import com.otpservice.otp.dto.valueobject.Cellphone;
+import com.otpservice.otp.domain.valueobject.Cellphone;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;

@@ -1,6 +1,6 @@
 package com.otpservice.otp.sms.twilioconnect;
 
-import com.otpservice.otp.dto.valueobject.TwilioCredentials;
+import com.otpservice.otp.domain.valueobject.TwilioCredentials;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Component;
 

@@ -1,6 +1,7 @@
 package com.otpservice.otp.sms;
 
-import com.otpservice.otp.dto.valueobject.Cellphone;
+import com.otpservice.otp.domain.port.output.SmsSender;
+import com.otpservice.otp.domain.valueobject.Cellphone;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;

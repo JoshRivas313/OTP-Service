@@ -1,7 +1,8 @@
 package com.otpservice.otp.sms.twilioconnect;
 
-import com.otpservice.otp.dto.valueobject.Cellphone;
-import com.otpservice.otp.dto.valueobject.TwilioCredentials;
+import com.otpservice.otp.domain.port.output.SmsSender;
+import com.otpservice.otp.domain.valueobject.Cellphone;
+import com.otpservice.otp.domain.valueobject.TwilioCredentials;
 import com.otpservice.otp.exception.ErrorCode;
 import com.otpservice.otp.exception.OtpException;
 import com.twilio.exception.ApiException;

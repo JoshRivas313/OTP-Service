@@ -1,6 +1,6 @@
 package com.otpservice.otp.dto.request;
 
-import com.otpservice.otp.dto.valueobject.Cellphone;
+import com.otpservice.otp.domain.valueobject.Cellphone;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;

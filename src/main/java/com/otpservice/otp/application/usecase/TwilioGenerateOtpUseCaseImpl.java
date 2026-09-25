@@ -1,10 +1,10 @@
 package com.otpservice.otp.application.usecase;
 
-import com.otpservice.otp.domain.model.OtpAggregate;
+import com.otpservice.otp.domain.port.input.GenerateOtpUseCase;
 import com.otpservice.otp.domain.port.input.TwilioGenerateOtpUseCase;
-import com.otpservice.otp.domain.port.output.OtpPersistencePort;
-import com.otpservice.otp.domain.service.OtpDomainService;
-import com.otpservice.otp.security.CodeHasher;
+import com.otpservice.otp.domain.valueobject.Cellphone;
+import com.otpservice.otp.domain.valueobject.TwilioCredentials;
+import com.otpservice.otp.dto.response.OtpGenerateResponse;
 import com.otpservice.otp.sms.twilioconnect.TwilioSessionSmsSender;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -12,34 +12,21 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class TwilioGenerateOtpUseCaseImpl implements TwilioGenerateOtpUseCase {
-  private final OtpDomainService domainService;
-  private final OtpPersistencePort persistencePort;
-  private final TwilioSessionSmsSender smsPort;
-  private final CodeHasher codeHasher;
-  private final OtpCodeGenerator codeGenerator;
+
+  private final GenerateOtpUseCase generateOtpUseCase;
+  private final TwilioSessionSmsSender sessionSmsSender;
 
   @Override
-  public TwilioGenerateOtpResult generate(TwilioGenerateOtpCommand command) {
-    String plainCode = codeGenerator.generate(command.digits());
-    String hashedCode = codeHasher.hash(plainCode);
-
-    OtpAggregate otp = domainService.generateOtp(
-      command.cellphone(),
-      command.digits(),
-      command.durationSeconds(),
-      hashedCode
+  public OtpGenerateResponse generate(
+    TwilioCredentials credentials,
+    Cellphone cellphone,
+    Integer digits,
+    Integer durationSeconds
+  ) {
+    var command = new GenerateOtpUseCase.GenerateOtpCommand(cellphone, digits, durationSeconds);
+    return generateOtpUseCase.generate(
+      command,
+      (destination, message) -> sessionSmsSender.send(credentials, destination, message)
     );
-
-    persistencePort.save(otp);
-
-    smsPort.sendOtpCode(
-      command.cellphone(),
-      plainCode,
-      command.accountSid(),
-      command.authToken(),
-      command.phoneNumber()
-    );
-
-    return new TwilioGenerateOtpResult("SMS enviado", "SMS_SENT");
   }
 }

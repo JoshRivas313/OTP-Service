@@ -1,8 +1,12 @@
 package com.otpservice.otp.domain.port.input;
 
-public interface VerifyOtpUseCase {
-  VerifyOtpResult verify(VerifyOtpCommand command);
+import com.otpservice.otp.domain.valueobject.Cellphone;
+import com.otpservice.otp.domain.valueobject.OtpCode;
+import com.otpservice.otp.dto.response.OtpVerifyResponse;
 
-  record VerifyOtpCommand(String cellphone, String code) {}
-  record VerifyOtpResult(String message, String code) {}
+public interface VerifyOtpUseCase {
+
+  OtpVerifyResponse verify(VerifyOtpCommand command);
+
+  record VerifyOtpCommand(Cellphone cellphone, OtpCode code) {}
 }
