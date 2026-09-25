@@ -12,48 +12,94 @@
 </head>
 <body>
   <div class="app-wrapper">
-    <div class="app app-narrow">
-      <header>
-        <div class="badge" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none">
-            <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" stroke="#6db33f" stroke-width="1.5"/>
-            <path d="M9 12l2 2 4-4" stroke="#6db33f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
-        <h1>Probar con SMS real</h1>
-        <p>Conectá tu propia cuenta de Twilio Verify</p>
-      </header>
+    <div class="app app-login">
+      <div class="login-container">
 
-      <div class="card twilio-card">
-        <p class="hint" style="margin-top:0;">Conectá tu propia cuenta de Twilio Verify para probar el flujo con un SMS real, sin usar la cuota del dueño de esta demo. Las credenciales quedan solo en tu sesión — nunca se guardan en el servidor.</p>
-        <div class="field">
-          <label for="tw-account-sid">Account SID</label>
-          <input id="tw-account-sid" type="text" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
-        </div>
-        <div class="field">
-          <label for="tw-auth-token">Auth Token</label>
-          <input id="tw-auth-token" type="password" placeholder="••••••••••••••••••••••••••••••••">
+        <!-- COLUMNA IZQUIERDA: Info & Branding -->
+        <div class="login-info">
+          <div class="badge" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" stroke="#6db33f" stroke-width="1.5"/>
+              <path d="M9 12l2 2 4-4" stroke="#6db33f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h1>Prueba OTP Real</h1>
+          <p class="lead">Conectá tu cuenta Twilio para probar el flujo completo</p>
+
+          <div class="benefits">
+            <div class="benefit-item">
+              <span class="benefit-icon">✓</span>
+              <span class="benefit-text"><strong>SMS Real</strong> — El código llega por SMS de verdad</span>
+            </div>
+            <div class="benefit-item">
+              <span class="benefit-icon">✓</span>
+              <span class="benefit-text"><strong>Sin costo extra</strong> — No quemas tu cuota de Twilio</span>
+            </div>
+            <div class="benefit-item">
+              <span class="benefit-icon">✓</span>
+              <span class="benefit-text"><strong>100% seguro</strong> — Las credenciales quedan solo en tu sesión</span>
+            </div>
+          </div>
+
+          <div class="info-footer">
+            <p class="hint">¿No tenés Twilio? <a href="https://console.twilio.com/" target="_blank" rel="noopener noreferrer" class="link-accent">Conseguí una cuenta gratis →</a></p>
+          </div>
         </div>
 
-        <div class="field">
-          <label for="tw-phone-number">Número de Twilio</label>
-          <input id="tw-phone-number" type="text" placeholder="+15017122661">
-          <p class="field-help">El número que compraste en tu cuenta Twilio — se usa para mandar el SMS del código.</p>
+        <!-- COLUMNA DERECHA: Form Card -->
+        <div class="login-form-wrapper">
+          <div class="login-progress">
+            <span class="progress-label">Paso 1/1</span>
+            <div class="progress-bar">
+              <div class="progress-fill"></div>
+            </div>
+          </div>
+
+          <div class="card login-card">
+            <div class="card-header">
+              <h2>Conectar Twilio</h2>
+              <p class="card-subtitle">Ingresá tus credenciales de Twilio Verify</p>
+            </div>
+
+            <div class="form-section">
+              <div class="field">
+                <label for="tw-account-sid">Account SID</label>
+                <input id="tw-account-sid" type="text" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+                <p class="field-help">Encontralo en tu dashboard de Twilio</p>
+              </div>
+
+              <div class="field">
+                <label for="tw-auth-token">Auth Token</label>
+                <input id="tw-auth-token" type="password" placeholder="••••••••••••••••••••••••••••••••">
+                <p class="field-help">Nunca se guarda en el servidor, solo en tu sesión</p>
+              </div>
+
+              <div class="field">
+                <label for="tw-phone-number">Número de Twilio</label>
+                <input id="tw-phone-number" type="text" placeholder="+15017122661">
+                <p class="field-help">El número que usarás para mandar el SMS</p>
+              </div>
+
+              <div class="field">
+                <label for="tw-verify-sid">Verify Service SID</label>
+                <input id="tw-verify-sid" type="text" placeholder="VAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+                <p class="field-help"><a href="https://console.twilio.com/us1/develop/verify/services" target="_blank" rel="noopener noreferrer" class="link-accent">¿Dónde lo encuentro? →</a></p>
+              </div>
+            </div>
+
+            <button id="tw-connect-btn" onclick="connectTwilio()" class="btn-primary">
+              <span class="spinner"></span>
+              <span class="btn-label">Conectar con Twilio</span>
+            </button>
+
+            <div id="tw-connect-result" class="result" role="status" aria-live="polite"></div>
+
+            <div class="form-footer">
+              <p class="hint"><strong>Privacidad:</strong> La sesión expira en 15 minutos. Las credenciales nunca se guardan en la base de datos.</p>
+            </div>
+          </div>
         </div>
 
-        <div class="field">
-          <label for="tw-verify-sid">Verify Service SID</label>
-          <input id="tw-verify-sid" type="text" placeholder="VAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
-          <p class="field-help"><a href="https://console.twilio.com/us1/develop/verify/services" target="_blank" rel="noopener noreferrer" class="twilio-link">¿No sabés dónde encontrarlo? Crear un Verify Service →</a></p>
-        </div>
-
-        <button id="tw-connect-btn" onclick="connectTwilio()">
-          <span class="spinner"></span>
-          <span class="btn-label">Conectar con Twilio</span>
-        </button>
-        <div id="tw-connect-result" class="result" role="status" aria-live="polite"></div>
-        <p class="hint">¿No tenés una cuenta? <a href="https://console.twilio.com/" target="_blank" rel="noopener noreferrer" class="twilio-link">Conseguí una gratis en Twilio →</a></p>
-        <p class="hint tw-warning">La sesión se desconecta sola a los 15 minutos de inactividad — cuidá tu cuota.</p>
       </div>
 
       <footer>Spring Boot · MongoDB · HMAC-SHA256</footer>
