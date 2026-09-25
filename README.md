@@ -231,10 +231,6 @@ Ver `.env.example` para descripción completa de cada variable.
 ./mvnw clean compile                      # Compila
 ./mvnw clean package                      # Build JAR
 
-# Testing
-./mvnw test                               # Ejecuta todos los tests
-./mvnw test -Dtest=NombreClaseTest        # Test específico
-
 # Limpieza
 ./mvnw clean                              # Limpia target/
 ```
