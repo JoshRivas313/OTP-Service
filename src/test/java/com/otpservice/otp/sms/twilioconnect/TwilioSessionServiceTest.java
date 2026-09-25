@@ -1,4 +1,4 @@
-package com.otpservice.otp.sms;
+package com.otpservice.otp.sms.twilioconnect;
 
 import com.otpservice.otp.dto.valueobject.TwilioCredentials;
 import jakarta.servlet.http.HttpSession;

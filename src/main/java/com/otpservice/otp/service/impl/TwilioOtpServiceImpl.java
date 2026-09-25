@@ -11,7 +11,7 @@ import com.otpservice.otp.exception.ErrorCode;
 import com.otpservice.otp.exception.OtpException;
 import com.otpservice.otp.service.OtpService;
 import com.otpservice.otp.service.TwilioOtpService;
-import com.otpservice.otp.sms.TwilioSessionSmsSender;
+import com.otpservice.otp.sms.twilioconnect.TwilioSessionSmsSender;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

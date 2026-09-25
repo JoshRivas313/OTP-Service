@@ -10,7 +10,7 @@ import com.otpservice.otp.exception.ErrorCode;
 import com.otpservice.otp.exception.OtpException;
 import com.otpservice.otp.service.OtpService;
 import com.otpservice.otp.sms.SmsSender;
-import com.otpservice.otp.sms.TwilioSessionSmsSender;
+import com.otpservice.otp.sms.twilioconnect.TwilioSessionSmsSender;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

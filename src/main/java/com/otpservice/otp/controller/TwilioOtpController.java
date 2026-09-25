@@ -8,7 +8,7 @@ import com.otpservice.otp.dto.valueobject.TwilioCredentials;
 import com.otpservice.otp.exception.ErrorCode;
 import com.otpservice.otp.exception.OtpException;
 import com.otpservice.otp.service.TwilioOtpService;
-import com.otpservice.otp.sms.TwilioSessionService;
+import com.otpservice.otp.sms.twilioconnect.TwilioSessionService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;

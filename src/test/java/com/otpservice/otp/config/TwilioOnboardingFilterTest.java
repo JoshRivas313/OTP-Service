@@ -1,6 +1,6 @@
 package com.otpservice.otp.config;
 
-import com.otpservice.otp.sms.TwilioSessionService;
+import com.otpservice.otp.sms.twilioconnect.TwilioSessionService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
