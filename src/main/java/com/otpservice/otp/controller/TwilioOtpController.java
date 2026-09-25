@@ -19,9 +19,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-// Analogo a OtpController pero para el codigo con la cuenta de Twilio que
-// el visitante conecto: exige sesion conectada, no toca Mongo para nada
-// de esto (Twilio Verify guarda su propio estado del lado de ellos).
+// Analogo a OtpController pero exigiendo sesion Twilio conectada: el OTP se
+// genera y guarda igual que en /otps (Mongo+HMAC), solo cambia por donde sale
+// el SMS (la cuenta que el visitante conecto, no la del servidor).
 @RestController
 @RequestMapping("/api/twilio/otps")
 @RequiredArgsConstructor
@@ -35,14 +35,14 @@ public class TwilioOtpController {
                                                              HttpSession session) {
         TwilioCredentials credentials = requireConnected(session);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(twilioOtpService.generateOtp(credentials, request.getCellphone(), request.getDigits()));
+                .body(twilioOtpService.generateOtp(credentials, request.getCellphone(), request.getDigits(), request.getDurationSeconds()));
     }
 
     @PostMapping("/verify")
     public ResponseEntity<OtpVerifyResponse> verifyOtp(@Valid @RequestBody TwilioOtpVerifyRequest request,
                                                          HttpSession session) {
-        TwilioCredentials credentials = requireConnected(session);
-        return ResponseEntity.ok(twilioOtpService.verifyOtp(credentials, request.getCellphone(), request.getCode()));
+        requireConnected(session);
+        return ResponseEntity.ok(twilioOtpService.verifyOtp(request.getCellphone(), request.getCode()));
     }
 
     private TwilioCredentials requireConnected(HttpSession session) {

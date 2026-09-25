@@ -20,4 +20,7 @@ public class TwilioConnectRequest {
 
     @NotBlank(message = "El Verify Service SID es obligatorio")
     private String verifyServiceSid;
+
+    @NotBlank(message = "El número de Twilio es obligatorio")
+    private String phoneNumber;
 }

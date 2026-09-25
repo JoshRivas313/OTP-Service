@@ -35,6 +35,11 @@ public class OtpServiceImpl implements OtpService {
 
     @Override
     public OtpGenerateResponse generateOtp(OtpGenerateRequest request) {
+        return generateOtp(request, smsSender);
+    }
+
+    @Override
+    public OtpGenerateResponse generateOtp(OtpGenerateRequest request, SmsSender sender) {
         Cellphone cellphone = request.getCellphone();
         int digits = request.getDigits() != null ? request.getDigits() : properties.digits();
         int durationSeconds = request.getDurationSeconds() != null
@@ -51,7 +56,7 @@ public class OtpServiceImpl implements OtpService {
         otpRepository.save(OtpDocument.issue(
                 new OtpDocument.IssueRequest(cellphone, codeHash, digits, window, purgeAt)));
 
-        smsSender.send(cellphone, properties.messageTemplate().formatted(code.getValue(), durationSeconds));
+        sender.send(cellphone, properties.messageTemplate().formatted(code.getValue(), durationSeconds));
 
         return properties.demoMode()
                 ? OtpGenerateResponse.sentInDemoMode(code.getValue())

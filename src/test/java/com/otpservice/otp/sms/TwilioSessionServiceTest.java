@@ -10,7 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TwilioSessionServiceTest {
 
     private static final TwilioCredentials CREDENTIALS = new TwilioCredentials(
-            "AC" + "a".repeat(32), "b".repeat(32), "VA" + "c".repeat(32));
+            "AC" + "a".repeat(32), "b".repeat(32), "VA" + "c".repeat(32), "+15017122661");
 
     private final TwilioSessionService service = new TwilioSessionService();
 

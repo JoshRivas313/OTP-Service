@@ -52,7 +52,8 @@ public class TwilioConnectController {
 
     private TwilioCredentials toCredentials(TwilioConnectRequest request) {
         try {
-            return new TwilioCredentials(request.getAccountSid(), request.getAuthToken(), request.getVerifyServiceSid());
+            return new TwilioCredentials(request.getAccountSid(), request.getAuthToken(),
+                    request.getVerifyServiceSid(), request.getPhoneNumber());
         } catch (IllegalArgumentException exception) {
             throw new OtpException(ErrorCode.TWILIO_CREDENTIALS_INVALID, exception.getMessage());
         }

@@ -8,15 +8,22 @@ public final class TwilioCredentials {
     private static final Pattern ACCOUNT_SID = Pattern.compile("^AC[a-zA-Z0-9]{32}$");
     private static final Pattern AUTH_TOKEN = Pattern.compile("^[a-zA-Z0-9]{32}$");
     private static final Pattern VERIFY_SERVICE_SID = Pattern.compile("^VA[a-zA-Z0-9]{32}$");
+    private static final Pattern PHONE_NUMBER = Pattern.compile("^\\+[1-9]\\d{6,14}$");
 
     private final String accountSid;
     private final String authToken;
     private final String verifyServiceSid;
+    private final String phoneNumber;
 
-    public TwilioCredentials(String accountSid, String authToken, String verifyServiceSid) {
+    // phoneNumber es el numero Twilio propio del usuario (formato E.164, ej.
+    // +15017122661): hace falta para mandar un SMS simple (Message.creator),
+    // a diferencia de Twilio Verify que no lo necesita porque el Verify
+    // Service ya sabe desde donde mandar.
+    public TwilioCredentials(String accountSid, String authToken, String verifyServiceSid, String phoneNumber) {
         this.accountSid = requireMatch(accountSid, ACCOUNT_SID, "Account SID");
         this.authToken = requireMatch(authToken, AUTH_TOKEN, "Auth Token");
         this.verifyServiceSid = requireMatch(verifyServiceSid, VERIFY_SERVICE_SID, "Verify Service SID");
+        this.phoneNumber = requireMatch(phoneNumber, PHONE_NUMBER, "Número de Twilio");
     }
 
     public String getAccountSid() {
@@ -29,6 +36,10 @@ public final class TwilioCredentials {
 
     public String getVerifyServiceSid() {
         return verifyServiceSid;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
     }
 
     // El auth token no se muestra ni siquiera parcialmente: a diferencia del
@@ -54,12 +65,13 @@ public final class TwilioCredentials {
         return other instanceof TwilioCredentials c
                 && accountSid.equals(c.accountSid)
                 && authToken.equals(c.authToken)
-                && verifyServiceSid.equals(c.verifyServiceSid);
+                && verifyServiceSid.equals(c.verifyServiceSid)
+                && phoneNumber.equals(c.phoneNumber);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(accountSid, authToken, verifyServiceSid);
+        return Objects.hash(accountSid, authToken, verifyServiceSid, phoneNumber);
     }
 
     @Override
