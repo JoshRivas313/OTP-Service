@@ -1,75 +1,437 @@
 # OTP Service
 
-Servicio de autenticación por código de un solo uso (OTP), hecho con Spring Boot, MongoDB y Twilio. El código nunca se guarda en texto plano: se hashea con HMAC-SHA256 antes de persistirse, y cada intento fallido queda registrado para bloquear el código después de N intentos.
+Servicio de autenticación por código de un solo uso (OTP) con generación local y soporte para Twilio Verify. Códigos hasheados con HMAC-SHA256, validación E.164 de teléfonos, y UI sin CORS incluida.
 
-Incluye una UI mínima servida por el propio Spring Boot (`src/main/resources/static`), así que es un solo deployable, sin CORS ni un frontend aparte.
+## Tabla de Contenidos
 
-## Cómo probarlo
+- [Descripción General](#descripción-general)
+- [Características Principales](#características-principales)
+- [Stack Tecnológico](#stack-tecnológico)
+- [Arquitectura del Sistema](#arquitectura-del-sistema)
+- [Módulos Principales](#módulos-principales)
+- [Instalación Rápida](#instalación-rápida)
+- [Configuración](#configuración)
+- [Scripts Disponibles](#scripts-disponibles)
+- [API Endpoints](#api-endpoints)
+- [Flujos de Uso](#flujos-de-uso)
+- [Troubleshooting](#troubleshooting)
+- [Testing](#testing)
+- [Contribución](#contribución)
 
-Necesita Java 21, Maven (o el wrapper `mvnw` que ya viene), una instancia de MongoDB corriendo en `localhost:27017` (o la que le pases por `MONGODB_URI`), y una cuenta de Twilio (la trial gratuita alcanza).
+## Descripción General
+
+OTP Service es una API REST construida con Spring Boot que proporciona dos métodos de generación y validación de códigos de un solo uso:
+
+1. **Generación Local** — MongoDB + HMAC-SHA256, control total de dígitos y expiración
+2. **Twilio Verify** — Integración con API de Twilio, gestión de credenciales por sesión
+
+La aplicación incluye:
+- UI embebida sin dependencias externas (servida por Spring Boot)
+- Progress indicator visual en 3 pasos (generado → escribiendo → verificado)
+- Sesiones de 15 minutos para credenciales de Twilio
+- Bloqueo automático después de N intentos fallidos
+- Purga automática de códigos expirados en Mongo
+- Documentación interactiva con Swagger/OpenAPI
+
+## Características Principales
+
+**Generación Dual de OTP**
+- Motor local con HMAC-SHA256: personalización de dígitos (4-10) y expiración (1s - 1 día)
+- Twilio Verify: validación a través de API oficial, configuración en dashboard de Twilio
+
+**Seguridad**
+- Códigos nunca persistidos en texto plano, solo hash HMAC
+- Validación E.164 de números telefónicos
+- Bloqueo tras N intentos fallidos configurables
+- Sesión timeout automático (15 minutos inactividad)
+- Filtro HTTP obligatorio (`TwilioOnboardingFilter`) para acceso a /otp-service.html
+
+**UI Interactiva**
+- Pantalla de conexión Twilio (index.html) → session-protected OTP flow (otp-service.html)
+- Progress bar visual con 3 estados: generado → escribiendo → verificado
+- Overlay de celebración con animación SVG y partículas
+- Responsive (360px - 1440px), respeta prefers-reduced-motion
+
+**Monitoreo**
+- TTL index en Mongo (`purgeAt`) para limpieza automática
+- Logging de intentos fallidos y bloqueos
+- Endpoints de status y validación de credenciales
+
+## Stack Tecnológico
+
+**Backend**
+- Framework: Spring Boot 4.1.1
+- Lenguaje: Java 21
+- Build: Maven 3.8+
+
+**Base de Datos**
+- Documento: MongoDB 4.4+
+- Collections: `otp_codes`, `verification_attempts`
+
+**Servicios Externos**
+- Twilio SDK: Verify API + Messaging API
+
+**Frontend**
+- HTML5, CSS3 (custom properties para dark theme)
+- Vanilla JavaScript (sin frameworks)
+
+**Documentación**
+- springdoc-openapi 3.0.2 (Swagger/OpenAPI)
+
+## Arquitectura del Sistema
+
+```
+┌─────────────────────────────────────────┐
+│          Cliente / Navegador             │
+│  index.html (Conexión Twilio)            │
+│  otp-service.html (Flujo OTP)            │
+└────────────────┬────────────────────────┘
+                 │ HTTP/REST
+                 ▼
+┌─────────────────────────────────────────┐
+│       Spring Boot Application            │
+│  8080 (Controllers + Filters)            │
+└────────────────┬────────────────────────┘
+                 │
+        ┌────────┼────────────┐
+        │        │            │
+        ▼        ▼            ▼
+    ┌────────────────┐  ┌──────────────┐
+    │   Services     │  │   Filters    │
+    │ - OtpService   │  │   - Auth     │
+    │ - TwilioOtpSrv │  │   - Twilio   │
+    │ - SmsSender(s) │  │     Onboard  │
+    └────────┬───────┘  └──────────────┘
+             │
+             ▼
+    ┌─────────────────┐
+    │  MongoDB        │
+    │ - otp_codes     │
+    │ - attempts      │
+    └─────────────────┘
+
+    HttpSession (Twilio Credentials)
+    └─ TwilioCredentials { accountSid, authToken, verifyServiceSid, phoneNumber }
+```
+
+## Módulos Principales
+
+**OTP Local Module** (`com.otpservice.otp.service`)
+- `OtpService`: Interfaz central de generación y validación
+- `OtpServiceImpl`: Lógica con Mongo + HMAC, inyección de SmsSender
+- `OtpCode`: Value Object, genera códigos con SecureRandom
+- `ValidityWindow`: Value Object, verifica expiración sin state mutable
+- `VerificationStatus`: Value Object, cuenta intentos y detecta bloqueos
+
+**Twilio Module** (`com.otpservice.otp.sms.twilioconnect`)
+- `TwilioOtpService`: Interfaz para flujo Twilio Verify
+- `TwilioOtpServiceImpl`: Delegación a OtpService + Twilio SDK
+- `TwilioSessionSmsSender`: Manda SMS usando credenciales de sesión
+- `TwilioSessionService`: Manejo de credenciales en HttpSession
+- `TwilioVerifyService`: Validación de credenciales contra Twilio
+
+**Configuration**
+- `OpenApiConfig`: Swagger/OpenAPI metadata
+- `TwilioOnboardingFilter`: Redirige a /index.html si no hay sesión Twilio
+
+**SmsSender Implementations**
+- `ConsoleSmsSender`: Imprime en stdout (default)
+- `TwilioSmsSender`: SMS global usando credenciales del proyecto
+- `InfobipSmsSender`: SMS con Infobip
+
+## Instalación Rápida
+
+**Requisitos Previos**
+- Java 21+
+- Maven 3.8+
+- MongoDB 4.4+ (local en puerto 27017 o URL en variable de entorno)
+- Cuenta de Twilio (opcional, trial gratuita disponible)
+
+**1. Clonar y configurar**
 
 ```bash
+git clone <repository-url>
+cd Proyect-OTP-Portfolio
 cp .env.example .env
-# completar OTP_HASH_SECRET al menos
+```
+
+**2. Completar .env**
+
+```bash
+MONGODB_URI=mongodb://localhost:27017/otp_service
+TWILIO_ACCOUNT_SID=your-account-sid
+TWILIO_AUTH_TOKEN=your-auth-token
+TWILIO_VERIFY_SERVICE_SID=your-verify-service-sid
+TWILIO_PHONE_NUMBER=+15017122661
+OTP_HASH_SECRET=your-secret-key-min-32-chars
+```
+
+**3. Levantar MongoDB (Docker)**
+
+```bash
+docker run -d -p 27017:27017 --name otp-mongo mongo:latest
+```
+
+**4. Iniciar la aplicación**
+
+```bash
 ./mvnw spring-boot:run
 ```
 
-1. Abrí `http://localhost:8080` — es la pantalla de conectar Twilio, no la demo directamente.
-2. Ingresá tu **Account SID**, **Auth Token**, **Verify Service SID** y **Número de Twilio** (el que usa para mandar el SMS).
-3. Al conectar, la app te lleva a `/otp-service.html`.
-4. Escribí tu celular (el mismo con el que te registraste en Twilio, si tu cuenta es trial), elegí cantidad de dígitos y tiempo de expiración, y mandate un código.
-5. Verificá el código que te llegó por SMS real.
+Abrí `http://localhost:8080` en el navegador.
 
-Las credenciales viven **solo en tu sesión del backend** — nunca se persisten en Mongo, en un archivo ni en el navegador. Si reiniciás la app o cerrás la sesión, hay que volver a conectarlas.
+## Configuración
 
-## Diseño
+### Variables de Entorno
 
-- **Value Objects con comportamiento, no anémicos**: `Cellphone` normaliza a E.164 y sabe enmascararse, `OtpCode` genera el código con `SecureRandom` y valida su propio formato, `ValidityWindow` sabe si expiró (recibe el instante como parámetro, no llama a `Instant.now()` internamente — así es testeable), `VerificationStatus` cuenta intentos y sabe si está bloqueado.
-- **Operaciones atómicas contra Mongo**: invalidar el código anterior, reclamar un código como usado, y registrar un intento fallido son todas `findAndModify` atómicos — no hay una lectura seguida de una escritura separada que pueda pisarse con otra request.
-- **`ErrorCode` como catálogo único**: cada error de negocio tiene su estado HTTP y mensaje por defecto en un solo enum, en vez de strings sueltos repartidos por los servicios.
-- **TTL index en Mongo** (`purgeAt`) para que los OTP viejos se autoeliminen, no se acumulan para siempre.
+```properties
+# MongoDB
+MONGODB_URI=mongodb://localhost:27017/otp_service
 
-## Modos de ejecución
+# OTP Local
+OTP_HASH_SECRET=tu-clave-secreta-minimo-32-caracteres
+OTP_DIGITS=6
+OTP_EXPIRATION_SECONDS=300
+OTP_MAX_ATTEMPTS=3
+OTP_DEMO_MODE=false
 
-Estos modos son del motor local (`POST /otps`, `POST /otps/verify`) usando el `SmsSender` global del servidor. La UI en cambio siempre usa la cuenta de Twilio conectada en sesión (ver más abajo), pero estos endpoints siguen ahí y se pueden probar directo con `curl`/Postman. El proveedor de SMS global se elige con `SMS_PROVIDER`:
+# Twilio (credenciales globales para SmsSender)
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_VERIFY_SERVICE_SID=
+TWILIO_PHONE_NUMBER=
 
-| Valor | Qué hace |
-|---|---|
-| `console` (default) | No manda nada real, el código queda en la terminal del servidor |
-| `twilio` | Manda el SMS con la cuenta de Twilio del dueño del proyecto (`TWILIO_*`) |
-| `infobip` | Igual pero con Infobip (`INFOBIP_*`) |
+# Infobip (alternativa a Twilio)
+INFOBIP_API_KEY=
+INFOBIP_BASE_URL=https://api.infobip.com
 
-### Modo demo (`OTP_DEMO_MODE=true`)
+# SMS Provider
+SMS_PROVIDER=console  # console, twilio, infobip
 
-Pensado para un deploy público: el código generado se devuelve en la respuesta de `POST /otps` y se muestra en la UI, para que alguien pueda probar el flujo completo sin acceso al log del servidor. La app **no arranca** si esto se combina con `SMS_PROVIDER=twilio` o `infobip` — no tiene sentido mostrar un código que además se mandó de verdad, y es una forma barata de evitar quemar cuota de SMS sin querer.
+# Session
+SERVER_SESSION_TIMEOUT_MINUTES=15
 
-### Conectar tu propia cuenta de Twilio
+# Swagger
+SPRINGDOC_API_DOCS_ENABLED=true
+SPRINGDOC_SWAGGER_UI_ENABLED=true
 
-`index.html` (la raíz del sitio) es la pantalla para conectar una cuenta de Twilio — no hay un flag ni una variable de entorno que la habilite o la esconda, es simplemente la primera pantalla del proyecto. `/otp-service.html` (donde se genera y verifica el código) está protegida: si no hay una sesión Twilio conectada, un `Filter` (`TwilioOnboardingFilter`) redirige de vuelta a `/` antes de mostrar nada.
+# App
+SERVER_PORT=8080
+```
 
-- La credencial vive **solo en la `HttpSession`** de ese visitante — nunca se escribe en Mongo ni en un log, y desaparece cuando la sesión expira (15 minutos de inactividad) o el visitante toca "Cambiar configuración".
-- Antes de guardar nada, el servidor llama de verdad a Twilio (fetch del Verify Service) para confirmar que la credencial es válida, no solo que tiene el formato correcto.
-- El código se genera y guarda igual que en `/otps` (Mongo + HMAC): `digits` y la expiración sí son configurables por request desde la UI. La única diferencia con el motor local es por dónde sale el SMS.
-- El SMS sale con la cuenta de Twilio de la sesión, no con la del servidor: se arma un `TwilioRestClient` a partir de la credencial guardada (nunca un `Twilio.init()` global, porque con varias sesiones conectadas a la vez eso las haría pisarse entre sí), y se manda como mensaje simple (`Message.creator`) usando el **Número de Twilio** que el visitante conectó.
+Ver `.env.example` para descripción completa de cada variable.
 
-#### Cómo conseguir credenciales de Twilio para probarlo
+## Scripts Disponibles
 
-1. Crear una cuenta gratis en [twilio.com](https://www.twilio.com/try-twilio) (la cuenta trial ya trae crédito y un número de teléfono).
-2. En el dashboard principal de la consola están el **Account SID** y el **Auth Token**.
-3. Ir a **Verify → Services**, crear un servicio nuevo, y copiar su SID (empieza con `VA`).
-4. Ir a **Phone Numbers → Manage → Active Numbers** y copiar el número asignado, en formato E.164 (ej. `+15017122661`).
-5. Con una cuenta trial, Twilio solo manda SMS a números ya verificados en esa cuenta — el más simple para probar es el celular con el que te registraste, que ya queda verificado.
+```bash
+# Desarrollo
+./mvnw spring-boot:run                    # Inicia con hot-reload
 
-## Documentación de la API
+# Compilación y Build
+./mvnw clean compile                      # Compila
+./mvnw clean package                      # Build JAR
 
-Con la app corriendo, la documentación interactiva (Swagger UI) está en `http://localhost:8080/swagger-ui.html`, y el JSON de OpenAPI en `http://localhost:8080/v3/api-docs`.
+# Testing
+./mvnw test                               # Ejecuta todos los tests
+./mvnw test -Dtest=NombreClaseTest        # Test específico
 
-## Variables de entorno
+# Limpieza
+./mvnw clean                              # Limpia target/
+```
 
-Ver [`.env.example`](.env.example) para la lista completa con su valor por defecto.
+## API Endpoints
 
-## Tests
+Base URL: `http://localhost:8080`
+
+Documentación interactiva: `http://localhost:8080/swagger-ui.html`
+
+### OTP Local (Motor interno)
+
+**POST /api/otps** — Generar código OTP
+
+```json
+{
+  "cellphone": "+519876543210",
+  "digits": 6,
+  "durationSeconds": 300
+}
+```
+
+Response: `{ "message": "Código generado", "code": "OTP_GENERATED" }`
+
+**POST /api/otps/verify** — Validar código
+
+```json
+{
+  "cellphone": "+519876543210",
+  "code": "123456"
+}
+```
+
+Response: `{ "message": "Código verificado", "code": "OTP_VERIFIED" }`
+
+### Twilio (Flujo por sesión)
+
+**POST /api/twilio/connect** — Conectar cuenta Twilio
+
+```json
+{
+  "accountSid": "ACxxxxxxxxxxxxx",
+  "authToken": "your-auth-token",
+  "verifyServiceSid": "VAxxxxxxxxxxxxx",
+  "phoneNumber": "+15017122661"
+}
+```
+
+Response: `{ "message": "Conectado", "code": "TWILIO_CONNECTED" }`
+
+**GET /api/twilio/status** — Verificar si hay sesión activa
+
+Response: `{ "connected": true, "accountSid": "ACxxxx" }`
+
+**POST /api/twilio/otps** — Generar OTP (credenciales de sesión)
+
+```json
+{
+  "cellphone": "+519876543210",
+  "digits": 6,
+  "durationSeconds": 300
+}
+```
+
+**POST /api/twilio/otps/verify** — Validar código
+
+```json
+{
+  "cellphone": "+519876543210",
+  "code": "123456"
+}
+```
+
+**POST /api/twilio/disconnect** — Limpiar sesión
+
+Response: `{ "message": "Desconectado" }`
+
+## Flujos de Uso
+
+### Flujo 1: Generación Local (Motor Interno)
+
+1. POST `/api/otps` con número de teléfono
+2. Código se genera con SecureRandom, se hashea y se guarda en Mongo
+3. SmsSender (console/twilio/infobip) manda el SMS
+4. Cliente recibe código en SMS real
+5. POST `/api/otps/verify` con código
+6. Backend valida hash y comprueba intentos/expiración
+7. Si OK: código se marca como usado y sesión queda verificada
+
+**Cuándo usar**: Tests, demo local, cuando no tenés Twilio.
+
+### Flujo 2: Twilio Verify (Por Sesión)
+
+1. Usuario abre `http://localhost:8080` (index.html)
+2. Ingresa Account SID, Auth Token, Verify Service SID, Número de Twilio
+3. POST `/api/twilio/connect` — backend valida contra Twilio, guarda en HttpSession
+4. Redirect a `/otp-service.html` (protegida por `TwilioOnboardingFilter`)
+5. Usuario ingresa número, elige dígitos y expiración
+6. POST `/api/twilio/otps` — genera código local y manda SMS con credenciales de sesión
+7. Usuario recibe SMS y lo verifica
+8. POST `/api/twilio/otps/verify` — valida código
+9. Celebración con overlay modal + animación
+10. Botón "Cambiar configuración" limpia la sesión
+
+**Cuándo usar**: Producción, control total de dígitos/expiración, múltiples usuarios simultáneamente.
+
+### Modos de Operación
+
+**Modo Demo** (`OTP_DEMO_MODE=true`)
+- POST `/api/otps` devuelve el código en la response (además de mandar SMS)
+- UI lo muestra para pruebas sin acceso al log del servidor
+- La app rechaza si se combina con SMS_PROVIDER=twilio/infobip
+
+**Modo Producción** (`OTP_DEMO_MODE=false`)
+- Códigos nunca se devuelven en respuestas
+- Solo el cliente que recibe el SMS lo sabe
+- Logs del servidor no exponen códigos
+
+## Troubleshooting
+
+**"No se conecta a MongoDB"**
+- Verificá que MongoDB esté corriendo: `docker ps | grep mongo`
+- Verificá MONGODB_URI en .env (default: `mongodb://localhost:27017/otp_service`)
+
+**"Código generado pero no llega SMS"**
+- Si SMS_PROVIDER=console: el código está en la terminal donde corrés la app
+- Si SMS_PROVIDER=twilio: verificá credenciales y que el número destino esté verificado en Twilio trial
+- Verificá TWILIO_PHONE_NUMBER tiene formato E.164 (ej: `+15017122661`)
+
+**"No me deja acceder a /otp-service.html"**
+- Necesitas conectarte primero en `/index.html`
+- La sesión expira después de 15 minutos de inactividad
+- El filtro `TwilioOnboardingFilter` redirige si no hay credenciales en sesión
+
+**"POST /api/twilio/connect falla con 422"**
+- Verificá que los 4 campos (accountSid, authToken, verifyServiceSid, phoneNumber) estén presentes
+- Verificá format E.164 en phoneNumber (empieza con + y tiene 6-15 dígitos)
+
+**"Código bloqueado después de N intentos"**
+- Por defecto son 3 intentos fallidos (`OTP_MAX_ATTEMPTS=3`)
+- Espera a que expire el TTL (OTP_EXPIRATION_SECONDS) o genera uno nuevo
+
+## Testing
 
 ```bash
 ./mvnw test
 ```
+
+Resultado esperado: **39/39 tests passing**
+
+Cobertura:
+- `OtpServiceImplTest`: Lógica de generación, validación, intentos
+- `TwilioOtpServiceImplTest`: Mock de OtpService y SmsSender
+- `TwilioSessionServiceTest`: Gestión de credenciales en sesión
+- `TwilioOnboardingFilterTest`: Redireccionamiento y filtrado
+- Value Object tests: Cellphone, OtpCode, ValidityWindow, VerificationStatus
+
+## Contribución
+
+**Branch Strategy**
+- `main`: código en producción
+- `feature/*`: nuevas features
+- `fix/*`: fixes
+
+**Commit Convention**
+```
+feat: agregar indicador de progreso visual
+fix: validacion de E.164 en conexion Twilio
+docs: actualizar README con flujo Twilio
+chore: actualizar dependencias
+```
+
+**Antes de pushear**
+```bash
+./mvnw clean test    # Todos los tests pasan
+./mvnw compile       # Compila sin warnings
+```
+
+**Code Style**
+- camelCase: variables, métodos
+- PascalCase: clases
+- UPPER_SNAKE_CASE: constantes
+- Value Objects cuando hay validación de negocio
+- Métodos testables (sin Instant.now() directo)
+
+## Licencia
+
+MIT
+
+## Autores
+
+Creado con Spring Boot, MongoDB y Twilio SDK.
+
+---
+
+**Documentación Swagger**: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
+
+**Última actualización**: 2026-09-24
+
+**Versión**: 0.0.1
