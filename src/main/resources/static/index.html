@@ -11,20 +11,20 @@
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <div class="app app-narrow">
-    <header>
-      <div class="badge" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none">
-          <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" stroke="#6db33f" stroke-width="1.5"/>
-          <path d="M9 12l2 2 4-4" stroke="#6db33f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-      <h1>Probar con SMS real</h1>
-      <p>Conectá tu propia cuenta de Twilio Verify</p>
-    </header>
+  <div class="app-wrapper">
+    <div class="app app-narrow">
+      <header>
+        <div class="badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" stroke="#6db33f" stroke-width="1.5"/>
+            <path d="M9 12l2 2 4-4" stroke="#6db33f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h1>Probar con SMS real</h1>
+        <p>Conectá tu propia cuenta de Twilio Verify</p>
+      </header>
 
-    <div class="card twilio-card">
-      <div id="tw-form-state">
+      <div class="card twilio-card">
         <p class="hint" style="margin-top:0;">Conectá tu propia cuenta de Twilio Verify para probar el flujo con un SMS real, sin usar la cuota del dueño de esta demo. Las credenciales quedan solo en tu sesión — nunca se guardan en el servidor.</p>
         <div class="field">
           <label for="tw-account-sid">Account SID</label>
@@ -48,26 +48,13 @@
         <p class="hint tw-warning">La sesión se desconecta sola a los 15 minutos de inactividad — cuidá tu cuota.</p>
       </div>
 
-      <div id="tw-success-state" class="success-panel" style="display:none;" role="status" aria-live="polite">
-        <div class="success-check-wrap">
-          <svg class="success-check" viewBox="0 0 52 52" width="52" height="52">
-            <circle class="success-check-circle" cx="26" cy="26" r="24" fill="none"/>
-            <path class="success-check-mark" fill="none" d="M14 27l7 7 17-17"/>
-          </svg>
-          <span class="success-particles"></span>
-        </div>
-        <h2 class="success-title">¡Conexión realizada!</h2>
-        <p class="success-text">Tus credenciales de Twilio fueron verificadas correctamente.</p>
-        <p class="success-subtext">Ya podés probar el envío de tu primer OTP.</p>
-        <button id="tw-continue-btn" onclick="goToOtpService()">Probar envío OTP →</button>
-      </div>
+      <footer>Spring Boot · MongoDB · HMAC-SHA256</footer>
     </div>
-
-    <footer>Spring Boot · MongoDB · HMAC-SHA256</footer>
   </div>
 
 <script>
   const ICON_ERR = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ICON_OK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
   document.querySelectorAll('input[inputmode="numeric"]').forEach(input => {
     input.addEventListener('input', () => {
@@ -79,32 +66,6 @@
     const el = document.getElementById(elementId);
     el.innerHTML = ICON_ERR + '<span>' + message + '</span>';
     el.className = 'result show err';
-  }
-
-  function spawnParticles(container) {
-    if (!container || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const count = 10;
-    for (let i = 0; i < count; i++) {
-      const particle = document.createElement('span');
-      particle.className = 'success-particle';
-      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.3;
-      const distance = 40 + Math.random() * 26;
-      particle.style.setProperty('--dx', Math.cos(angle) * distance + 'px');
-      particle.style.setProperty('--dy', Math.sin(angle) * distance + 'px');
-      particle.style.animationDelay = Math.round(Math.random() * 80) + 'ms';
-      container.appendChild(particle);
-      setTimeout(() => particle.remove(), 1100);
-    }
-  }
-
-  function showSuccess() {
-    document.getElementById('tw-form-state').style.display = 'none';
-    document.getElementById('tw-success-state').style.display = 'block';
-    spawnParticles(document.querySelector('.success-particles'));
-  }
-
-  function goToOtpService() {
-    window.location.href = '/otp-service.html';
   }
 
   async function connectTwilio() {
@@ -126,7 +87,13 @@
       const data = await response.json();
       if (response.ok) {
         document.getElementById('tw-auth-token').value = '';
-        showSuccess();
+        // Feedback breve dentro del propio boton, despues navega directo a OTP Service
+        btn.classList.remove('loading');
+        btn.classList.add('success');
+        label.innerHTML = ICON_OK + ' Conectado';
+        setTimeout(() => {
+          window.location.href = '/otp-service.html';
+        }, 650);
         return;
       }
       showError('tw-connect-result',
@@ -134,9 +101,11 @@
     } catch (error) {
       showError('tw-connect-result', 'No se pudo conectar con el servidor');
     } finally {
-      btn.disabled = false;
-      btn.classList.remove('loading');
-      label.textContent = 'Conectar con Twilio';
+      if (!btn.classList.contains('success')) {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        label.textContent = 'Conectar con Twilio';
+      }
     }
   }
 </script>
