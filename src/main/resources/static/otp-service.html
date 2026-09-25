@@ -101,6 +101,10 @@
               <span class="btn-label">Enviar código</span>
             </button>
             <div id="gen-result" class="result" role="status" aria-live="polite"></div>
+            <div id="gen-success" class="gen-success-indicator" style="display:none;" role="status" aria-live="polite">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              SMS enviado a <span id="gen-phone-display"></span>
+            </div>
           </div>
 
           <!-- PASO 2: Verificar Código -->
@@ -113,21 +117,29 @@
 
             <div class="form-section">
               <div class="field">
-                <label for="ver-cellphone">Celular</label>
-                <div class="field-wrap">
-                  <span class="prefix">+51</span>
-                  <input id="ver-cellphone" class="with-prefix" type="tel" inputmode="numeric" placeholder="987654321" maxlength="9" disabled>
+                <label>Número confirmado</label>
+                <div class="phone-summary">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+                  <span id="ver-phone-display">+51 ••••••••</span>
                 </div>
               </div>
 
               <div class="field">
-                <label for="ver-code">Código OTP</label>
-                <input id="ver-code" class="code-input" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" maxlength="10">
+                <label>Código OTP (<span id="timer-display">--</span>s)</label>
+                <div class="code-boxes-wrapper">
+                  <input class="code-box" type="text" inputmode="numeric" maxlength="1" data-index="0" autocomplete="off">
+                  <input class="code-box" type="text" inputmode="numeric" maxlength="1" data-index="1" autocomplete="off">
+                  <input class="code-box" type="text" inputmode="numeric" maxlength="1" data-index="2" autocomplete="off">
+                  <input class="code-box" type="text" inputmode="numeric" maxlength="1" data-index="3" autocomplete="off">
+                  <input class="code-box" type="text" inputmode="numeric" maxlength="1" data-index="4" autocomplete="off">
+                  <input class="code-box" type="text" inputmode="numeric" maxlength="1" data-index="5" autocomplete="off">
+                  <span class="timer-ring" id="timer-ring"></span>
+                </div>
               </div>
             </div>
 
             <div class="step-actions">
-              <button id="ver-btn" onclick="verifyOtp()" class="btn-primary">
+              <button id="ver-btn" onclick="verifyOtp()" class="btn-primary" disabled>
                 <span class="spinner"></span>
                 <span class="btn-label">Verificar</span>
               </button>

@@ -60,6 +60,71 @@ function resetProgress() {
 }
 
 let codeInputListenerAttached = false;
+let timerInterval = null;
+
+function attachCodeBoxListeners() {
+  const boxes = document.querySelectorAll('.code-box');
+  boxes.forEach((box, index) => {
+    box.addEventListener('input', (e) => {
+      e.target.value = e.target.value.replace(/\D/g, '');
+      if (e.target.value && index < boxes.length - 1) {
+        boxes[index + 1].focus();
+      }
+      updateVerifyButtonState();
+    });
+    box.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && !e.target.value && index > 0) {
+        boxes[index - 1].focus();
+      }
+    });
+    box.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const paste = (e.clipboardData || window.clipboardData).getData('text');
+      const digits = paste.replace(/\D/g, '').split('');
+      digits.forEach((digit, i) => {
+        if (index + i < boxes.length) {
+          boxes[index + i].value = digit;
+        }
+      });
+      if (digits.length > 0) {
+        boxes[Math.min(index + digits.length - 1, boxes.length - 1)].focus();
+      }
+      updateVerifyButtonState();
+    });
+  });
+}
+
+function updateVerifyButtonState() {
+  const code = Array.from(document.querySelectorAll('.code-box')).map(b => b.value).join('');
+  const btn = document.getElementById('ver-btn');
+  btn.disabled = code.length < 6;
+}
+
+function startTimer(durationSeconds) {
+  clearInterval(timerInterval);
+  let remaining = durationSeconds;
+  const timerDisplay = document.getElementById('timer-display');
+  const timerRing = document.getElementById('timer-ring');
+
+  const updateTimer = () => {
+    timerDisplay.textContent = remaining;
+    const progress = ((durationSeconds - remaining) / durationSeconds) * 360;
+    timerRing.style.setProperty('--timer-progress', progress + 'deg');
+
+    if (remaining <= 0) {
+      clearInterval(timerInterval);
+      timerRing.classList.add('expired');
+      document.querySelectorAll('.code-box').forEach(box => {
+        box.disabled = true;
+      });
+      document.getElementById('ver-btn').disabled = true;
+    }
+    remaining--;
+  };
+
+  updateTimer();
+  timerInterval = setInterval(updateTimer, 1000);
+}
 
 function showOtpStep(stepNumber) {
   document.querySelectorAll('.otp-step').forEach(step => {
@@ -72,13 +137,22 @@ function showOtpStep(stepNumber) {
 function resetOtpFlow() {
   showOtpStep(1);
   resetProgress();
+  clearInterval(timerInterval);
   document.getElementById('gen-cellphone').value = '';
   document.getElementById('gen-result').className = 'result';
   document.getElementById('gen-result').innerHTML = '';
-  document.getElementById('ver-cellphone').value = '';
-  document.getElementById('ver-code').value = '';
+  document.getElementById('gen-success').style.display = 'none';
+  document.getElementById('ver-phone-display').textContent = '+51 ••••••••';
   document.getElementById('ver-result').className = 'result';
   document.getElementById('ver-result').innerHTML = '';
+  document.querySelectorAll('.code-box').forEach(box => {
+    box.value = '';
+    box.classList.remove('error');
+    box.disabled = false;
+  });
+  document.getElementById('timer-ring').classList.remove('expired');
+  document.getElementById('timer-display').textContent = '--';
+  document.getElementById('ver-btn').disabled = true;
 }
 
 async function generateOtp() {
@@ -102,58 +176,59 @@ async function generateOtp() {
   if (ok) {
     resetProgress();
     setProgressStep(1, 'done');
-    document.getElementById('ver-cellphone').value = cellphone;
 
-    showOtpStep(2);
-    const codeInput = document.getElementById('ver-code');
-    codeInput.value = '';
-    codeInput.focus();
+    document.getElementById('gen-success').style.display = 'flex';
+    const masked = cellphone.slice(0, 2) + '*'.repeat(cellphone.length - 4) + cellphone.slice(-2);
+    document.getElementById('gen-phone-display').textContent = '+51 ' + masked;
 
-    if (!codeInputListenerAttached) {
-      codeInputListenerAttached = true;
-      codeInput.addEventListener('input', () => {
-        if (codeInput.value.length > 0) {
-          setProgressStep(2, 'active');
-        }
-      });
-    }
+    const displayPhone = '+51 ' + cellphone.slice(0, 2) + '****' + cellphone.slice(-2);
+    document.getElementById('ver-phone-display').textContent = displayPhone;
+
+    setTimeout(() => {
+      showOtpStep(2);
+      if (!codeInputListenerAttached) {
+        codeInputListenerAttached = true;
+        attachCodeBoxListeners();
+        document.querySelectorAll('.code-box').forEach(box => {
+          box.addEventListener('input', () => {
+            if (Array.from(document.querySelectorAll('.code-box')).some(b => b.value)) {
+              setProgressStep(2, 'active');
+            }
+          });
+        });
+      }
+      startTimer(durationSeconds);
+      document.querySelector('.code-box').focus();
+    }, 600);
   }
 }
 
 async function verifyOtp() {
-  const cellphoneInput = document.getElementById('ver-cellphone');
-  const codeInput = document.getElementById('ver-code');
-  const cellphone = cellphoneInput.value.trim();
-  const code = codeInput.value.trim();
+  const code = Array.from(document.querySelectorAll('.code-box')).map(b => b.value).join('').trim();
 
-  if (!cellphone) {
-    showFieldError('ver-cellphone', 'Número requerido');
+  if (!code || code.length < 4) {
+    document.querySelectorAll('.code-box').forEach(box => box.classList.add('error'));
+    setTimeout(() => {
+      document.querySelectorAll('.code-box').forEach(box => box.classList.remove('error'));
+    }, 300);
     return;
   }
 
-  if (!validateE164(cellphone)) {
-    showFieldError('ver-cellphone', 'Número debe tener 7-9 dígitos');
-    return;
-  }
+  const cellphone = document.getElementById('gen-cellphone').value.trim();
 
-  if (!code) {
-    showFieldError('ver-code', 'Código requerido');
-    return;
-  }
-
-  if (code.length < 4) {
-    showFieldError('ver-code', 'Código debe tener al menos 4 dígitos');
-    return;
-  }
-
-  clearFieldError('ver-cellphone');
-  clearFieldError('ver-code');
+  clearInterval(timerInterval);
   const ok = await submit('ver-btn', 'ver-result', '/api/twilio/otps/verify', { cellphone, code });
   if (ok) {
+    document.querySelectorAll('.code-box').forEach(box => box.disabled = true);
     setProgressStep(2, 'done');
     setProgressStep(3, 'done');
     setTimeout(() => {
       showOtpStep(3);
+    }, 300);
+  } else {
+    document.querySelectorAll('.code-box').forEach(box => box.classList.add('error'));
+    setTimeout(() => {
+      document.querySelectorAll('.code-box').forEach(box => box.classList.remove('error'));
     }, 300);
   }
 }
@@ -195,18 +270,24 @@ function showResult(elementId, ok, message) {
 
 function spawnOtpSuccessParticles(container) {
   if (!container || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const count = 12;
+  const count = 24;
   for (let i = 0; i < count; i++) {
     const particle = document.createElement('span');
     particle.className = 'otp-success-particle';
-    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.4;
-    const distance = 50 + Math.random() * 35;
+    const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.6;
+    const distance = 40 + Math.random() * 60;
+    const duration = 800 + Math.random() * 400;
     particle.style.setProperty('--dx', Math.cos(angle) * distance + 'px');
     particle.style.setProperty('--dy', Math.sin(angle) * distance + 'px');
-    particle.style.animationDelay = Math.round(Math.random() * 100) + 'ms';
+    particle.style.animationDelay = Math.round(Math.random() * 150) + 'ms';
+    particle.style.animationDuration = duration + 'ms';
     container.appendChild(particle);
-    setTimeout(() => particle.remove(), 1300);
+    setTimeout(() => particle.remove(), duration + 150);
   }
+  const bgPulse = document.createElement('div');
+  bgPulse.style.cssText = 'position:fixed;inset:0;background:radial-gradient(circle at 50% 50%, rgba(109,179,63,0.1) 0%, transparent 70%);pointer-events:none;animation:bgPulse 600ms ease-out forwards;';
+  document.body.appendChild(bgPulse);
+  setTimeout(() => bgPulse.remove(), 600);
 }
 
 function showOtpSuccessOverlay() {
