@@ -110,7 +110,7 @@ Estos endpoints envían el SMS con **la cuenta de Twilio que el propio usuario c
 
 ### POST /api/twilio/connect — Conectar cuenta Twilio
 
-Valida las credenciales contra Twilio y las guarda en la sesión.
+Valida las credenciales contra Twilio y las guarda en la sesión. Además consulta a Twilio el tipo de cuenta y sus números verificados (`Account` y `OutgoingCallerId`) para decidir a qué números se podrá enviar (ver [POST /api/twilio/otps](#post-apitwiliootps--generar-código-otp)).
 
 | Campo | Regla |
 |---|---|
@@ -130,14 +130,18 @@ Valida las credenciales contra Twilio y las guarda en la sesión.
 }
 ```
 
-**Response `200`** (las credenciales se devuelven enmascaradas)
+**Response `200`** (las credenciales y los números se devuelven enmascarados)
 
 ```json
 {
   "connected": true,
-  "maskedCredentials": "AC1234···abcd / verify VA5678···efgh"
+  "maskedCredentials": "AC1234···abcd / verify VA5678···efgh",
+  "restrictedToVerifiedNumbers": true,
+  "verifiedNumbers": ["*********321"]
 }
 ```
+
+`restrictedToVerifiedNumbers` es `true` cuando la cuenta es de prueba o tiene números verificados: en ese caso solo se puede enviar a los de `verifiedNumbers`. Si Twilio no responde la consulta de números, queda en `false` y es Twilio quien decide al enviar.
 
 **Response `401`** (formato inválido, o Twilio rechazó las credenciales o el Verify Service)
 
@@ -155,14 +159,16 @@ Si falta algún campo, la respuesta es `400 VALIDATION_ERROR`.
 
 ### GET /api/twilio/status — Estado de la conexión
 
-Indica si la sesión tiene credenciales conectadas.
+Indica si la sesión tiene credenciales conectadas y a qué números puede enviar.
 
 **Response `200`**
 
 ```json
 {
   "connected": false,
-  "maskedCredentials": null
+  "maskedCredentials": null,
+  "restrictedToVerifiedNumbers": false,
+  "verifiedNumbers": []
 }
 ```
 
@@ -177,7 +183,9 @@ Borra las credenciales de la sesión.
 ```json
 {
   "connected": false,
-  "maskedCredentials": null
+  "maskedCredentials": null,
+  "restrictedToVerifiedNumbers": false,
+  "verifiedNumbers": []
 }
 ```
 
@@ -185,7 +193,17 @@ Borra las credenciales de la sesión.
 
 ### POST /api/twilio/otps — Generar código OTP
 
-Igual que `POST /otps` (mismos campos), pero envía el SMS con las credenciales de la sesión. Si `OTP_DEMO_MODE` está activo, la respuesta también incluye `demoCode`.
+Igual que `POST /otps` (mismos campos), pero envía el SMS con las credenciales de la sesión y admite un campo más. Si `OTP_DEMO_MODE` está activo, la respuesta también incluye `demoCode`.
+
+| Campo | Obligatorio | Regla |
+|---|---|---|
+| `message` | no | Texto del SMS. Máximo 300 caracteres y debe contener `{code}`, que se reemplaza por el código. `{seconds}` se reemplaza por los segundos de vigencia. Si se omite, se envía el mensaje predeterminado: "Tu código de verificación es 123456. Vence en 60 segundos." |
+
+La interfaz web siempre envía `message`: el texto del propósito elegido (por ejemplo "Tu código para iniciar sesión es {code}. Vence en {seconds} segundos.") o el que escriba el usuario.
+
+**Destino.** Si la cuenta conectada es de prueba, o tiene números verificados en Twilio, solo se puede enviar a esos números: cualquier otro responde `403 DESTINATION_NOT_VERIFIED` sin llamar a Twilio. Una cuenta de pago sin números verificados puede enviar a cualquier celular peruano.
+
+`message` solo existe en este endpoint: `POST /otps` envía siempre el mensaje predeterminado, para que la API sin autenticación no sirva para enviar texto arbitrario con la cuenta del servidor.
 
 **Request**
 
@@ -193,7 +211,8 @@ Igual que `POST /otps` (mismos campos), pero envía el SMS con las credenciales 
 {
   "cellphone": "912345678",
   "digits": 6,
-  "durationSeconds": 60
+  "durationSeconds": 60,
+  "message": "Tu clave de acceso es {code}. Caduca en {seconds} segundos."
 }
 ```
 
@@ -288,6 +307,7 @@ Responde `200` mientras la aplicación esté levantada. Sirve como Health Check 
 | `SMS_DELIVERY_FAILED` | 502 | El proveedor de SMS rechazó o no pudo enviar el mensaje |
 | `TWILIO_CREDENTIALS_INVALID` | 401 | Credenciales de Twilio con formato inválido o rechazadas por Twilio |
 | `TWILIO_NOT_CONNECTED` | 400 | El flujo de Twilio se usó sin conectar una cuenta en la sesión |
+| `DESTINATION_NOT_VERIFIED` | 403 | La cuenta de Twilio conectada solo puede enviar a sus números verificados y el destino no es uno de ellos |
 | `VALIDATION_ERROR` | 400 | Un campo obligatorio falta o está fuera de rango |
 
 Mensajes de `VALIDATION_ERROR` (formato `campo: mensaje`):
@@ -334,6 +354,7 @@ Casos comprobados con `POST /otps` y `POST /otps/verify`:
 | 9 dígitos que no empiezan con 9 | `400` estándar |
 | Celular de otro país (`+15551234567`) | `400` estándar |
 | `code` de 3 dígitos en `/otps/verify` | `400` estándar |
+| `message` sin `{code}` o de más de 300 caracteres, en `/api/twilio/otps` | `400` estándar |
 | JSON mal formado | `400` estándar |
 
 Quien consuma la API debe tratar cualquier `400` sin `code` como un error de formato de la petición.

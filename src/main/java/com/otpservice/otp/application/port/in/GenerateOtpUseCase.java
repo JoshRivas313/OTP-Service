@@ -10,5 +10,5 @@ public interface GenerateOtpUseCase {
 
   GenerateOtpResult generate(GenerateOtpCommand command, SmsSender sender);
 
-  record GenerateOtpCommand(Cellphone cellphone, Integer digits, Integer durationSeconds) {}
+  record GenerateOtpCommand(Cellphone cellphone, Integer digits, Integer durationSeconds, String customMessage) {}
 }

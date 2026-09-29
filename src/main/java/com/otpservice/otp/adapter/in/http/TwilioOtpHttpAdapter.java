@@ -1,5 +1,6 @@
 package com.otpservice.otp.adapter.in.http;
 
+import com.otpservice.otp.adapter.exception.DestinationNotVerifiedException;
 import com.otpservice.otp.adapter.exception.TwilioNotConnectedException;
 import com.otpservice.otp.adapter.in.http.dto.request.TwilioOtpGenerateRequest;
 import com.otpservice.otp.adapter.in.http.dto.request.TwilioOtpVerifyRequest;
@@ -42,10 +43,14 @@ public class TwilioOtpHttpAdapter {
     HttpSession session
   ) {
     TwilioCredentials credentials = requireConnected(session);
+    if (!sessionService.accountInfo(session).allows(request.getCellphone())) {
+      throw new DestinationNotVerifiedException();
+    }
     var command = new GenerateOtpUseCase.GenerateOtpCommand(
       request.getCellphone(),
       request.getDigits(),
-      request.getDurationSeconds()
+      request.getDurationSeconds(),
+      request.getMessage()
     );
     GenerateOtpResult result = generateUseCase.generate(
       command,

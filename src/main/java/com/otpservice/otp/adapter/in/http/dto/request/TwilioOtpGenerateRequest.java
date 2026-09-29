@@ -4,7 +4,9 @@ import com.otpservice.otp.domain.valueobject.Cellphone;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -24,4 +26,8 @@ public class TwilioOtpGenerateRequest {
     @Positive(message = "La duración debe ser mayor a 0 segundos")
     @Max(value = 86400, message = "La duración no puede superar un día")
     private Integer durationSeconds;
+
+    @Size(max = 300, message = "El mensaje no puede superar 300 caracteres")
+    @Pattern(regexp = "(?s).*\\{code}.*", message = "El mensaje debe incluir {code}")
+    private String message;
 }

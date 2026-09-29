@@ -60,7 +60,7 @@ src/main/java/com/otpservice/otp/
     │                                        TwilioVerifyService
     ├── exception/                           SmsDeliveryFailedException,
     │                                        TwilioCredentialsInvalidException,
-    │                                        TwilioNotConnectedException
+    │                                        TwilioNotConnectedException, DestinationNotVerifiedException
     └── config/                              ClockConfig, OtpProperties, SmsProperties,
                                              DemoModeGuard, OpenApiConfig,
                                              TwilioOnboardingFilter
@@ -105,7 +105,7 @@ Cada regla de negocio que puede fallar tiene su propia excepción, y todas extie
 |---|---|---|
 | `domain/exception` | `OtpExpiredException`, `OtpBlockedException`, `OtpAlreadyUsedException`, `OtpInvalidatedException`, `InvalidOtpException` | Responden preguntas que hace el propio modelo `Otp` |
 | `application/exception` | `OtpNotFoundException` | Resultado vacío de un puerto, decidido por el caso de uso |
-| `adapter/exception` | `SmsDeliveryFailedException`, `TwilioCredentialsInvalidException`, `TwilioNotConnectedException` | Solo se lanzan desde adaptadores |
+| `adapter/exception` | `SmsDeliveryFailedException`, `TwilioCredentialsInvalidException`, `TwilioNotConnectedException`, `DestinationNotVerifiedException` | Solo se lanzan desde adaptadores |
 
 `GlobalExceptionHandler` es el único lugar que conoce el código HTTP de cada una, con un `switch` de pattern matching sobre el tipo. La tabla completa está en [API.md](./API.md#códigos-de-error).
 

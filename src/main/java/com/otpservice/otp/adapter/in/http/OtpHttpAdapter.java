@@ -34,7 +34,8 @@ public class OtpHttpAdapter {
     var command = new GenerateOtpUseCase.GenerateOtpCommand(
       request.getCellphone(),
       request.getDigits(),
-      request.getDurationSeconds()
+      request.getDurationSeconds(),
+      null
     );
     GenerateOtpResult result = generateUseCase.generate(command);
     return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(result));

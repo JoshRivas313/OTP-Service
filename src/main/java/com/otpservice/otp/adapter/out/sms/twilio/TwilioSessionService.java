@@ -10,13 +10,21 @@ import java.util.Optional;
 public class TwilioSessionService {
 
     private static final String SESSION_KEY = "twilio.connect.credentials";
+    private static final String ACCOUNT_INFO_KEY = "twilio.connect.account-info";
 
-    public void connect(HttpSession session, TwilioCredentials credentials) {
+    public void connect(HttpSession session, TwilioCredentials credentials, TwilioAccountInfo accountInfo) {
         session.setAttribute(SESSION_KEY, credentials);
+        session.setAttribute(ACCOUNT_INFO_KEY, accountInfo);
     }
 
     public void disconnect(HttpSession session) {
         session.removeAttribute(SESSION_KEY);
+        session.removeAttribute(ACCOUNT_INFO_KEY);
+    }
+
+    public TwilioAccountInfo accountInfo(HttpSession session) {
+        return Optional.ofNullable((TwilioAccountInfo) session.getAttribute(ACCOUNT_INFO_KEY))
+                .orElseGet(TwilioAccountInfo::unrestricted);
     }
 
     public Optional<TwilioCredentials> get(HttpSession session) {

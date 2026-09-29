@@ -8,6 +8,7 @@ import com.otpservice.otp.domain.exception.OtpDomainException;
 import com.otpservice.otp.domain.exception.OtpExpiredException;
 import com.otpservice.otp.domain.exception.OtpInvalidatedException;
 import com.otpservice.otp.application.exception.OtpNotFoundException;
+import com.otpservice.otp.adapter.exception.DestinationNotVerifiedException;
 import com.otpservice.otp.adapter.exception.SmsDeliveryFailedException;
 import com.otpservice.otp.adapter.exception.TwilioCredentialsInvalidException;
 import com.otpservice.otp.adapter.exception.TwilioNotConnectedException;
@@ -48,6 +49,7 @@ public class GlobalExceptionHandler {
             case SmsDeliveryFailedException e -> HttpStatus.BAD_GATEWAY;
             case TwilioCredentialsInvalidException e -> HttpStatus.UNAUTHORIZED;
             case TwilioNotConnectedException e -> HttpStatus.BAD_REQUEST;
+            case DestinationNotVerifiedException e -> HttpStatus.FORBIDDEN;
             default -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
     }

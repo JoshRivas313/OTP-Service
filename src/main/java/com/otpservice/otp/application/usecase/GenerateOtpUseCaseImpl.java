@@ -47,10 +47,19 @@ public class GenerateOtpUseCaseImpl implements GenerateOtpUseCase {
     persistencePort.save(Otp.issue(
       new Otp.IssueRequest(cellphone, codeHash, digits, window, purgeAt)));
 
-    sender.send(cellphone, properties.messageTemplate().formatted(code.getValue(), durationSeconds));
+    sender.send(cellphone, buildMessage(command.customMessage(), code, durationSeconds));
 
     return properties.demoMode()
       ? GenerateOtpResult.sentInDemoMode(code.getValue())
       : GenerateOtpResult.sent();
+  }
+
+  private String buildMessage(String customMessage, OtpCode code, int durationSeconds) {
+    if (customMessage == null || customMessage.isBlank()) {
+      return properties.messageTemplate().formatted(code.getValue(), durationSeconds);
+    }
+    return customMessage
+      .replace("{code}", code.getValue())
+      .replace("{seconds}", String.valueOf(durationSeconds));
   }
 }

@@ -4,6 +4,7 @@ import com.otpservice.otp.adapter.exception.TwilioCredentialsInvalidException;
 import com.otpservice.otp.domain.valueobject.TwilioCredentials;
 import com.otpservice.otp.adapter.in.http.dto.request.TwilioConnectRequest;
 import com.otpservice.otp.adapter.in.http.dto.response.TwilioStatusResponse;
+import com.otpservice.otp.adapter.out.sms.twilio.TwilioAccountInfo;
 import com.otpservice.otp.adapter.out.sms.twilio.TwilioSessionService;
 import com.otpservice.otp.adapter.out.sms.twilio.TwilioVerifyService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -11,6 +12,8 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import java.util.Comparator;
+import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -35,9 +38,10 @@ public class TwilioConnectHttpAdapter {
   ) {
     TwilioCredentials credentials = toCredentials(request);
     verifyService.validateCredentials(credentials);
-    sessionService.connect(session, credentials);
+    TwilioAccountInfo accountInfo = verifyService.fetchAccountInfo(credentials);
+    sessionService.connect(session, credentials, accountInfo);
     session.setMaxInactiveInterval(SESSION_TIMEOUT_SECONDS);
-    return ResponseEntity.ok(TwilioStatusResponse.connected(credentials.masked()));
+    return ResponseEntity.ok(toStatus(credentials, accountInfo));
   }
 
   @PostMapping("/disconnect")
@@ -49,8 +53,21 @@ public class TwilioConnectHttpAdapter {
   @GetMapping("/status")
   public ResponseEntity<TwilioStatusResponse> status(HttpSession session) {
     return ResponseEntity.ok(sessionService.get(session)
-      .map(credentials -> TwilioStatusResponse.connected(credentials.masked()))
+      .map(credentials -> toStatus(credentials, sessionService.accountInfo(session)))
       .orElseGet(TwilioStatusResponse::disconnected));
+  }
+
+  private TwilioStatusResponse toStatus(TwilioCredentials credentials, TwilioAccountInfo accountInfo) {
+    List<String> maskedNumbers = accountInfo.verifiedNumbers().stream()
+      .sorted(Comparator.naturalOrder())
+      .map(TwilioConnectHttpAdapter::mask)
+      .toList();
+    return TwilioStatusResponse.connected(credentials.masked(), accountInfo.restricted(), maskedNumbers);
+  }
+
+  private static String mask(String number) {
+    int hidden = Math.max(number.length() - 3, 0);
+    return "*".repeat(hidden) + number.substring(hidden);
   }
 
   private TwilioCredentials toCredentials(TwilioConnectRequest request) {

@@ -82,6 +82,7 @@ El proveedor nunca sabe si un código es correcto. Más detalle en [PROVEEDORES_
 
 ### Interfaz web incluida
 - Conexión de cuenta Twilio y flujo en tres pasos: enviar, verificar y resultado
+- El propósito del código (iniciar sesión, registro, recuperar acceso, confirmar un pago) define el texto del SMS, o se puede escribir un mensaje propio con `{code}` y `{seconds}`
 - Cuenta regresiva del código y estados de error y de expiración
 - HTML, CSS y JavaScript sin framework, servidos por Spring Boot
 
@@ -217,6 +218,7 @@ Flujo de la interfaz web con la cuenta de Twilio del usuario.
 **Características:**
 - Conectar valida las credenciales contra Twilio
 - Las credenciales se guardan 15 minutos en la sesión y se muestran enmascaradas
+- Al conectar se consultan los números verificados de la cuenta y el envío queda limitado a ellos
 - El envío usa las credenciales de la sesión, no las del servidor
 
 **Clases principales:** `TwilioConnectHttpAdapter`, `TwilioOtpHttpAdapter`, `TwilioSessionService`, `TwilioSessionSmsSender`, `TwilioVerifyService`, `TwilioOnboardingFilter`
@@ -241,7 +243,7 @@ Cliente de demostración en `src/main/resources/static/`.
 **Características:**
 - `index.html`: conexión de la cuenta de Twilio
 - `otp-service.html`: envío, verificación y resultado en tres pasos
-- El selector de propósito (iniciar sesión, registro, recuperar acceso, confirmar un pago) solo cambia los textos de la demo: el backend valida el código igual en todos los casos
+- El selector de propósito (iniciar sesión, registro, recuperar acceso, confirmar un pago) cambia el texto del SMS y los textos de la demo; también se puede escribir un mensaje propio. El backend valida el código igual en todos los casos
 
 ---
 
@@ -701,8 +703,8 @@ sequenceDiagram
 - **Con el almacenamiento en memoria, un reinicio borra los códigos pendientes y las sesiones de Twilio.** Además, la memoria no se comparte entre instancias: para varias réplicas hay que usar el perfil `mongo`.
 - **En memoria hay un tope de códigos** (`OTP_MEMORY_MAX_ENTRIES`). Al llegar, se descartan los más antiguos, incluso si aún estaban vigentes.
 - **La API no tiene autenticación ni límite de envíos.** No la publiques en internet con `SMS_PROVIDER=twilio` o `infobip`: cualquiera podría generar SMS a cargo de esa cuenta. Para una instancia pública usa `OTP_LOCAL_API_ENABLED=false`.
-- **Los errores de formato devuelven el cuerpo estándar de Spring.** Un celular o un código mal formados responden `400` sin `code` ni `message`. Además, el formulario acepta de 7 a 9 dígitos y el backend exige 9 que empiecen con 9.
-- Las cuentas de prueba de Twilio, según sus reglas, solo envían a números verificados.
+- **Los errores de formato devuelven el cuerpo estándar de Spring.** Un celular o un código mal formados responden `400` sin `code` ni `message`. 
+- **Solo se envía a los números verificados de la cuenta de Twilio conectada.** Al conectar, el servicio consulta a Twilio qué números tiene verificados la cuenta (siempre en las cuentas de prueba) y solo permite enviar a esos; otro destino responde `403 DESTINATION_NOT_VERIFIED`. Una cuenta de pago sin números verificados puede enviar a cualquier celular peruano.
 
 ---
 

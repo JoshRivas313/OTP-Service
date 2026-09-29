@@ -54,9 +54,9 @@ Con Docker Compose: `docker compose logs -f app`.
 
 La interfaz web no usa el proveedor global. Pide al usuario sus propias credenciales de Twilio y envía con ellas:
 
-1. `POST /api/twilio/connect` valida el formato de las credenciales y le pregunta a Twilio si el Verify Service existe con esas credenciales (`TwilioVerifyService`).
+1. `POST /api/twilio/connect` valida el formato de las credenciales y le pregunta a Twilio si el Verify Service existe con esas credenciales (`TwilioVerifyService`). Después consulta el tipo de cuenta y sus números verificados (`TwilioAccountInfo`).
 2. Si son válidas, `TwilioSessionService` las guarda en la `HttpSession` durante 15 minutos de inactividad. Se mantienen solo en la memoria del servidor: no se escriben en ninguna base de datos ni en el log, y se pierden si el servidor se reinicia.
-3. `POST /api/twilio/otps` toma las credenciales de la sesión, arma un `SmsSender` (`TwilioSessionSmsSender`) y se lo pasa al caso de uso de generar código.
+3. `POST /api/twilio/otps` comprueba que el destino sea uno de los números verificados de la cuenta (si es de prueba o tiene números verificados; si no, `403 DESTINATION_NOT_VERIFIED`), toma las credenciales de la sesión, arma un `SmsSender` (`TwilioSessionSmsSender`) y se lo pasa al caso de uso de generar código.
 4. `POST /api/twilio/disconnect`, o el vencimiento de la sesión, las descartan.
 
 `TwilioOnboardingFilter` redirige a `/` cuando se pide `otp-service.html` sin credenciales en la sesión. Solo protege esa página: los endpoints se protegen por su cuenta (responden `400 TWILIO_NOT_CONNECTED`).

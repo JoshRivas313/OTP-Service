@@ -1,8 +1,12 @@
 const ICON_OK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const ICON_ERR = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-function validateE164(cellphone) {
-  return /^\d{7,9}$/.test(cellphone);
+function validatePeruvianMobile(national) {
+  return /^9\d{8}$/.test(national);
+}
+
+function maskPhone(national) {
+  return '+51 ' + national.slice(0, 2) + '*'.repeat(national.length - 4) + national.slice(-2);
 }
 
 function showFieldError(fieldId, message) {
@@ -25,17 +29,47 @@ function clearFieldError(fieldId) {
   input.classList.remove('error');
 }
 
-document.querySelectorAll('input[inputmode="numeric"]').forEach(input => {
-  input.addEventListener('input', () => {
-    input.value = input.value.replace(/\D/g, '');
-    clearFieldError(input.id);
-  });
+const cellphoneInput = document.getElementById('gen-cellphone');
+cellphoneInput.addEventListener('input', () => {
+  cellphoneInput.value = cellphoneInput.value.replace(/\D/g, '');
+  clearFieldError('gen-cellphone');
+});
+cellphoneInput.addEventListener('blur', () => {
+  if (cellphoneInput.value && !validatePeruvianMobile(cellphoneInput.value)) {
+    showFieldError('gen-cellphone', 'Ingresá 9 dígitos que empiecen con 9');
+  }
+});
 
-  input.addEventListener('blur', () => {
-    if (input.value && !validateE164(input.value)) {
-      showFieldError(input.id, 'Número debe tener 7-9 dígitos');
-    }
-  });
+const customToggle = document.getElementById('gen-custom-toggle');
+const messageInput = document.getElementById('gen-message');
+let messageEdited = false;
+
+function purposeMessage() {
+  return PURPOSES[selectedPurposeKey()].sms;
+}
+
+function sampleSeconds() {
+  return document.getElementById('gen-expiration').value;
+}
+
+function refreshMessagePreview() {
+  const sample = purposeMessage().replace('{code}', '123456').replace('{seconds}', sampleSeconds());
+  document.getElementById('gen-message-preview').textContent = '"' + sample + '"';
+  if (!messageEdited) messageInput.value = purposeMessage();
+}
+
+customToggle.addEventListener('change', () => {
+  document.getElementById('gen-message-box').hidden = !customToggle.checked;
+  document.getElementById('gen-message-default').hidden = customToggle.checked;
+  if (customToggle.checked) messageInput.focus();
+});
+document.querySelectorAll('input[name="purpose"]').forEach(radio => radio.addEventListener('change', refreshMessagePreview));
+document.getElementById('gen-expiration').addEventListener('change', refreshMessagePreview);
+messageInput.addEventListener('input', () => {
+  messageEdited = true;
+  document.getElementById('gen-message').classList.remove('error');
+  const help = document.querySelector('#gen-message-box .field-error');
+  if (help) help.remove();
 });
 
 function setProgressStep(number, state) {
@@ -70,24 +104,28 @@ let otpExpired = false;
 // El propósito solo cambia el texto de la demo: el backend valida el código igual en todos los casos.
 const PURPOSES = {
   login: {
+    sms: 'Tu código para iniciar sesión es {code}. Vence en {seconds} segundos.',
     action: 'Inicio de sesión',
     verifyHint: 'Confirmá que sos vos para iniciar sesión.',
     title: 'Acceso concedido',
     desc: 'Comprobamos que tenés este celular. En una app real, acá entrarías a tu cuenta.'
   },
   signup: {
+    sms: 'Tu código para crear tu cuenta es {code}. Vence en {seconds} segundos.',
     action: 'Registro',
     verifyHint: 'Verificamos tu celular para crear tu cuenta.',
     title: 'Celular verificado',
     desc: 'Tu número es real y es tuyo. En una app real, acá seguirías con el registro.'
   },
   reset: {
+    sms: 'Tu código para recuperar tu acceso es {code}. Vence en {seconds} segundos.',
     action: 'Recuperación de acceso',
     verifyHint: 'Confirmá tu identidad para recuperar el acceso.',
     title: 'Identidad confirmada',
     desc: 'En una app real, acá podrías elegir una contraseña nueva.'
   },
   payment: {
+    sms: 'Tu código para confirmar tu pago es {code}. Vence en {seconds} segundos.',
     action: 'Confirmación de pago',
     verifyHint: 'Confirmá la operación con el código que te enviamos.',
     title: 'Operación autorizada',
@@ -225,6 +263,16 @@ function showOtpStep(stepNumber) {
   if (step) step.style.display = 'block';
 }
 
+function showMessageError(text) {
+  const box = document.getElementById('gen-message-box');
+  const existing = box.querySelector('.field-error');
+  if (existing) existing.remove();
+  const errorEl = document.createElement('span');
+  errorEl.className = 'field-error';
+  errorEl.textContent = text;
+  box.appendChild(errorEl);
+}
+
 function resetOtpFlow(keepNumber = false) {
   showOtpStep(1);
   resetProgress();
@@ -238,7 +286,8 @@ function resetOtpFlow(keepNumber = false) {
   document.getElementById('gen-result').className = 'result';
   document.getElementById('gen-result').innerHTML = '';
   document.getElementById('gen-success').style.display = 'none';
-  document.getElementById('ver-phone-display').textContent = '+51 ••••••••';
+  document.getElementById('ver-phone-display').textContent = '••••••••';
+  document.getElementById('gen-message').classList.remove('error');
   document.getElementById('ver-result').className = 'result';
   document.getElementById('ver-result').innerHTML = '';
   document.querySelectorAll('.code-box').forEach(box => {
@@ -251,23 +300,31 @@ function resetOtpFlow(keepNumber = false) {
 }
 
 async function generateOtp() {
-  const cellphoneInput = document.getElementById('gen-cellphone');
-  const cellphone = cellphoneInput.value.trim();
+  const national = cellphoneInput.value.trim();
+  const cellphone = '+51' + national;
 
-  if (!cellphone) {
+  if (!national) {
     showFieldError('gen-cellphone', 'Número requerido');
     return;
   }
 
-  if (!validateE164(cellphone)) {
-    showFieldError('gen-cellphone', 'Número debe tener 7-9 dígitos');
+  if (!validatePeruvianMobile(national)) {
+    showFieldError('gen-cellphone', 'Ingresá 9 dígitos que empiecen con 9');
     return;
   }
 
   clearFieldError('gen-cellphone');
   const digits = parseInt(document.getElementById('gen-digits').value, 10);
   const durationSeconds = parseInt(document.getElementById('gen-expiration').value, 10);
-  const ok = await submit('gen-btn', 'gen-result', '/api/twilio/otps', { cellphone, digits, durationSeconds });
+  const message = customToggle.checked ? messageInput.value.trim() : purposeMessage();
+  if (!message.includes('{code}')) {
+    messageInput.classList.add('error');
+    showMessageError('El mensaje debe incluir {code}');
+    return;
+  }
+  const payload = { cellphone, digits, durationSeconds, message };
+
+  const ok = await submit('gen-btn', 'gen-result', '/api/twilio/otps', payload);
   if (ok) {
     const issuedAt = Date.now();
     lastCellphone = cellphone;
@@ -277,10 +334,8 @@ async function generateOtp() {
     setProgressStep(1, 'done');
 
     document.getElementById('gen-success').style.display = 'flex';
-    const masked = cellphone.slice(0, 2) + '*'.repeat(cellphone.length - 4) + cellphone.slice(-2);
-    document.getElementById('gen-phone-display').textContent = '+51 ' + masked;
-
-    const displayPhone = '+51 ' + cellphone.slice(0, 2) + '****' + cellphone.slice(-2);
+    const displayPhone = maskPhone(national);
+    document.getElementById('gen-phone-display').textContent = displayPhone;
     lastMaskedPhone = displayPhone;
     document.getElementById('ver-phone-display').textContent = displayPhone;
     document.getElementById('ver-purpose-desc').textContent = PURPOSES[lastPurpose].verifyHint;
@@ -417,6 +472,18 @@ function showOtpSuccessOverlay() {
   }, 1800);
 }
 
+function showVerifiedHint(status) {
+  const hint = document.getElementById('gen-verified-hint');
+  if (!status.restrictedToVerifiedNumbers) {
+    hint.hidden = true;
+    return;
+  }
+  hint.textContent = status.verifiedNumbers.length
+    ? 'Tu cuenta de Twilio solo puede enviar a los números que verificaste: ' + status.verifiedNumbers.join(', ') + '.'
+    : 'Tu cuenta de Twilio no tiene números verificados. Verificá tu celular en la consola de Twilio para poder enviar.';
+  hint.hidden = false;
+}
+
 async function checkTwilioBanner() {
   try {
     const statusResponse = await fetch('/api/twilio/status');
@@ -427,6 +494,7 @@ async function checkTwilioBanner() {
     document.getElementById('twilio-connect-link').style.display = status.connected ? 'none' : 'inline';
     if (status.connected) {
       document.getElementById('tw-masked-inline').textContent = status.maskedCredentials;
+      showVerifiedHint(status);
     }
   } catch (error) {
   }
@@ -438,3 +506,5 @@ async function changeTwilioConfig() {
 }
 
 checkTwilioBanner();
+
+refreshMessagePreview();
