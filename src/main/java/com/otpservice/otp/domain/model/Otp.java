@@ -9,11 +9,6 @@ import lombok.Getter;
 
 import java.time.Instant;
 
-/**
- * Pure domain model for an OTP: no persistence annotations, no framework
- * dependencies. The Mongo-specific representation lives in
- * adapter/out/persistence/document/OtpDocument, mapped by OtpPersistenceMapper.
- */
 @Getter
 @Builder
 @AllArgsConstructor

@@ -4,11 +4,7 @@ import com.otpservice.otp.domain.model.Otp;
 import java.time.Instant;
 import java.util.Optional;
 
-/**
- * Output port for OTP persistence.
- * Mirrors the atomic MongoDB operations needed to keep verification
- * concurrency-safe (claim-if-matches, register-failed-attempt).
- */
+// claimIfMatches y registerFailedAttempt son atomicos a proposito: evitan condiciones de carrera al verificar.
 public interface OtpPersistencePort {
 
   long invalidateActive(String cellphone);

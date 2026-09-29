@@ -25,14 +25,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Generates/verifies OTPs via the Twilio account connected to the caller's
- * HttpSession. Deliberately depends on the generic GenerateOtpUseCase/
- * VerifyOtpUseCase (not Twilio-specific use cases): the only thing that
- * differs from the local flow is which SmsSender to use, and that choice
- * depends on session data that only this HTTP adapter has — it doesn't
- * belong in application/usecase.
- */
 @Tag(name = "OTP con Twilio", description = "Genera y verifica códigos usando la cuenta de Twilio conectada en sesión")
 @RestController
 @RequestMapping("/api/twilio/otps")

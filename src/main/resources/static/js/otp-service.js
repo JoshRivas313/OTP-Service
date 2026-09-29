@@ -225,7 +225,6 @@ function showOtpStep(stepNumber) {
   if (step) step.style.display = 'block';
 }
 
-// keepNumber: "Cambiar número" / "Enviar código nuevo" conservan lo que ya escribió el usuario.
 function resetOtpFlow(keepNumber = false) {
   showOtpStep(1);
   resetProgress();
@@ -317,7 +316,6 @@ async function verifyOtp() {
   }
 
   if (!lastCellphone) {
-    console.error('No cellphone stored');
     return;
   }
 
@@ -360,7 +358,6 @@ async function submit(buttonId, resultId, url, body) {
   btn.setAttribute('aria-busy', 'true');
   let ok = false;
   try {
-    console.log('Sending request to:', url, 'Body:', body);
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -368,14 +365,12 @@ async function submit(buttonId, resultId, url, body) {
     });
     const data = await response.json();
     ok = response.ok;
-    console.log('Response status:', response.status, 'ok:', ok, 'Data:', data);
 
     if (ok && resultId === 'ver-result') {
       showOtpSuccessOverlay();
     }
     showResult(resultId, ok, data.message || data.code);
   } catch (error) {
-    console.error('Fetch error:', error);
     showResult(resultId, false, 'No se pudo conectar con el servidor');
   } finally {
     btn.disabled = false;

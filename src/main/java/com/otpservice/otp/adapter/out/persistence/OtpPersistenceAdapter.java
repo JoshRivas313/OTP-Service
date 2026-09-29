@@ -8,12 +8,6 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
-/**
- * Adapts the Spring Data MongoDB repository to the application's persistence port.
- * Keeps Spring Data / MongoDB details (and the OtpDocument representation)
- * out of the domain layer; OtpPersistenceMapper does the Otp <-> OtpDocument
- * conversion at this boundary.
- */
 @Repository
 @RequiredArgsConstructor
 public class OtpPersistenceAdapter implements OtpPersistencePort {

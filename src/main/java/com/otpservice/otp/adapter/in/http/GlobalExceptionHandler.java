@@ -17,12 +17,6 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-/**
- * All OtpDomainException subclasses (domain/exception, application/exception,
- * adapter/exception) share one base type and carry no HTTP knowledge on
- * purpose; this is the one place that maps them to a status code, keeping
- * that mapping out of the domain and application layers.
- */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 

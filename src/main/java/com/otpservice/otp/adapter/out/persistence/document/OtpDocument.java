@@ -14,11 +14,6 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 
-/**
- * Mongo persistence representation of an OTP. Pure data holder — no
- * business logic here; that lives in the domain model (domain/model/Otp).
- * Converted to/from Otp by OtpPersistenceMapper.
- */
 @Getter
 @Builder
 @AllArgsConstructor
