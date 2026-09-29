@@ -15,7 +15,7 @@
 
 El servicio genera y verifica los códigos por su cuenta. El proveedor de SMS solo entrega el mensaje.
 
-| Lo hace el backend (Spring Boot y MongoDB) | Lo hace el proveedor (Twilio o Infobip) |
+| Lo hace el backend (Spring Boot) | Lo hace el proveedor (Twilio o Infobip) |
 |---|---|
 | Generar el código con `SecureRandom` | Entregar el SMS al celular |
 | Guardar solo su hash (HMAC-SHA256) y su expiración | Cobrar el envío a la cuenta conectada |
@@ -55,7 +55,7 @@ Con Docker Compose: `docker compose logs -f app`.
 La interfaz web no usa el proveedor global. Pide al usuario sus propias credenciales de Twilio y envía con ellas:
 
 1. `POST /api/twilio/connect` valida el formato de las credenciales y le pregunta a Twilio si el Verify Service existe con esas credenciales (`TwilioVerifyService`).
-2. Si son válidas, `TwilioSessionService` las guarda en la `HttpSession` durante 15 minutos de inactividad. No se escriben en MongoDB ni en el log.
+2. Si son válidas, `TwilioSessionService` las guarda en la `HttpSession` durante 15 minutos de inactividad. Se mantienen solo en la memoria del servidor: no se escriben en ninguna base de datos ni en el log, y se pierden si el servidor se reinicia.
 3. `POST /api/twilio/otps` toma las credenciales de la sesión, arma un `SmsSender` (`TwilioSessionSmsSender`) y se lo pasa al caso de uso de generar código.
 4. `POST /api/twilio/disconnect`, o el vencimiento de la sesión, las descartan.
 

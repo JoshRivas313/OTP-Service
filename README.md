@@ -7,7 +7,7 @@
 <p align="center">
   <img alt="Java 21" src="https://img.shields.io/badge/Java-21-007396?logo=openjdk&logoColor=white">
   <img alt="Spring Boot 4.1.1" src="https://img.shields.io/badge/Spring%20Boot-4.1.1-6DB33F?logo=springboot&logoColor=white">
-  <img alt="MongoDB" src="https://img.shields.io/badge/MongoDB-persistencia-47A248?logo=mongodb&logoColor=white">
+  <img alt="MongoDB opcional" src="https://img.shields.io/badge/MongoDB-opcional-47A248?logo=mongodb&logoColor=white">
   <img alt="Licencia MIT" src="https://img.shields.io/badge/Licencia-MIT-blue">
 </p>
 
@@ -23,6 +23,7 @@ Backend en Spring Boot que genera códigos de un solo uso, los envía por SMS al
 - [Documentación Detallada](#documentación-detallada)
 - [Instalación y Configuración](#instalación-y-configuración)
 - [Variables de Entorno](#variables-de-entorno)
+- [Despliegue en Render](#despliegue-en-render)
 - [Scripts Disponibles](#scripts-disponibles)
 - [API Endpoints](#api-endpoints)
 - [Flujos de Uso](#flujos-de-uso)
@@ -42,7 +43,7 @@ OTP Service es una API REST desarrollada con **Spring Boot** para verificar la p
 
 ### Qué hace el backend y qué hace el proveedor de SMS
 
-| Backend (Spring Boot y MongoDB) | Proveedor de SMS (Twilio o Infobip) |
+| Backend (Spring Boot) | Proveedor de SMS (Twilio o Infobip) |
 |---|---|
 | Genera el código con `SecureRandom` | Entrega el SMS al celular |
 | Guarda su hash HMAC-SHA256 y su expiración | Cobra el envío a la cuenta conectada |
@@ -64,10 +65,14 @@ El proveedor nunca sabe si un código es correcto. Más detalle en [PROVEEDORES_
 
 ### Seguridad
 - Nunca se guarda el código, solo su hash HMAC-SHA256 con clave (`OTP_HASH_SECRET`)
-- Verificación atómica en MongoDB: sin condiciones de carrera entre verificaciones simultáneas
+- Verificación atómica (en memoria o en MongoDB): sin condiciones de carrera entre verificaciones simultáneas
 - Validación del celular (formato peruano `+51 9XXXXXXXX`)
-- Las credenciales de Twilio viven solo en la sesión HTTP (15 minutos) y no se guardan en la base de datos
+- Las credenciales de Twilio viven solo en la memoria del servidor, ligadas a la sesión HTTP (15 minutos), y no se escriben en ninguna base de datos ni en el log
 - El modo demo no puede combinarse con un proveedor de SMS real (la aplicación no arranca)
+
+### Almacenamiento intercambiable
+- En memoria por defecto: no necesita base de datos, los códigos se purgan al vencer su retención y hay un tope de códigos guardados
+- MongoDB opcional con el perfil `mongo`, para que los códigos sobrevivan a un reinicio o para varias instancias
 
 ### Proveedores de SMS intercambiables
 - `console`: escribe el mensaje en el log, sin cuentas ni costo (por defecto)
@@ -86,6 +91,7 @@ El proveedor nunca sabe si un código es correcto. Más detalle en [PROVEEDORES_
 
 ### Arquitectura hexagonal
 - Dominio sin dependencias de Spring, MongoDB ni proveedores de SMS
+- El almacenamiento es un puerto con dos adaptadores: memoria y MongoDB
 - Agregar un proveedor de SMS es agregar una clase
 
 ---
@@ -99,8 +105,9 @@ El proveedor nunca sabe si un código es correcto. Más detalle en [PROVEEDORES_
 - **Validación:** Bean Validation (Jakarta)
 - **Build:** Maven (wrapper incluido)
 
-### Base de Datos
-- **MongoDB** con Spring Data MongoDB (probado con la imagen `mongo:latest`)
+### Almacenamiento
+- **Memoria** (por defecto): sin dependencias externas
+- **MongoDB** (opcional) con Spring Data MongoDB
 
 ### Servicios Externos (opcionales)
 - **Twilio:** SDK 13.0.1, API de mensajes
@@ -140,7 +147,7 @@ El proveedor nunca sabe si un código es correcto. Más detalle en [PROVEEDORES_
 │  persistence · security (HMAC) · sms                  │
 └───────────┬──────────────────────────┬────────────────┘
             ▼                          ▼
-        MongoDB          Consola · Twilio · Infobip
+   Memoria · MongoDB     Consola · Twilio · Infobip
 
 domain (Otp, Cellphone, OtpCode, ValidityWindow, excepciones)
 lo usan todas las capas y no depende de ninguna.
@@ -163,19 +170,20 @@ Generación y verificación de códigos.
 
 **Clases principales:** `GenerateOtpUseCaseImpl`, `VerifyOtpUseCaseImpl`, `Otp`, `OtpCode`, `Cellphone`, `ValidityWindow`, `VerificationStatus`
 
-**Colección:** `otps`
+**Colección (modo MongoDB):** `otps`
 
 ---
 
-### Persistencia (MongoDB)
-Almacenamiento de los códigos con operaciones atómicas.
+### Persistencia
+Almacenamiento de los códigos con operaciones atómicas, en memoria o en MongoDB según el perfil.
 
 **Características:**
 - `claimIfMatches` marca el código como usado solo si coincide, no expiró y quedan intentos
 - `registerFailedAttempt` suma un intento fallido en una sola operación
+- En memoria, un único lock protege el estado, purga los códigos vencidos y descarta los más antiguos al llegar al tope
 - El modelo de dominio (`Otp`) está separado del documento de MongoDB (`OtpDocument`)
 
-**Clases principales:** `OtpPersistenceAdapter`, `OtpRepository`, `OtpRepositoryImpl`, `OtpDocument`, `OtpPersistenceMapper`
+**Clases principales:** `InMemoryOtpPersistenceAdapter`, `OtpPersistenceAdapter`, `OtpRepository`, `OtpRepositoryImpl`, `OtpDocument`, `OtpPersistenceMapper`
 
 ---
 
@@ -256,7 +264,8 @@ Diagramas complementarios a los [Flujos de Uso](#flujos-de-uso):
 
 ### Base de Datos
 [**BASE_DE_DATOS.md**](./docs/BASE_DE_DATOS.md)
-Modelo de datos en MongoDB:
+Modelo de datos y almacenamiento:
+- Modo memoria y modo MongoDB
 - Campos de la colección `otps`
 - Ciclo de vida de un código
 - Operaciones atómicas
@@ -285,7 +294,7 @@ Envío de mensajes:
 ### Prerrequisitos
 
 - Java 21
-- Docker (para MongoDB o para levantar todo con Docker Compose), o un MongoDB accesible
+- Opcional: Docker, para levantar la aplicación con MongoDB mediante Docker Compose
 - No hace falta instalar Maven: el repositorio incluye `mvnw`
 - Opcional: una cuenta de Twilio o Infobip para enviar SMS reales
 
@@ -294,13 +303,21 @@ Envío de mensajes:
 ```bash
 git clone https://github.com/JoshRivas313/OTP-Service.git
 cd OTP-Service
-docker run -d -p 27017:27017 --name otp-mongo mongo:latest
 ./mvnw spring-boot:run
 ```
 
 En Windows: `mvnw.cmd spring-boot:run`.
 
-Sin más configuración la aplicación usa MongoDB en `localhost:27017` y el proveedor `console`.
+Sin más configuración la aplicación guarda los códigos en memoria, no necesita ninguna base de datos y usa el proveedor `console`. Al reiniciarla se pierden los códigos pendientes.
+
+Para guardarlos en MongoDB, levanta una instancia y activa el perfil `mongo`:
+
+```bash
+docker run -d -p 27017:27017 --name otp-mongo mongo:latest
+SPRING_PROFILES_ACTIVE=mongo ./mvnw spring-boot:run
+```
+
+Con el perfil `mongo` la aplicación crea sola los índices, incluido el de purga por TTL.
 
 ### Opción B. Docker Compose
 
@@ -308,7 +325,7 @@ Sin más configuración la aplicación usa MongoDB en `localhost:27017` y el pro
 docker compose up --build
 ```
 
-Levanta MongoDB y la aplicación con el proveedor `console`. Las credenciales de MongoDB y la clave de `docker-compose.yml` son solo para desarrollo local.
+Levanta MongoDB y la aplicación con el perfil `mongo` y el proveedor `console`. Las credenciales de MongoDB y la clave de `docker-compose.yml` son solo para desarrollo local.
 
 ### Probar
 
@@ -345,7 +362,8 @@ La aplicación lee estas variables del entorno del sistema. **El archivo `.env` 
 
 | Variable | Por defecto | Descripción |
 |---|---|---|
-| `MONGODB_URI` | `mongodb://localhost:27017/otp_service` | Conexión a MongoDB |
+| `SPRING_PROFILES_ACTIVE` | vacío | `mongo` activa el almacenamiento en MongoDB. Sin él, los códigos se guardan en memoria |
+| `MONGODB_URI` | `mongodb://localhost:27017/otp_service` | Conexión a MongoDB. Solo se lee con el perfil `mongo` |
 | `OTP_HASH_SECRET` | `dev-only-secret-change-me` | Clave del HMAC-SHA256. Cámbiala fuera de desarrollo: la aplicación avisa si queda el valor por defecto |
 | `OTP_DEMO_MODE` | `false` | Si es `true`, `POST /otps` devuelve el código en `demoCode`. No se puede combinar con `twilio` ni `infobip` |
 | `SMS_PROVIDER` | `console` | `console`, `twilio` o `infobip` |
@@ -355,7 +373,10 @@ La aplicación lee estas variables del entorno del sistema. **El archivo `.env` 
 | `INFOBIP_BASE_URL` | vacío | Obligatoria si `SMS_PROVIDER=infobip` |
 | `INFOBIP_API_KEY` | vacío | Obligatoria si `SMS_PROVIDER=infobip` |
 | `INFOBIP_SENDER` | vacío | Obligatoria si `SMS_PROVIDER=infobip` |
-| `SERVER_PORT` | `8080` | Puerto HTTP (configuración estándar de Spring Boot) |
+| `PORT` | `8080` | Puerto HTTP. Las plataformas como Render lo definen solas |
+| `SESSION_COOKIE_SECURE` | `false` | Si es `true`, la cookie de sesión solo viaja por HTTPS. Actívalo al publicar |
+| `OTP_LOCAL_API_ENABLED` | `true` | Si es `false`, se deshabilitan `POST /otps` y `POST /otps/verify`; quedan solo los endpoints de Twilio por sesión |
+| `OTP_MEMORY_MAX_ENTRIES` | `10000` | Tope de códigos guardados en memoria; al llegar se descartan los más antiguos |
 
 ```bash
 # Linux, macOS o Git Bash
@@ -376,9 +397,31 @@ Los parámetros del código se definen en `src/main/resources/application.yaml`:
 | `otp.digits` | `6` | Dígitos por defecto |
 | `otp.duration-seconds` | `30` | Duración por defecto, en segundos |
 | `otp.max-attempts` | `3` | Intentos fallidos antes de bloquear |
-| `otp.retention-seconds` | `86400` | Segundos que se conserva un código tras expirar (lo usa el índice TTL) |
+| `otp.retention-seconds` | `86400` | Segundos que se conserva un código tras expirar (en memoria lo purga la propia aplicación; en MongoDB, el índice TTL) |
 
 `digits` y `durationSeconds` también se pueden enviar en cada petición.
+
+---
+
+## Despliegue en Render
+
+La aplicación se despliega como un **Web Service con Docker** usando el `Dockerfile` del repositorio. Con el almacenamiento en memoria por defecto no hace falta ninguna base de datos.
+
+1. En Render, crea un **New Web Service** y conecta el repositorio.
+2. Elige **Language: Docker**. Render detecta el `Dockerfile` y toma el puerto de la variable `PORT`.
+3. Define estas variables de entorno:
+
+| Variable | Valor |
+|---|---|
+| `OTP_HASH_SECRET` | Una clave larga y aleatoria, por ejemplo la salida de `openssl rand -hex 32` |
+| `SESSION_COOKIE_SECURE` | `true` |
+| `OTP_LOCAL_API_ENABLED` | `false` |
+
+4. Despliega. La interfaz web queda disponible en la URL que asigna Render.
+
+Con esta configuración el servicio público solo expone el flujo de Twilio por sesión: cada visitante conecta su propia cuenta de Twilio y los envíos salen de ella. **No definas `SMS_PROVIDER=twilio` con tus propias credenciales en el servidor público**, porque cualquiera podría generar SMS a cargo de tu cuenta.
+
+En el plan gratuito de Render el servicio se suspende tras un rato sin tráfico y, al despertar, empieza con la memoria vacía: los códigos pendientes y las sesiones de Twilio se pierden.
 
 ---
 
@@ -394,7 +437,7 @@ Los parámetros del código se definen en `src/main/resources/application.yaml`:
 java -jar target/otp-service-0.0.1-SNAPSHOT.jar
 
 # Docker
-docker compose up --build           # Levanta MongoDB y la aplicación
+docker compose up --build           # Levanta MongoDB y la aplicación (perfil mongo)
 docker compose logs -f app          # Sigue el log (aquí aparecen los códigos en modo console)
 docker compose down                 # Detiene los contenedores
 docker compose down -v              # Detiene y borra los datos de MongoDB
@@ -567,25 +610,25 @@ sequenceDiagram
     participant Cliente
     participant Backend
     participant SMS as SMS Provider
-    participant Mongo as MongoDB
+    participant Store as Almacén de códigos
 
     Cliente->>Backend: POST /otps<br/>{cellphone, digits, durationSeconds}
-    Backend->>Mongo: Invalidar códigos anteriores del celular
+    Backend->>Store: Invalidar códigos anteriores del celular
     Backend->>Backend: Generar código con SecureRandom
     Backend->>Backend: Hashear con HMAC-SHA256
-    Backend->>Mongo: Guardar {hash, intentos, expira}
+    Backend->>Store: Guardar {hash, intentos, expira}
     Backend->>SMS: Mandar SMS con código
     SMS-->>Cliente: SMS recibido
     Backend-->>Cliente: 201 Código enviado
 
     Cliente->>Backend: POST /otps/verify<br/>{cellphone, code}
-    Backend->>Mongo: Buscar código por celular
+    Backend->>Store: Buscar código por celular
     Backend->>Backend: Validar estado, intentos, expiración
     alt Código válido
-        Backend->>Mongo: Marcar como usado
+        Backend->>Store: Marcar como usado
         Backend-->>Cliente: 200 Código verificado
     else Código incorrecto
-        Backend->>Mongo: Incrementar intentos
+        Backend->>Store: Incrementar intentos
         Backend-->>Cliente: 401 OTP_INVALID (423 OTP_BLOCKED si fue el último intento)
     else Expirado, usado, invalidado, bloqueado o inexistente
         Backend-->>Cliente: 410, 409, 423 o 404 con su código de error
@@ -603,7 +646,7 @@ sequenceDiagram
     participant Backend
     participant Twilio
     participant otp-service.html
-    participant Mongo
+    participant Store as Almacén de códigos
 
     Usuario->>index.html: Abre http://localhost:8080
     Usuario->>index.html: Ingresa credenciales Twilio
@@ -621,14 +664,14 @@ sequenceDiagram
     Usuario->>otp-service.html: Ingresa celular, dígitos y expiración
     otp-service.html->>Backend: POST /api/twilio/otps<br/>{cellphone, digits, durationSeconds}
     Backend->>Backend: Generar código + hashear
-    Backend->>Mongo: Guardar hash, expiración e intentos
+    Backend->>Store: Guardar hash, expiración e intentos
     Backend->>Twilio: Enviar SMS con las credenciales de la sesión
     Twilio-->>Usuario: SMS con el código
     Backend-->>otp-service.html: 201
 
     Usuario->>otp-service.html: Ingresa el código recibido
     otp-service.html->>Backend: POST /api/twilio/otps/verify<br/>{cellphone, code}
-    Backend->>Mongo: Reclamar el código (operación atómica)
+    Backend->>Store: Reclamar el código (operación atómica)
     alt Correcto
         Backend-->>otp-service.html: 200 verificado
         otp-service.html->>otp-service.html: Animación de éxito + resultado
@@ -650,8 +693,9 @@ sequenceDiagram
 
 - **Solo celulares peruanos.** Se acepta `9XXXXXXXX` o `+519XXXXXXXX`.
 - **La interfaz web exige conectar una cuenta de Twilio.** Sin ella se puede probar la API directamente con el proveedor `console`.
-- **La API no tiene autenticación ni límite de envíos.** No la publiques en internet con `SMS_PROVIDER=twilio` o `infobip`: cualquiera podría generar SMS a cargo de esa cuenta.
-- **Los índices de MongoDB no se crean automáticamente**, incluido el de purga por TTL. Ver [BASE_DE_DATOS.md](./docs/BASE_DE_DATOS.md#índices).
+- **Con el almacenamiento en memoria, un reinicio borra los códigos pendientes y las sesiones de Twilio.** Además, la memoria no se comparte entre instancias: para varias réplicas hay que usar el perfil `mongo`.
+- **En memoria hay un tope de códigos** (`OTP_MEMORY_MAX_ENTRIES`). Al llegar, se descartan los más antiguos, incluso si aún estaban vigentes.
+- **La API no tiene autenticación ni límite de envíos.** No la publiques en internet con `SMS_PROVIDER=twilio` o `infobip`: cualquiera podría generar SMS a cargo de esa cuenta. Para una instancia pública usa `OTP_LOCAL_API_ENABLED=false`.
 - **Los errores de formato devuelven el cuerpo estándar de Spring.** Un celular o un código mal formados responden `400` sin `code` ni `message`. Además, el formulario acepta de 7 a 9 dígitos y el backend exige 9 que empiecen con 9.
 - Las cuentas de prueba de Twilio, según sus reglas, solo envían a números verificados.
 

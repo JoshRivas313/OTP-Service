@@ -1,8 +1,16 @@
+server:
+  port: ${PORT:8080}
+  servlet:
+    session:
+      cookie:
+        secure: ${SESSION_COOKIE_SECURE:false}
+        http-only: true
+        same-site: lax
+  forward-headers-strategy: framework
+
 spring:
   application:
     name: otp-service
-  mongodb:
-    uri: ${MONGODB_URI:mongodb://localhost:27017/otp_service}
 
 otp:
   digits: 6
@@ -11,6 +19,8 @@ otp:
   retention-seconds: 86400
   hash-secret: ${OTP_HASH_SECRET:dev-only-secret-change-me}
   demo-mode: ${OTP_DEMO_MODE:false}
+  local-api-enabled: ${OTP_LOCAL_API_ENABLED:true}
+  memory-max-entries: ${OTP_MEMORY_MAX_ENTRIES:10000}
 
 sms:
   provider: ${SMS_PROVIDER:console}
@@ -22,3 +32,25 @@ sms:
     base-url: ${INFOBIP_BASE_URL:}
     api-key: ${INFOBIP_API_KEY:}
     sender: ${INFOBIP_SENDER:}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: "!mongo"
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration
+      - org.springframework.boot.data.mongodb.autoconfigure.DataMongoAutoConfiguration
+      - org.springframework.boot.data.mongodb.autoconfigure.DataMongoRepositoriesAutoConfiguration
+
+---
+spring:
+  config:
+    activate:
+      on-profile: mongo
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://localhost:27017/otp_service}
+  data:
+    mongodb:
+      auto-index-creation: true

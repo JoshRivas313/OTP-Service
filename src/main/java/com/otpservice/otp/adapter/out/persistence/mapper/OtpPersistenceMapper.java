@@ -3,8 +3,10 @@ package com.otpservice.otp.adapter.out.persistence.mapper;
 import com.otpservice.otp.adapter.out.persistence.document.OtpDocument;
 import com.otpservice.otp.domain.model.Otp;
 import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Profile;
 
 @Component
+@Profile("mongo")
 public class OtpPersistenceMapper {
 
     public OtpDocument toDocument(Otp otp) {

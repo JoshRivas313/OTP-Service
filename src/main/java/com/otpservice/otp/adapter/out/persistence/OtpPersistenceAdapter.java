@@ -7,8 +7,10 @@ import java.time.Instant;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
+import org.springframework.context.annotation.Profile;
 
 @Repository
+@Profile("mongo")
 @RequiredArgsConstructor
 public class OtpPersistenceAdapter implements OtpPersistencePort {
 

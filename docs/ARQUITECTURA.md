@@ -51,8 +51,9 @@ src/main/java/com/otpservice/otp/
     │   └── dto/{request,response}
     ├── out/
     │   ├── persistence/                     OtpPersistenceAdapter, OtpRepository,
-    │   │   ├── document/OtpDocument          OtpRepositoryCustom + impl (operaciones atómicas)
-    │   │   └── mapper/OtpPersistenceMapper
+    │   │   ├── document/OtpDocument          OtpRepositoryCustom + impl (perfil mongo)
+    │   │   ├── mapper/OtpPersistenceMapper
+    │   │   └── memory/InMemoryOtpPersistenceAdapter   Por defecto (perfil !mongo)
     │   ├── security/CodeHasher              Implementa CodeHasherPort (HMAC-SHA256)
     │   └── sms/                             ConsoleSmsSender, TwilioSmsSender, InfobipSmsSender
     │       └── twilio/                      TwilioSessionService, TwilioSessionSmsSender,
@@ -87,7 +88,7 @@ application/usecase                 Orquesta la regla de negocio
 application/port/out                OtpPersistencePort, SmsSender, CodeHasherPort
     │
     ▼
-adapter/out/*                       MongoDB, Console/Twilio/Infobip, HMAC-SHA256
+adapter/out/*                       Memoria o MongoDB, Console/Twilio/Infobip, HMAC-SHA256
 ```
 
 Los casos de uso nunca reciben ni devuelven objetos HTTP: reciben un `Command` y devuelven un `Result`, y el adaptador HTTP los convierte de y hacia el JSON de la API.
@@ -115,7 +116,8 @@ Cada regla de negocio que puede fallar tiene su propia excepción, y todas extie
 - **Los puertos viven en `application/port`.** Los casos de uso y sus `Command` son propios de esta aplicación; `domain` queda reducido a modelo, value objects y reglas.
 - **Solo hay dos casos de uso: generar y verificar.** Enviar con Twilio usando las credenciales de la sesión no es una regla de negocio distinta: solo cambia qué `SmsSender` se usa, y esa elección depende de datos de la petición HTTP (la sesión). Por eso `TwilioOtpHttpAdapter` crea un `SmsSender` con las credenciales de la sesión y se lo pasa a `GenerateOtpUseCase.generate(command, sender)`.
 - **`Otp` (dominio) y `OtpDocument` (MongoDB) son clases separadas**, con `OtpPersistenceMapper` entre ambas. El dominio no conoce anotaciones de Spring Data.
-- **La persistencia expone operaciones atómicas, no un CRUD.** `claimIfMatches`, `registerFailedAttempt` e `invalidateActive` son `findAndModify` / `updateMulti` de MongoDB. Un esquema de "leer, modificar en memoria, guardar" permitiría que dos verificaciones simultáneas del mismo código pasen las dos. Por eso `Otp` es un objeto de solo lectura sin métodos que cambien su estado.
+- **El almacenamiento es un puerto con dos adaptadores.** `InMemoryOtpPersistenceAdapter` es el predeterminado y `OtpPersistenceAdapter` (MongoDB) se activa con el perfil `mongo`, que además es el único que carga la configuración de Spring Data MongoDB. Los casos de uso no cambian.
+- **La persistencia expone operaciones atómicas, no un CRUD.** `claimIfMatches`, `registerFailedAttempt` e `invalidateActive` son `findAndModify` / `updateMulti` en MongoDB, o secciones críticas bajo un lock en memoria. Un esquema de "leer, modificar en memoria, guardar" permitiría que dos verificaciones simultáneas del mismo código pasen las dos. Por eso `Otp` es un objeto de solo lectura sin métodos que cambien su estado.
 - **El tiempo entra por `java.time.Clock`.** No hay `Instant.now()` en el código.
 - **`domain` no conoce HTTP.** Los casos de uso devuelven `GenerateOtpResult` / `VerifyOtpResult`, no los DTO de la API.
 - **Agregar un proveedor de SMS es agregar una clase.** Implementa `SmsSender`, lleva `@ConditionalOnProperty(name = "sms.provider", havingValue = "...")` y sus propiedades van en `SmsProperties`. Ver [PROVEEDORES_SMS.md](./PROVEEDORES_SMS.md).
@@ -127,7 +129,7 @@ Cada regla de negocio que puede fallar tiene su propia excepción, y todas extie
 
 1. **`application` importa `adapter.config.OtpProperties`** (`GenerateOtpUseCaseImpl`, `VerifyOtpUseCaseImpl`). Es la única dependencia de `application` hacia `adapter`. Mover ese `record` de configuración a `application` la eliminaría.
 2. **`domain` usa anotaciones de Jackson** en `Cellphone` y `OtpCode` (`@JsonCreator`, `@JsonValue`) y Lombok en `Otp` (solo en compilación). No hay Spring, MongoDB, Twilio ni HTTP en `domain`, pero no compila como Java puro sin las anotaciones de Jackson.
-3. **Los índices de MongoDB no se crean automáticamente.** Ver [BASE_DE_DATOS.md](./BASE_DE_DATOS.md#índices).
+3. **El almacenamiento en memoria no sobrevive a un reinicio ni se comparte entre instancias.** Ver [BASE_DE_DATOS.md](./BASE_DE_DATOS.md#almacenamiento-en-memoria).
 4. **Los errores de formato devuelven el cuerpo estándar de Spring.** Un celular o código con formato inválido y un JSON malformado responden `400` con `{"timestamp", "status", "error", "path"}`, no con el formato `{success, code, message}` del resto de la API.
 5. **Sin autenticación ni límite de envíos** en los endpoints. Ver [Limitaciones conocidas](../README.md#limitaciones-conocidas).
 6. `OtpRepositoryCustom.findPreviousWithCode` está implementado y no se usa.

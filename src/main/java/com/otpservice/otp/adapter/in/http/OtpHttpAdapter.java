@@ -11,6 +11,7 @@ import com.otpservice.otp.adapter.in.http.dto.response.OtpVerifyResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,8 +19,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "OTP local", description = "Genera y verifica códigos con el backend propio (Mongo + HMAC-SHA256)")
+@Tag(name = "OTP local", description = "Genera y verifica códigos con el backend propio (HMAC-SHA256)")
 @RestController
+@ConditionalOnProperty(name = "otp.local-api-enabled", havingValue = "true", matchIfMissing = true)
 @RequestMapping("/otps")
 @RequiredArgsConstructor
 public class OtpHttpAdapter {

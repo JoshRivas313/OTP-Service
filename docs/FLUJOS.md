@@ -70,7 +70,7 @@ stateDiagram-v2
     Purgado --> [*]
 ```
 
-La purga ocurre solo si el índice TTL de `purgeAt` existe. Hoy no se crea automáticamente (ver [BASE_DE_DATOS.md](./BASE_DE_DATOS.md#índices)).
+La purga la hace la propia aplicación al guardar códigos nuevos (modo memoria) o el índice TTL de `purgeAt` (perfil `mongo`). Ver [BASE_DE_DATOS.md](./BASE_DE_DATOS.md#índices).
 
 ---
 

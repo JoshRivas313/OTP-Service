@@ -220,7 +220,7 @@ Igual que `POST /otps` (mismos campos), pero envía el SMS con las credenciales 
 
 ### POST /api/twilio/otps/verify — Verificar código
 
-Igual que `POST /otps/verify`, pero exige sesión conectada (`400 TWILIO_NOT_CONNECTED` si no la hay). La verificación no la hace Twilio: la hace el propio servicio contra MongoDB. En este endpoint, un `code` con formato inválido responde `401 OTP_INVALID`.
+Igual que `POST /otps/verify`, pero exige sesión conectada (`400 TWILIO_NOT_CONNECTED` si no la hay). La verificación no la hace Twilio: la hace el propio servicio contra su almacén de códigos (memoria o MongoDB). En este endpoint, un `code` con formato inválido responde `401 OTP_INVALID`.
 
 **Request**
 

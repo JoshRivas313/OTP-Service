@@ -1,6 +1,6 @@
 # Base de datos
 
-El servicio guarda los códigos en MongoDB, en la colección `otps` de la base indicada por `MONGODB_URI` (por defecto `otp_service`).
+Este documento describe el modo MongoDB. Por defecto el servicio guarda los códigos en memoria y no usa ninguna base de datos (ver [Almacenamiento en memoria](#almacenamiento-en-memoria)). Con el perfil `mongo` (`SPRING_PROFILES_ACTIVE=mongo`) los guarda en la colección `otps` de la base indicada por `MONGODB_URI` (por defecto `otp_service`).
 
 ## Contenido
 
@@ -8,6 +8,7 @@ El servicio guarda los códigos en MongoDB, en la colección `otps` de la base i
 - [Ciclo de vida de un código](#ciclo-de-vida-de-un-código)
 - [Operaciones atómicas](#operaciones-atómicas)
 - [Índices](#índices)
+- [Almacenamiento en memoria](#almacenamiento-en-memoria)
 - [Datos que se guardan](#datos-que-se-guardan)
 
 ---
@@ -87,22 +88,9 @@ La clase `OtpDocument` declara dos índices:
 | `otp_cellphone_generated_idx` | `{ cellphone: 1, "validityWindow.generatedAt": -1 }` | Buscar el código más reciente de un celular |
 | `otp_purge_ttl_idx` | `{ purgeAt: 1 }` con `expireAfterSeconds: 0` | Que MongoDB borre solo los documentos cuando llega `purgeAt` |
 
-**Estado actual: no se crean automáticamente.** Spring Data MongoDB no crea índices salvo que se le indique, y este proyecto no lo indica. En la base local de pruebas la colección `otps` solo tenía el índice `_id_`, con 29 documentos, algunos de varios días atrás que ya debieron purgarse. Mientras los índices no existan, los códigos no se borran solos.
+Con el perfil `mongo`, la aplicación crea los dos índices al arrancar (`spring.data.mongodb.auto-index-creation: true`). Al crear el índice TTL sobre una colección que ya tiene datos, MongoDB borra de inmediato los documentos cuyo `purgeAt` ya pasó, y después ejecuta el borrado aproximadamente cada minuto.
 
-Hay dos formas de activarlos.
-
-**Opción 1. Activar la creación automática de índices** en `application.yaml`:
-
-```yaml
-spring:
-  data:
-    mongodb:
-      auto-index-creation: true
-```
-
-Al crear el índice TTL sobre una colección que ya tiene datos, MongoDB borra de inmediato los documentos cuyo `purgeAt` ya pasó.
-
-**Opción 2. Crearlos a mano** con `mongosh`:
+Si prefieres crearlos a mano, con `mongosh`:
 
 ```js
 use otp_service
@@ -110,13 +98,21 @@ db.otps.createIndex({ purgeAt: 1 }, { name: "otp_purge_ttl_idx", expireAfterSeco
 db.otps.createIndex({ cellphone: 1, "validityWindow.generatedAt": -1 }, { name: "otp_cellphone_generated_idx" })
 ```
 
-MongoDB ejecuta el borrado por TTL aproximadamente cada minuto.
+---
 
+## Almacenamiento en memoria
+
+Sin el perfil `mongo`, `InMemoryOtpPersistenceAdapter` implementa el mismo puerto (`OtpPersistencePort`) con un mapa en memoria. No hay colección ni índices.
+
+- **Atomicidad:** un único lock protege todo el estado, así que cada operación (`invalidateActive`, `claimIfMatches`, `registerFailedAttempt`) es indivisible, igual que en MongoDB. Con 10 verificaciones simultáneas del mismo código, solo una pasa.
+- **Purga:** al guardar un código nuevo se eliminan los que ya superaron `purgeAt` (expiración más `otp.retention-seconds`), y las consultas ignoran los ya purgados.
+- **Tope:** se guardan como máximo `OTP_MEMORY_MAX_ENTRIES` códigos (10000 por defecto). Al llegar, se descartan los más antiguos, incluso si aún estaban vigentes. Sirve para que el consumo de memoria no crezca sin límite.
+- **Persistencia:** ninguna. Al reiniciar la aplicación se pierden todos los códigos, y tampoco se comparten entre instancias.
 ---
 
 ## Datos que se guardan
 
 - El código nunca se guarda, solo su hash con clave (HMAC-SHA256 con `OTP_HASH_SECRET`).
-- El celular se guarda en claro, en formato `+51...`. Es un dato personal: la retención por defecto es de 24 horas después de la expiración, siempre que el índice TTL esté activo.
+- El celular se guarda en claro, en formato `+51...`. Es un dato personal: la retención por defecto es de 24 horas después de la expiración, siempre que el índice TTL esté activo (perfil `mongo`). En memoria desaparece al reiniciar o cuando lo purga la aplicación.
 - Las credenciales de Twilio no se guardan en la base de datos: viven en la sesión HTTP (ver [PROVEEDORES_SMS.md](./PROVEEDORES_SMS.md)).
 - Un código de 6 dígitos tiene un millón de combinaciones. Si alguien obtiene la base de datos y la clave `OTP_HASH_SECRET`, puede recuperar los códigos por fuerza bruta. Por eso hay que cambiar la clave por defecto (`dev-only-secret-change-me`); la aplicación lo avisa en el arranque.

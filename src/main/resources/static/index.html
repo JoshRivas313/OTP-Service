@@ -29,15 +29,15 @@
           <div class="benefits">
             <div class="benefit-item">
               <span class="benefit-icon">✓</span>
-              <span class="benefit-text"><strong>SMS Real</strong> — El código llega por SMS de verdad</span>
+              <span class="benefit-text"><strong>SMS real</strong> — El código llega por SMS a un número que verificaste en Twilio</span>
             </div>
             <div class="benefit-item">
               <span class="benefit-icon">✓</span>
-              <span class="benefit-text"><strong>Sin costo extra</strong> — No quemas tu cuota de Twilio</span>
+              <span class="benefit-text"><strong>Tu cuenta, tu saldo</strong> — Cada envío sale de tu cuenta de Twilio y consume su saldo</span>
             </div>
             <div class="benefit-item">
               <span class="benefit-icon">✓</span>
-              <span class="benefit-text"><strong>100% seguro</strong> — Las credenciales quedan solo en tu sesión</span>
+              <span class="benefit-text"><strong>Sin base de datos</strong> — Las credenciales viven 15 minutos en la memoria del servidor</span>
             </div>
           </div>
 
@@ -73,7 +73,7 @@
               <div class="field">
                 <label for="tw-auth-token">Auth Token</label>
                 <input id="tw-auth-token" type="password" placeholder="••••••••••••••••••••••••••••••••">
-                <p class="field-help">Nunca se guarda en el servidor, solo en tu sesión</p>
+                <p class="field-help">Se mantiene en la memoria del servidor durante 15 minutos</p>
               </div>
 
               <div class="field">
@@ -97,14 +97,14 @@
             <div id="tw-connect-result" class="result" role="status" aria-live="polite"></div>
 
             <div class="form-footer">
-              <p class="hint"><strong>Privacidad:</strong> La sesión expira en 15 minutos. Las credenciales nunca se guardan en la base de datos.</p>
+              <p class="hint"><strong>Privacidad:</strong> las credenciales se guardan solo en la memoria del servidor, ligadas a tu sesión. Se borran a los 15 minutos, al desconectar o si el servidor se reinicia. No se escriben en ninguna base de datos ni en el log.</p>
             </div>
           </div>
         </div>
 
       </div>
 
-      <footer>Spring Boot · MongoDB · HMAC-SHA256</footer>
+      <footer>Spring Boot · Arquitectura hexagonal · HMAC-SHA256</footer>
     </div>
   </div>
 
