@@ -4,6 +4,7 @@ import com.otpservice.otp.adapter.config.SmsProperties;
 import com.otpservice.otp.application.port.out.SmsSender;
 import com.otpservice.otp.domain.valueobject.Cellphone;
 import com.otpservice.otp.adapter.exception.SmsDeliveryFailedException;
+import com.otpservice.otp.adapter.out.sms.twilio.TwilioErrorMessages;
 import com.twilio.Twilio;
 import com.twilio.exception.TwilioException;
 import com.twilio.rest.api.v2010.account.Message;
@@ -43,7 +44,9 @@ public class TwilioSmsSender implements SmsSender {
 
             log.info("SMS entregado a Twilio para={} sid={}", destination.masked(), sent.getSid());
         } catch (TwilioException exception) {
-            throw new SmsDeliveryFailedException();
+            Integer code = TwilioErrorMessages.codeOf(exception);
+            log.warn("Twilio rechazo el envio para={} codigo={}: {}", destination.masked(), code, exception.getMessage());
+            throw new SmsDeliveryFailedException(TwilioErrorMessages.describe(code));
         }
     }
 }

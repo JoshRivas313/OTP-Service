@@ -304,7 +304,7 @@ Responde `200` mientras la aplicación esté levantada. Sirve como Health Check 
 | `OTP_EXPIRED` | 410 | Pasó la duración del código |
 | `OTP_BLOCKED` | 423 | Se alcanzó el máximo de intentos fallidos |
 | `OTP_INVALID` | 401 | El código es incorrecto |
-| `SMS_DELIVERY_FAILED` | 502 | El proveedor de SMS rechazó o no pudo enviar el mensaje |
+| `SMS_DELIVERY_FAILED` | 502 | El proveedor de SMS rechazó o no pudo enviar el mensaje. Con Twilio, `message` explica la causa cuando se conoce (número no verificado en una cuenta de prueba, país sin permiso, remitente sin SMS) y el log del servidor registra el código de error de Twilio |
 | `TWILIO_CREDENTIALS_INVALID` | 401 | Credenciales de Twilio con formato inválido o rechazadas por Twilio |
 | `TWILIO_NOT_CONNECTED` | 400 | El flujo de Twilio se usó sin conectar una cuenta en la sesión |
 | `DESTINATION_NOT_VERIFIED` | 403 | La cuenta de Twilio conectada solo puede enviar a sus números verificados y el destino no es uno de ellos |
