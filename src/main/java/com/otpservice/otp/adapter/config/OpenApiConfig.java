@@ -12,7 +12,7 @@ public class OpenApiConfig {
     public OpenAPI otpServiceOpenApi() {
         return new OpenAPI().info(new Info()
                 .title("OTP Service")
-                .description("Autenticación por código de un solo uso, con generación local (Mongo + HMAC-SHA256) o via Twilio Verify.")
+                .description("Generación y verificación de códigos de un solo uso (OTP) con MongoDB y HMAC-SHA256, y envío por SMS con consola, Twilio o Infobip.")
                 .version("v0.0.1"));
     }
 }

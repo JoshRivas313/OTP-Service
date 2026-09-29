@@ -1,0 +1,322 @@
+# API
+
+Referencia de los endpoints. La documentación interactiva se genera con springdoc-openapi:
+
+- Swagger UI: `http://localhost:8080/swagger-ui.html` (redirige a `/swagger-ui/index.html`)
+- OpenAPI en JSON: `http://localhost:8080/v3/api-docs`
+
+## Contenido
+
+- [Convenciones](#convenciones)
+- [OTP local](#otp-local)
+- [OTP con Twilio por sesión](#otp-con-twilio-por-sesión)
+- [Códigos de error](#códigos-de-error)
+- [Errores de formato](#errores-de-formato)
+
+---
+
+## Convenciones
+
+- Todas las peticiones y respuestas son JSON (`Content-Type: application/json`).
+- Las respuestas correctas de OTP llevan `"success": true`. Los errores de negocio y de validación llevan `{"success": false, "code": "...", "message": "..."}`.
+- **Celular:** solo números peruanos. Se acepta `9XXXXXXXX` o `+519XXXXXXXX` (9 dígitos que empiezan con 9) y se normaliza a `+519XXXXXXXX`.
+- **Código:** entre 4 y 10 dígitos.
+
+---
+
+## OTP local
+
+Usan el proveedor de SMS global elegido con `SMS_PROVIDER` (`console` por defecto). No requieren sesión.
+
+### POST /otps — Generar código OTP
+
+Genera un código y lo envía. Generar un código nuevo invalida los anteriores del mismo celular.
+
+| Campo | Obligatorio | Regla |
+|---|---|---|
+| `cellphone` | sí | Celular peruano |
+| `digits` | no | Entero de 4 a 10. Por defecto 6 |
+| `durationSeconds` | no | Entero de 1 a 86400. Por defecto 30 |
+
+**Request**
+
+```json
+{
+  "cellphone": "912345678",
+  "digits": 6,
+  "durationSeconds": 60
+}
+```
+
+**Response `201`**
+
+```json
+{
+  "success": true,
+  "message": "Código enviado correctamente",
+  "demoCode": null
+}
+```
+
+Con `OTP_DEMO_MODE=true` el mensaje es `"Código enviado (modo demo, no llega SMS real)"` y `demoCode` trae el código.
+
+---
+
+### POST /otps/verify — Verificar código
+
+Un código correcto solo se acepta una vez.
+
+| Campo | Obligatorio | Regla |
+|---|---|---|
+| `cellphone` | sí | Celular peruano |
+| `code` | sí | De 4 a 10 dígitos |
+
+**Request**
+
+```json
+{
+  "cellphone": "912345678",
+  "code": "123456"
+}
+```
+
+**Response `200`**
+
+```json
+{
+  "success": true,
+  "message": "Código verificado correctamente"
+}
+```
+
+**Response `401`** (código incorrecto, indica el intento)
+
+```json
+{
+  "success": false,
+  "code": "OTP_INVALID",
+  "message": "El código es incorrecto (intento 1 de 3)"
+}
+```
+
+Otros errores posibles: `OTP_NOT_FOUND`, `OTP_INVALIDATED`, `OTP_ALREADY_USED`, `OTP_EXPIRED` y `OTP_BLOCKED`. El intento fallido que alcanza el máximo (3 por defecto) ya responde `423 OTP_BLOCKED`.
+
+---
+
+## OTP con Twilio por sesión
+
+Estos endpoints envían el SMS con **la cuenta de Twilio que el propio usuario conectó**, no con las credenciales del servidor. Las credenciales viven en la sesión HTTP (cookie `JSESSIONID`) durante 15 minutos de inactividad y no se guardan en la base de datos.
+
+### POST /api/twilio/connect — Conectar cuenta Twilio
+
+Valida las credenciales contra Twilio y las guarda en la sesión.
+
+| Campo | Regla |
+|---|---|
+| `accountSid` | `AC` seguido de 32 caracteres alfanuméricos |
+| `authToken` | 32 caracteres alfanuméricos |
+| `verifyServiceSid` | `VA` seguido de 32 caracteres alfanuméricos |
+| `phoneNumber` | Número de Twilio en formato E.164, por ejemplo `+15017122661` |
+
+**Request**
+
+```json
+{
+  "accountSid": "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "authToken": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "verifyServiceSid": "VAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "phoneNumber": "+15017122661"
+}
+```
+
+**Response `200`** (las credenciales se devuelven enmascaradas)
+
+```json
+{
+  "connected": true,
+  "maskedCredentials": "AC1234···abcd / verify VA5678···efgh"
+}
+```
+
+**Response `401`** (formato inválido, o Twilio rechazó las credenciales o el Verify Service)
+
+```json
+{
+  "success": false,
+  "code": "TWILIO_CREDENTIALS_INVALID",
+  "message": "Twilio rechazó esas credenciales o el Verify Service indicado"
+}
+```
+
+Si falta algún campo, la respuesta es `400 VALIDATION_ERROR`.
+
+---
+
+### GET /api/twilio/status — Estado de la conexión
+
+Indica si la sesión tiene credenciales conectadas.
+
+**Response `200`**
+
+```json
+{
+  "connected": false,
+  "maskedCredentials": null
+}
+```
+
+---
+
+### POST /api/twilio/disconnect — Desconectar cuenta Twilio
+
+Borra las credenciales de la sesión.
+
+**Response `200`**
+
+```json
+{
+  "connected": false,
+  "maskedCredentials": null
+}
+```
+
+---
+
+### POST /api/twilio/otps — Generar código OTP
+
+Igual que `POST /otps` (mismos campos), pero envía el SMS con las credenciales de la sesión. Si `OTP_DEMO_MODE` está activo, la respuesta también incluye `demoCode`.
+
+**Request**
+
+```json
+{
+  "cellphone": "912345678",
+  "digits": 6,
+  "durationSeconds": 60
+}
+```
+
+**Response `201`**
+
+```json
+{
+  "success": true,
+  "message": "Código enviado correctamente",
+  "demoCode": null
+}
+```
+
+**Response `400`** (no hay una cuenta conectada en la sesión)
+
+```json
+{
+  "success": false,
+  "code": "TWILIO_NOT_CONNECTED",
+  "message": "Primero conectá tu cuenta de Twilio"
+}
+```
+
+---
+
+### POST /api/twilio/otps/verify — Verificar código
+
+Igual que `POST /otps/verify`, pero exige sesión conectada (`400 TWILIO_NOT_CONNECTED` si no la hay). La verificación no la hace Twilio: la hace el propio servicio contra MongoDB. En este endpoint, un `code` con formato inválido responde `401 OTP_INVALID`.
+
+**Request**
+
+```json
+{
+  "cellphone": "912345678",
+  "code": "123456"
+}
+```
+
+**Response `200`**
+
+```json
+{
+  "success": true,
+  "message": "Código verificado correctamente"
+}
+```
+
+---
+
+### Ejemplo con curl
+
+La sesión se mantiene con la cookie: `-c` la guarda y `-b` la envía.
+
+```bash
+curl -c cookies.txt -X POST http://localhost:8080/api/twilio/connect \
+  -H "Content-Type: application/json" \
+  -d '{"accountSid":"ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","authToken":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","verifyServiceSid":"VAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","phoneNumber":"+15017122661"}'
+
+curl -b cookies.txt -X POST http://localhost:8080/api/twilio/otps \
+  -H "Content-Type: application/json" \
+  -d '{"cellphone":"912345678","digits":6,"durationSeconds":60}'
+```
+
+---
+
+## Códigos de error
+
+| Código | HTTP | Cuándo |
+|---|---|---|
+| `OTP_NOT_FOUND` | 404 | No hay ningún código para ese celular |
+| `OTP_INVALIDATED` | 409 | Se generó uno más reciente para el mismo celular |
+| `OTP_ALREADY_USED` | 409 | El código ya se verificó antes |
+| `OTP_EXPIRED` | 410 | Pasó la duración del código |
+| `OTP_BLOCKED` | 423 | Se alcanzó el máximo de intentos fallidos |
+| `OTP_INVALID` | 401 | El código es incorrecto |
+| `SMS_DELIVERY_FAILED` | 502 | El proveedor de SMS rechazó o no pudo enviar el mensaje |
+| `TWILIO_CREDENTIALS_INVALID` | 401 | Credenciales de Twilio con formato inválido o rechazadas por Twilio |
+| `TWILIO_NOT_CONNECTED` | 400 | El flujo de Twilio se usó sin conectar una cuenta en la sesión |
+| `VALIDATION_ERROR` | 400 | Un campo obligatorio falta o está fuera de rango |
+
+Mensajes de `VALIDATION_ERROR` (formato `campo: mensaje`):
+
+| Campo | Mensaje |
+|---|---|
+| `cellphone` | `El celular es obligatorio` |
+| `digits` | `Mínimo 4 dígitos` / `Máximo 10 dígitos` |
+| `durationSeconds` | `La duración debe ser mayor a 0 segundos` / `La duración no puede superar un día` |
+| `code` | `El código es obligatorio` |
+
+**Response `400`** (ejemplo de `VALIDATION_ERROR`)
+
+```json
+{
+  "success": false,
+  "code": "VALIDATION_ERROR",
+  "message": "digits: Mínimo 4 dígitos"
+}
+```
+
+---
+
+## Errores de formato
+
+Si el celular o el código no tienen un formato válido, o el JSON está mal formado, la API responde `400` con el cuerpo estándar de Spring y no con el formato `{success, code, message}`:
+
+**Response `400`**
+
+```json
+{
+  "timestamp": "2026-09-29T03:23:27.369Z",
+  "status": 400,
+  "error": "Bad Request",
+  "path": "/otps"
+}
+```
+
+Casos comprobados con `POST /otps` y `POST /otps/verify`:
+
+| Entrada | Resultado |
+|---|---|
+| Celular de 8 dígitos | `400` estándar |
+| 9 dígitos que no empiezan con 9 | `400` estándar |
+| Celular de otro país (`+15551234567`) | `400` estándar |
+| `code` de 3 dígitos en `/otps/verify` | `400` estándar |
+| JSON mal formado | `400` estándar |
+
+Quien consuma la API debe tratar cualquier `400` sin `code` como un error de formato de la petición.
