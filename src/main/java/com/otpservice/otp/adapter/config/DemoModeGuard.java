@@ -6,12 +6,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.Set;
 
-/**
- * otp.demo-mode expone el codigo en la respuesta de la API. Si eso coincide
- * con un proveedor de SMS real (Twilio/Infobip), el codigo saldria dos veces
- * por dos canales distintos, uno de ellos gratis para cualquiera que llame
- * al endpoint. Se corta al arrancar para que nunca quede activo por error.
- */
 @Component
 @RequiredArgsConstructor
 public class DemoModeGuard {
