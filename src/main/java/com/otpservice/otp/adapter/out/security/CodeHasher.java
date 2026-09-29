@@ -1,7 +1,7 @@
 package com.otpservice.otp.adapter.out.security;
 
 import com.otpservice.otp.adapter.config.OtpProperties;
-import com.otpservice.otp.domain.port.output.CodeHasherPort;
+import com.otpservice.otp.application.port.out.CodeHasherPort;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -7,10 +7,10 @@ import com.otpservice.otp.domain.exception.OtpBlockedException;
 import com.otpservice.otp.domain.exception.OtpDomainException;
 import com.otpservice.otp.domain.exception.OtpExpiredException;
 import com.otpservice.otp.domain.exception.OtpInvalidatedException;
-import com.otpservice.otp.domain.exception.OtpNotFoundException;
-import com.otpservice.otp.domain.exception.SmsDeliveryFailedException;
-import com.otpservice.otp.domain.exception.TwilioCredentialsInvalidException;
-import com.otpservice.otp.domain.exception.TwilioNotConnectedException;
+import com.otpservice.otp.application.exception.OtpNotFoundException;
+import com.otpservice.otp.adapter.exception.SmsDeliveryFailedException;
+import com.otpservice.otp.adapter.exception.TwilioCredentialsInvalidException;
+import com.otpservice.otp.adapter.exception.TwilioNotConnectedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -18,9 +18,10 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /**
- * Domain exceptions (domain/exception/*) carry no HTTP knowledge on purpose;
- * this is the one place that maps a business-rule violation to a status
- * code, keeping that mapping out of the domain and application layers.
+ * All OtpDomainException subclasses (domain/exception, application/exception,
+ * adapter/exception) share one base type and carry no HTTP knowledge on
+ * purpose; this is the one place that maps them to a status code, keeping
+ * that mapping out of the domain and application layers.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {

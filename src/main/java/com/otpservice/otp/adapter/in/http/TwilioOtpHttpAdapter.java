@@ -1,14 +1,19 @@
 package com.otpservice.otp.adapter.in.http;
 
-import com.otpservice.otp.domain.port.input.TwilioGenerateOtpUseCase;
-import com.otpservice.otp.domain.port.input.TwilioVerifyOtpUseCase;
-import com.otpservice.otp.domain.valueobject.TwilioCredentials;
+import com.otpservice.otp.adapter.exception.TwilioNotConnectedException;
 import com.otpservice.otp.adapter.in.http.dto.request.TwilioOtpGenerateRequest;
 import com.otpservice.otp.adapter.in.http.dto.request.TwilioOtpVerifyRequest;
 import com.otpservice.otp.adapter.in.http.dto.response.OtpGenerateResponse;
 import com.otpservice.otp.adapter.in.http.dto.response.OtpVerifyResponse;
-import com.otpservice.otp.domain.exception.TwilioNotConnectedException;
 import com.otpservice.otp.adapter.out.sms.twilio.TwilioSessionService;
+import com.otpservice.otp.adapter.out.sms.twilio.TwilioSessionSmsSender;
+import com.otpservice.otp.application.dto.GenerateOtpResult;
+import com.otpservice.otp.application.dto.VerifyOtpResult;
+import com.otpservice.otp.application.port.in.GenerateOtpUseCase;
+import com.otpservice.otp.application.port.in.VerifyOtpUseCase;
+import com.otpservice.otp.domain.exception.InvalidOtpException;
+import com.otpservice.otp.domain.valueobject.OtpCode;
+import com.otpservice.otp.domain.valueobject.TwilioCredentials;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
@@ -20,6 +25,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Generates/verifies OTPs via the Twilio account connected to the caller's
+ * HttpSession. Deliberately depends on the generic GenerateOtpUseCase/
+ * VerifyOtpUseCase (not Twilio-specific use cases): the only thing that
+ * differs from the local flow is which SmsSender to use, and that choice
+ * depends on session data that only this HTTP adapter has — it doesn't
+ * belong in application/usecase.
+ */
 @Tag(name = "OTP con Twilio", description = "Genera y verifica códigos usando la cuenta de Twilio conectada en sesión")
 @RestController
 @RequestMapping("/api/twilio/otps")
@@ -27,8 +40,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class TwilioOtpHttpAdapter {
 
   private final TwilioSessionService sessionService;
-  private final TwilioGenerateOtpUseCase generateUseCase;
-  private final TwilioVerifyOtpUseCase verifyUseCase;
+  private final TwilioSessionSmsSender sessionSmsSender;
+  private final GenerateOtpUseCase generateUseCase;
+  private final VerifyOtpUseCase verifyUseCase;
 
   @PostMapping
   public ResponseEntity<OtpGenerateResponse> generateOtp(
@@ -36,8 +50,17 @@ public class TwilioOtpHttpAdapter {
     HttpSession session
   ) {
     TwilioCredentials credentials = requireConnected(session);
+    var command = new GenerateOtpUseCase.GenerateOtpCommand(
+      request.getCellphone(),
+      request.getDigits(),
+      request.getDurationSeconds()
+    );
+    GenerateOtpResult result = generateUseCase.generate(
+      command,
+      (destination, message) -> sessionSmsSender.send(credentials, destination, message)
+    );
     return ResponseEntity.status(HttpStatus.CREATED).body(
-      generateUseCase.generate(credentials, request.getCellphone(), request.getDigits(), request.getDurationSeconds())
+      new OtpGenerateResponse(result.success(), result.message(), result.demoCode())
     );
   }
 
@@ -47,11 +70,22 @@ public class TwilioOtpHttpAdapter {
     HttpSession session
   ) {
     requireConnected(session);
-    return ResponseEntity.ok(verifyUseCase.verify(request.getCellphone(), request.getCode()));
+    OtpCode code = toOtpCode(request.getCode());
+    var command = new VerifyOtpUseCase.VerifyOtpCommand(request.getCellphone(), code);
+    VerifyOtpResult result = verifyUseCase.verify(command);
+    return ResponseEntity.ok(new OtpVerifyResponse(result.success(), result.message()));
   }
 
   private TwilioCredentials requireConnected(HttpSession session) {
     return sessionService.get(session)
       .orElseThrow(TwilioNotConnectedException::new);
+  }
+
+  private OtpCode toOtpCode(String code) {
+    try {
+      return new OtpCode(code);
+    } catch (IllegalArgumentException exception) {
+      throw new InvalidOtpException();
+    }
   }
 }

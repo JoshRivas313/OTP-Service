@@ -1,6 +1,6 @@
 package com.otpservice.otp.adapter.out.sms.twilio;
 
-import com.otpservice.otp.domain.exception.TwilioCredentialsInvalidException;
+import com.otpservice.otp.adapter.exception.TwilioCredentialsInvalidException;
 import com.otpservice.otp.domain.valueobject.TwilioCredentials;
 import com.twilio.exception.ApiException;
 import com.twilio.http.TwilioRestClient;

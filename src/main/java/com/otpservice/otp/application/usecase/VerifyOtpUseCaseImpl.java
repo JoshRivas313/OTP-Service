@@ -1,18 +1,18 @@
 package com.otpservice.otp.application.usecase;
 
 import com.otpservice.otp.adapter.config.OtpProperties;
+import com.otpservice.otp.application.dto.VerifyOtpResult;
 import com.otpservice.otp.domain.exception.InvalidOtpException;
 import com.otpservice.otp.domain.exception.OtpAlreadyUsedException;
 import com.otpservice.otp.domain.exception.OtpBlockedException;
 import com.otpservice.otp.domain.exception.OtpExpiredException;
 import com.otpservice.otp.domain.exception.OtpInvalidatedException;
-import com.otpservice.otp.domain.exception.OtpNotFoundException;
+import com.otpservice.otp.application.exception.OtpNotFoundException;
 import com.otpservice.otp.domain.model.Otp;
-import com.otpservice.otp.domain.port.input.VerifyOtpUseCase;
-import com.otpservice.otp.domain.port.output.CodeHasherPort;
-import com.otpservice.otp.domain.port.output.OtpPersistencePort;
+import com.otpservice.otp.application.port.in.VerifyOtpUseCase;
+import com.otpservice.otp.application.port.out.CodeHasherPort;
+import com.otpservice.otp.application.port.out.OtpPersistencePort;
 import com.otpservice.otp.domain.valueobject.Cellphone;
-import com.otpservice.otp.adapter.in.http.dto.response.OtpVerifyResponse;
 import java.time.Clock;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +30,7 @@ public class VerifyOtpUseCaseImpl implements VerifyOtpUseCase {
   private final Clock clock;
 
   @Override
-  public OtpVerifyResponse verify(VerifyOtpCommand command) {
+  public VerifyOtpResult verify(VerifyOtpCommand command) {
     Cellphone cellphone = command.cellphone();
     Instant now = clock.instant();
     int maxAttempts = properties.maxAttempts();
@@ -54,7 +54,7 @@ public class VerifyOtpUseCaseImpl implements VerifyOtpUseCase {
     String codeHash = codeHasher.hash(command.code().getValue());
     if (persistencePort.claimIfMatches(otp.getId(), codeHash, now, maxAttempts).isPresent()) {
       log.info("OTP verificado cellphone={}", cellphone.masked());
-      return OtpVerifyResponse.verified();
+      return VerifyOtpResult.verified();
     }
 
     Otp updated = persistencePort.registerFailedAttempt(otp.getId())

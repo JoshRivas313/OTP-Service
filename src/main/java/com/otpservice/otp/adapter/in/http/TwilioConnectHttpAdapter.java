@@ -1,6 +1,6 @@
 package com.otpservice.otp.adapter.in.http;
 
-import com.otpservice.otp.domain.exception.TwilioCredentialsInvalidException;
+import com.otpservice.otp.adapter.exception.TwilioCredentialsInvalidException;
 import com.otpservice.otp.domain.valueobject.TwilioCredentials;
 import com.otpservice.otp.adapter.in.http.dto.request.TwilioConnectRequest;
 import com.otpservice.otp.adapter.in.http.dto.response.TwilioStatusResponse;

@@ -1,15 +1,15 @@
 package com.otpservice.otp.application.usecase;
 
 import com.otpservice.otp.adapter.config.OtpProperties;
+import com.otpservice.otp.application.dto.GenerateOtpResult;
 import com.otpservice.otp.domain.model.Otp;
-import com.otpservice.otp.domain.port.input.GenerateOtpUseCase;
-import com.otpservice.otp.domain.port.output.OtpPersistencePort;
-import com.otpservice.otp.domain.port.output.SmsSender;
+import com.otpservice.otp.application.port.in.GenerateOtpUseCase;
+import com.otpservice.otp.application.port.out.OtpPersistencePort;
+import com.otpservice.otp.application.port.out.SmsSender;
 import com.otpservice.otp.domain.valueobject.Cellphone;
 import com.otpservice.otp.domain.valueobject.OtpCode;
 import com.otpservice.otp.domain.valueobject.ValidityWindow;
-import com.otpservice.otp.adapter.in.http.dto.response.OtpGenerateResponse;
-import com.otpservice.otp.domain.port.output.CodeHasherPort;
+import com.otpservice.otp.application.port.out.CodeHasherPort;
 import java.time.Clock;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
@@ -26,12 +26,12 @@ public class GenerateOtpUseCaseImpl implements GenerateOtpUseCase {
   private final Clock clock;
 
   @Override
-  public OtpGenerateResponse generate(GenerateOtpCommand command) {
+  public GenerateOtpResult generate(GenerateOtpCommand command) {
     return generate(command, defaultSmsSender);
   }
 
   @Override
-  public OtpGenerateResponse generate(GenerateOtpCommand command, SmsSender sender) {
+  public GenerateOtpResult generate(GenerateOtpCommand command, SmsSender sender) {
     Cellphone cellphone = command.cellphone();
     int digits = command.digits() != null ? command.digits() : properties.digits();
     int durationSeconds = command.durationSeconds() != null ? command.durationSeconds() : properties.durationSeconds();
@@ -50,7 +50,7 @@ public class GenerateOtpUseCaseImpl implements GenerateOtpUseCase {
     sender.send(cellphone, properties.messageTemplate().formatted(code.getValue(), durationSeconds));
 
     return properties.demoMode()
-      ? OtpGenerateResponse.sentInDemoMode(code.getValue())
-      : OtpGenerateResponse.sent();
+      ? GenerateOtpResult.sentInDemoMode(code.getValue())
+      : GenerateOtpResult.sent();
   }
 }

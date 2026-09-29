@@ -1,9 +1,9 @@
 package com.otpservice.otp.adapter.out.sms;
 
 import com.otpservice.otp.adapter.config.SmsProperties;
-import com.otpservice.otp.domain.port.output.SmsSender;
+import com.otpservice.otp.application.port.out.SmsSender;
 import com.otpservice.otp.domain.valueobject.Cellphone;
-import com.otpservice.otp.domain.exception.SmsDeliveryFailedException;
+import com.otpservice.otp.adapter.exception.SmsDeliveryFailedException;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

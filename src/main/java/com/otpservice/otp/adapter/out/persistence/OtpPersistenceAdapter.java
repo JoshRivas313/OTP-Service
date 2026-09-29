@@ -2,14 +2,14 @@ package com.otpservice.otp.adapter.out.persistence;
 
 import com.otpservice.otp.adapter.out.persistence.mapper.OtpPersistenceMapper;
 import com.otpservice.otp.domain.model.Otp;
-import com.otpservice.otp.domain.port.output.OtpPersistencePort;
+import com.otpservice.otp.application.port.out.OtpPersistencePort;
 import java.time.Instant;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 /**
- * Adapts the Spring Data MongoDB repository to the domain's persistence port.
+ * Adapts the Spring Data MongoDB repository to the application's persistence port.
  * Keeps Spring Data / MongoDB details (and the OtpDocument representation)
  * out of the domain layer; OtpPersistenceMapper does the Otp <-> OtpDocument
  * conversion at this boundary.

@@ -1,7 +1,9 @@
 package com.otpservice.otp.adapter.in.http;
 
-import com.otpservice.otp.domain.port.input.GenerateOtpUseCase;
-import com.otpservice.otp.domain.port.input.VerifyOtpUseCase;
+import com.otpservice.otp.application.dto.GenerateOtpResult;
+import com.otpservice.otp.application.dto.VerifyOtpResult;
+import com.otpservice.otp.application.port.in.GenerateOtpUseCase;
+import com.otpservice.otp.application.port.in.VerifyOtpUseCase;
 import com.otpservice.otp.adapter.in.http.dto.request.OtpGenerateRequest;
 import com.otpservice.otp.adapter.in.http.dto.request.OtpVerifyRequest;
 import com.otpservice.otp.adapter.in.http.dto.response.OtpGenerateResponse;
@@ -32,7 +34,8 @@ public class OtpHttpAdapter {
       request.getDigits(),
       request.getDurationSeconds()
     );
-    return ResponseEntity.status(HttpStatus.CREATED).body(generateUseCase.generate(command));
+    GenerateOtpResult result = generateUseCase.generate(command);
+    return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(result));
   }
 
   @PostMapping("/verify")
@@ -41,6 +44,11 @@ public class OtpHttpAdapter {
       request.getCellphone(),
       request.getCode()
     );
-    return ResponseEntity.ok(verifyUseCase.verify(command));
+    VerifyOtpResult result = verifyUseCase.verify(command);
+    return ResponseEntity.ok(new OtpVerifyResponse(result.success(), result.message()));
+  }
+
+  private OtpGenerateResponse toResponse(GenerateOtpResult result) {
+    return new OtpGenerateResponse(result.success(), result.message(), result.demoCode());
   }
 }

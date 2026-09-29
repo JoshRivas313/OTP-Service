@@ -1,9 +1,9 @@
 package com.otpservice.otp.adapter.out.sms.twilio;
 
-import com.otpservice.otp.domain.port.output.SmsSender;
+import com.otpservice.otp.application.port.out.SmsSender;
 import com.otpservice.otp.domain.valueobject.Cellphone;
 import com.otpservice.otp.domain.valueobject.TwilioCredentials;
-import com.otpservice.otp.domain.exception.SmsDeliveryFailedException;
+import com.otpservice.otp.adapter.exception.SmsDeliveryFailedException;
 import com.twilio.exception.ApiException;
 import com.twilio.http.TwilioRestClient;
 import com.twilio.rest.api.v2010.account.Message;

@@ -1,4 +1,4 @@
-package com.otpservice.otp.domain.port.output;
+package com.otpservice.otp.application.port.out;
 
 import com.otpservice.otp.domain.model.Otp;
 import java.time.Instant;
