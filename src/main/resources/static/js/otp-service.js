@@ -63,12 +63,49 @@ let codeInputListenerAttached = false;
 let timerInterval = null;
 let lastCellphone = null;
 let lastDurationSeconds = null;
+let lastPurpose = 'login';
+let lastMaskedPhone = '';
+let otpExpired = false;
+
+// El propósito solo cambia el texto de la demo: el backend valida el código igual en todos los casos.
+const PURPOSES = {
+  login: {
+    action: 'Inicio de sesión',
+    verifyHint: 'Confirmá que sos vos para iniciar sesión.',
+    title: 'Acceso concedido',
+    desc: 'Comprobamos que tenés este celular. En una app real, acá entrarías a tu cuenta.'
+  },
+  signup: {
+    action: 'Registro',
+    verifyHint: 'Verificamos tu celular para crear tu cuenta.',
+    title: 'Celular verificado',
+    desc: 'Tu número es real y es tuyo. En una app real, acá seguirías con el registro.'
+  },
+  reset: {
+    action: 'Recuperación de acceso',
+    verifyHint: 'Confirmá tu identidad para recuperar el acceso.',
+    title: 'Identidad confirmada',
+    desc: 'En una app real, acá podrías elegir una contraseña nueva.'
+  },
+  payment: {
+    action: 'Confirmación de pago',
+    verifyHint: 'Confirmá la operación con el código que te enviamos.',
+    title: 'Operación autorizada',
+    desc: 'Comprobamos que sos vos quien la aprueba. En una app real, acá se ejecutaría el pago.'
+  }
+};
+
+function selectedPurposeKey() {
+  const checked = document.querySelector('input[name="purpose"]:checked');
+  return checked && PURPOSES[checked.value] ? checked.value : 'login';
+}
 
 function attachCodeBoxListeners() {
   const boxes = document.querySelectorAll('.code-box');
   boxes.forEach((box, index) => {
     box.addEventListener('input', (e) => {
       e.target.value = e.target.value.replace(/\D/g, '');
+      e.target.classList.toggle('filled', e.target.value !== '');
       if (e.target.value && index < boxes.length - 1) {
         boxes[index + 1].focus();
       }
@@ -86,6 +123,7 @@ function attachCodeBoxListeners() {
       digits.forEach((digit, i) => {
         if (index + i < boxes.length) {
           boxes[index + i].value = digit;
+          boxes[index + i].classList.add('filled');
         }
       });
       if (digits.length > 0) {
@@ -102,30 +140,81 @@ function updateVerifyButtonState() {
   btn.disabled = code.length < 6;
 }
 
-function startTimer(durationSeconds) {
+function formatClock(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes + ':' + String(seconds).padStart(2, '0');
+}
+
+function resetTimerUi() {
+  const bar = document.getElementById('timer-bar');
+  const text = document.getElementById('timer-text');
+  otpExpired = false;
+  bar.style.transition = 'none';
+  bar.style.width = '100%';
+  void bar.offsetWidth;
+  bar.style.transition = '';
+  bar.classList.remove('warn');
+  text.classList.remove('warn', 'expired');
+  document.getElementById('timer-track').setAttribute('aria-valuenow', '100');
+  document.getElementById('timer-display').textContent = '--:--';
+  document.getElementById('otp-expired').classList.remove('show');
+}
+
+function expireTimerUi() {
+  otpExpired = true;
+  const bar = document.getElementById('timer-bar');
+  bar.style.width = '0%';
+  bar.classList.remove('warn');
+  const text = document.getElementById('timer-text');
+  text.classList.remove('warn');
+  text.classList.add('expired');
+  document.getElementById('timer-display').textContent = '0:00';
+  document.getElementById('timer-track').setAttribute('aria-valuenow', '0');
+  document.querySelectorAll('.code-box').forEach(box => {
+    box.disabled = true;
+  });
+  document.getElementById('ver-btn').disabled = true;
+  document.getElementById('otp-expired').classList.add('show');
+}
+
+// issuedAt = momento en que el servidor confirmó el envío, así el reloj no arranca tarde.
+function startTimer(durationSeconds, issuedAt) {
   clearInterval(timerInterval);
-  let remaining = durationSeconds;
-  const timerDisplay = document.getElementById('timer-display');
-  const timerRing = document.getElementById('timer-ring');
+  resetTimerUi();
 
-  const updateTimer = () => {
-    timerDisplay.textContent = remaining;
-    const progress = ((durationSeconds - remaining) / durationSeconds) * 360;
-    timerRing.style.setProperty('--timer-progress', progress + 'deg');
+  const totalMs = durationSeconds * 1000;
+  const deadline = issuedAt + totalMs;
+  const warnAt = Math.max(5, Math.round(durationSeconds * 0.25));
+  const display = document.getElementById('timer-display');
+  const bar = document.getElementById('timer-bar');
+  const text = document.getElementById('timer-text');
+  const track = document.getElementById('timer-track');
+  let lastShown = null;
 
-    if (remaining <= 0) {
-      clearInterval(timerInterval);
-      timerRing.classList.add('expired');
-      document.querySelectorAll('.code-box').forEach(box => {
-        box.disabled = true;
-      });
-      document.getElementById('ver-btn').disabled = true;
+  const tick = () => {
+    const msLeft = deadline - Date.now();
+    const remaining = Math.max(0, Math.ceil(msLeft / 1000));
+
+    if (remaining !== lastShown) {
+      lastShown = remaining;
+      display.textContent = formatClock(remaining);
+      // La barra anima hacia donde estará en 1 s, así coincide con el tiempo real.
+      bar.style.width = Math.max(0, ((msLeft - 1000) / totalMs) * 100) + '%';
+      track.setAttribute('aria-valuenow', String(Math.round(Math.max(0, msLeft / totalMs) * 100)));
+      const warn = remaining > 0 && remaining <= warnAt;
+      bar.classList.toggle('warn', warn);
+      text.classList.toggle('warn', warn);
     }
-    remaining--;
+
+    if (msLeft <= 0) {
+      clearInterval(timerInterval);
+      expireTimerUi();
+    }
   };
 
-  updateTimer();
-  timerInterval = setInterval(updateTimer, 1000);
+  tick();
+  timerInterval = setInterval(tick, 250);
 }
 
 function showOtpStep(stepNumber) {
@@ -136,13 +225,17 @@ function showOtpStep(stepNumber) {
   if (step) step.style.display = 'block';
 }
 
-function resetOtpFlow() {
+// keepNumber: "Cambiar número" / "Enviar código nuevo" conservan lo que ya escribió el usuario.
+function resetOtpFlow(keepNumber = false) {
   showOtpStep(1);
   resetProgress();
   clearInterval(timerInterval);
   lastCellphone = null;
   lastDurationSeconds = null;
-  document.getElementById('gen-cellphone').value = '';
+  if (!keepNumber) {
+    document.getElementById('gen-cellphone').value = '';
+  }
+  clearFieldError('gen-cellphone');
   document.getElementById('gen-result').className = 'result';
   document.getElementById('gen-result').innerHTML = '';
   document.getElementById('gen-success').style.display = 'none';
@@ -151,11 +244,10 @@ function resetOtpFlow() {
   document.getElementById('ver-result').innerHTML = '';
   document.querySelectorAll('.code-box').forEach(box => {
     box.value = '';
-    box.classList.remove('error');
+    box.classList.remove('error', 'filled');
     box.disabled = false;
   });
-  document.getElementById('timer-ring').classList.remove('expired');
-  document.getElementById('timer-display').textContent = '--';
+  resetTimerUi();
   document.getElementById('ver-btn').disabled = true;
 }
 
@@ -178,8 +270,10 @@ async function generateOtp() {
   const durationSeconds = parseInt(document.getElementById('gen-expiration').value, 10);
   const ok = await submit('gen-btn', 'gen-result', '/api/twilio/otps', { cellphone, digits, durationSeconds });
   if (ok) {
+    const issuedAt = Date.now();
     lastCellphone = cellphone;
     lastDurationSeconds = durationSeconds;
+    lastPurpose = selectedPurposeKey();
     resetProgress();
     setProgressStep(1, 'done');
 
@@ -188,7 +282,9 @@ async function generateOtp() {
     document.getElementById('gen-phone-display').textContent = '+51 ' + masked;
 
     const displayPhone = '+51 ' + cellphone.slice(0, 2) + '****' + cellphone.slice(-2);
+    lastMaskedPhone = displayPhone;
     document.getElementById('ver-phone-display').textContent = displayPhone;
+    document.getElementById('ver-purpose-desc').textContent = PURPOSES[lastPurpose].verifyHint;
 
     setTimeout(() => {
       showOtpStep(2);
@@ -203,7 +299,7 @@ async function generateOtp() {
           });
         });
       }
-      startTimer(durationSeconds);
+      startTimer(durationSeconds, issuedAt);
       document.querySelector('.code-box').focus();
     }, 600);
   }
@@ -225,22 +321,36 @@ async function verifyOtp() {
     return;
   }
 
-  clearInterval(timerInterval);
-  console.log('Verifying OTP for:', lastCellphone, 'Code:', code);
   const ok = await submit('ver-btn', 'ver-result', '/api/twilio/otps/verify', { cellphone: lastCellphone, code });
   if (ok) {
+    clearInterval(timerInterval);
     document.querySelectorAll('.code-box').forEach(box => box.disabled = true);
     setProgressStep(2, 'done');
     setProgressStep(3, 'done');
+    renderVerifiedResult();
     setTimeout(() => {
       showOtpStep(3);
     }, 300);
   } else {
+    if (otpExpired) {
+      document.getElementById('ver-btn').disabled = true;
+    }
     document.querySelectorAll('.code-box').forEach(box => box.classList.add('error'));
     setTimeout(() => {
       document.querySelectorAll('.code-box').forEach(box => box.classList.remove('error'));
     }, 300);
   }
+}
+
+function renderVerifiedResult() {
+  const purpose = PURPOSES[lastPurpose] || PURPOSES.login;
+  document.getElementById('ok-title').textContent = purpose.title;
+  document.getElementById('ok-desc').textContent = purpose.desc;
+  document.getElementById('rc-purpose').textContent = purpose.action;
+  document.getElementById('rc-phone').textContent = lastMaskedPhone;
+  document.getElementById('rc-time').textContent = new Date().toLocaleTimeString('es-PE', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
 }
 
 async function submit(buttonId, resultId, url, body) {

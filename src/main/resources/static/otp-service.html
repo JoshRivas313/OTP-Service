@@ -62,6 +62,28 @@
 
             <div class="form-section">
               <div class="field">
+                <span class="field-legend" id="purpose-legend">¿Para qué es este código?</span>
+                <div class="purpose-grid" role="radiogroup" aria-labelledby="purpose-legend">
+                  <label class="purpose-option">
+                    <input type="radio" name="purpose" value="login" checked>
+                    <span class="purpose-body"><span class="purpose-name">Iniciar sesión</span><span class="purpose-sub">Entrar a tu cuenta</span></span>
+                  </label>
+                  <label class="purpose-option">
+                    <input type="radio" name="purpose" value="signup">
+                    <span class="purpose-body"><span class="purpose-name">Registrarme</span><span class="purpose-sub">Crear una cuenta</span></span>
+                  </label>
+                  <label class="purpose-option">
+                    <input type="radio" name="purpose" value="reset">
+                    <span class="purpose-body"><span class="purpose-name">Recuperar acceso</span><span class="purpose-sub">Olvidé mi contraseña</span></span>
+                  </label>
+                  <label class="purpose-option">
+                    <input type="radio" name="purpose" value="payment">
+                    <span class="purpose-body"><span class="purpose-name">Confirmar un pago</span><span class="purpose-sub">Autorizar una operación</span></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="field">
                 <label for="gen-cellphone">Celular</label>
                 <div class="field-wrap">
                   <span class="prefix">+51</span>
@@ -112,7 +134,7 @@
             <div class="step-header">
               <div class="step-number">Paso 2/3</div>
               <h2>Verificar código</h2>
-              <p>Ingresá el código que recibiste por SMS</p>
+              <p id="ver-purpose-desc">Ingresá el código que recibiste por SMS</p>
             </div>
 
             <div class="form-section">
@@ -125,15 +147,24 @@
               </div>
 
               <div class="field">
-                <label>Código OTP (<span id="timer-display">--</span>s)</label>
-                <div class="code-boxes-wrapper">
-                  <input class="code-box" type="text" inputmode="numeric" maxlength="1" data-index="0" autocomplete="off">
-                  <input class="code-box" type="text" inputmode="numeric" maxlength="1" data-index="1" autocomplete="off">
-                  <input class="code-box" type="text" inputmode="numeric" maxlength="1" data-index="2" autocomplete="off">
-                  <input class="code-box" type="text" inputmode="numeric" maxlength="1" data-index="3" autocomplete="off">
-                  <input class="code-box" type="text" inputmode="numeric" maxlength="1" data-index="4" autocomplete="off">
-                  <input class="code-box" type="text" inputmode="numeric" maxlength="1" data-index="5" autocomplete="off">
-                  <span class="timer-ring" id="timer-ring"></span>
+                <div class="code-head">
+                  <span class="field-legend" id="code-legend">Código OTP</span>
+                  <span class="otp-countdown" id="timer-text">Expira en <span id="timer-display" class="mono">--:--</span></span>
+                </div>
+                <div class="code-boxes-wrapper" role="group" aria-labelledby="code-legend">
+                  <input class="code-box" type="text" inputmode="numeric" maxlength="1" data-index="0" autocomplete="off" aria-label="Dígito 1">
+                  <input class="code-box" type="text" inputmode="numeric" maxlength="1" data-index="1" autocomplete="off" aria-label="Dígito 2">
+                  <input class="code-box" type="text" inputmode="numeric" maxlength="1" data-index="2" autocomplete="off" aria-label="Dígito 3">
+                  <input class="code-box" type="text" inputmode="numeric" maxlength="1" data-index="3" autocomplete="off" aria-label="Dígito 4">
+                  <input class="code-box" type="text" inputmode="numeric" maxlength="1" data-index="4" autocomplete="off" aria-label="Dígito 5">
+                  <input class="code-box" type="text" inputmode="numeric" maxlength="1" data-index="5" autocomplete="off" aria-label="Dígito 6">
+                </div>
+                <div class="otp-timer" id="timer-track" role="progressbar" aria-label="Tiempo restante del código" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+                  <span class="otp-timer-bar" id="timer-bar"></span>
+                </div>
+                <div class="otp-expired" id="otp-expired" role="alert">
+                  <span>El código expiró.</span>
+                  <button type="button" class="btn-ghost btn-inline" onclick="resetOtpFlow(true)">Enviar código nuevo</button>
                 </div>
               </div>
             </div>
@@ -143,7 +174,7 @@
                 <span class="spinner"></span>
                 <span class="btn-label">Verificar</span>
               </button>
-              <button onclick="resetOtpFlow()" class="btn-secondary">← Volver</button>
+              <button type="button" onclick="resetOtpFlow(true)" class="btn-ghost">← Cambiar número</button>
             </div>
             <div id="ver-result" class="result" role="status" aria-live="polite"></div>
           </div>
@@ -152,20 +183,27 @@
           <div class="otp-step" id="otp-step-3" data-step="3" style="display:none;">
             <div class="step-header">
               <div class="step-number">Paso 3/3</div>
-              <h2>¡Verificado!</h2>
-              <p>Tu código OTP fue validado correctamente</p>
+              <h2 id="ok-title">¡Verificado!</h2>
+              <p id="ok-desc">Tu código OTP fue validado correctamente</p>
             </div>
 
             <div class="success-state">
-              <svg class="success-icon" viewBox="0 0 52 52" width="80" height="80">
+              <svg class="success-icon" viewBox="0 0 52 52" width="72" height="72">
                 <circle class="success-circle" cx="26" cy="26" r="24" fill="none"/>
                 <path class="success-mark" fill="none" d="M14 27l7 7 17-17"/>
               </svg>
-              <p class="success-text">Tu sesión está autenticada. Puedes continuar.</p>
             </div>
 
-            <button onclick="resetOtpFlow()" class="btn-secondary btn-full">
-              Generar otro código
+            <dl class="receipt" aria-label="Resumen de la verificación">
+              <div class="receipt-row"><dt>Acción</dt><dd id="rc-purpose">—</dd></div>
+              <div class="receipt-row"><dt>Número verificado</dt><dd id="rc-phone" class="mono">—</dd></div>
+              <div class="receipt-row"><dt>Verificado a las</dt><dd id="rc-time" class="mono">—</dd></div>
+              <div class="receipt-row"><dt>Código</dt><dd>De un solo uso, ya consumido</dd></div>
+            </dl>
+            <p class="demo-note">Demo: la acción es simulada. Lo real es la verificación del código.</p>
+
+            <button onclick="resetOtpFlow()" class="btn-primary btn-full">
+              Probar otro caso
             </button>
           </div>
 
