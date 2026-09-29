@@ -13,6 +13,8 @@
 
 Backend en Spring Boot que genera códigos de un solo uso, los envía por SMS al celular del usuario y los verifica de forma segura y atómica. El proveedor de SMS es intercambiable (consola, Twilio o Infobip) y el proyecto incluye una interfaz web y documentación interactiva con Swagger.
 
+**Demo:** [otp-service-78yu.onrender.com](https://otp-service-78yu.onrender.com). Corre en el plan gratuito de Render: si estuvo inactivo, la primera carga puede tardar cerca de un minuto. Para enviar SMS hay que conectar una cuenta propia de Twilio.
+
 ## Tabla de Contenido
 
 - [Descripción General](#descripción-general)
