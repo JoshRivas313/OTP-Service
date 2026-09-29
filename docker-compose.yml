@@ -32,6 +32,7 @@ services:
       SMS_PROVIDER: console
       OTP_DEMO_MODE: "false"
       PORT: 8080
+      SWAGGER_ENABLED: "true"
     depends_on:
       mongodb:
         condition: service_healthy

@@ -10,6 +10,7 @@ Referencia de los endpoints. La documentación interactiva se genera con springd
 - [Convenciones](#convenciones)
 - [OTP local](#otp-local)
 - [OTP con Twilio por sesión](#otp-con-twilio-por-sesión)
+- [Estado del servicio](#estado-del-servicio)
 - [Códigos de error](#códigos-de-error)
 - [Errores de formato](#errores-de-formato)
 
@@ -254,6 +255,22 @@ curl -c cookies.txt -X POST http://localhost:8080/api/twilio/connect \
 curl -b cookies.txt -X POST http://localhost:8080/api/twilio/otps \
   -H "Content-Type: application/json" \
   -d '{"cellphone":"912345678","digits":6,"durationSeconds":60}'
+```
+
+---
+
+## Estado del servicio
+
+### GET /health — Estado
+
+Responde `200` mientras la aplicación esté levantada. Sirve como Health Check Path en plataformas como Render. Siempre está disponible, también con `OTP_LOCAL_API_ENABLED=false`.
+
+**Response** `200`
+
+```json
+{
+  "status": "UP"
+}
 ```
 
 ---

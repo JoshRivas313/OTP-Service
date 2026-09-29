@@ -330,7 +330,8 @@ Levanta MongoDB y la aplicación con el perfil `mongo` y el proveedor `console`.
 ### Probar
 
 - Interfaz web: `http://localhost:8080` (pide conectar una cuenta de Twilio, ver [Limitaciones Conocidas](#limitaciones-conocidas))
-- Swagger UI: `http://localhost:8080/swagger-ui.html`
+- Swagger UI: `http://localhost:8080/swagger-ui.html` (con la imagen Docker está deshabilitado salvo que definas `SWAGGER_ENABLED=true`; Docker Compose ya lo activa)
+- Estado del servicio: `GET http://localhost:8080/health`
 
 Sin ninguna cuenta se puede probar la API directamente. Con el proveedor `console`, el código aparece en el log de la aplicación:
 
@@ -376,6 +377,7 @@ La aplicación lee estas variables del entorno del sistema. **El archivo `.env` 
 | `PORT` | `8080` | Puerto HTTP. Las plataformas como Render lo definen solas |
 | `SESSION_COOKIE_SECURE` | `false` | Si es `true`, la cookie de sesión solo viaja por HTTPS. Actívalo al publicar |
 | `OTP_LOCAL_API_ENABLED` | `true` | Si es `false`, se deshabilitan `POST /otps` y `POST /otps/verify`; quedan solo los endpoints de Twilio por sesión |
+| `SWAGGER_ENABLED` | `true` | Si es `false`, se deshabilitan Swagger UI y `/v3/api-docs`. La imagen Docker lo trae en `false`; `docker-compose.yml` lo activa |
 | `OTP_MEMORY_MAX_ENTRIES` | `10000` | Tope de códigos guardados en memoria; al llegar se descartan los más antiguos |
 
 ```bash
@@ -417,7 +419,10 @@ La aplicación se despliega como un **Web Service con Docker** usando el `Docker
 | `SESSION_COOKIE_SECURE` | `true` |
 | `OTP_LOCAL_API_ENABLED` | `false` |
 
-4. Despliega. La interfaz web queda disponible en la URL que asigna Render.
+4. En **Health Check Path** pon `/health`.
+5. Despliega. La interfaz web queda disponible en la URL que asigna Render.
+
+La imagen Docker deshabilita Swagger UI por defecto (`SWAGGER_ENABLED=false`); para activarlo en un despliegue, define `SWAGGER_ENABLED=true`.
 
 Con esta configuración el servicio público solo expone el flujo de Twilio por sesión: cada visitante conecta su propia cuenta de Twilio y los envíos salen de ella. **No definas `SMS_PROVIDER=twilio` con tus propias credenciales en el servidor público**, porque cualquiera podría generar SMS a cargo de tu cuenta.
 

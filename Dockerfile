@@ -16,6 +16,8 @@ RUN useradd --system --no-create-home otp
 COPY --from=builder /build/target/otp-service-*.jar app.jar
 USER otp
 
+ENV SWAGGER_ENABLED=false
+
 EXPOSE 8080
 
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "app.jar"]

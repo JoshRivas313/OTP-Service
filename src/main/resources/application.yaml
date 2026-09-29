@@ -22,6 +22,12 @@ otp:
   local-api-enabled: ${OTP_LOCAL_API_ENABLED:true}
   memory-max-entries: ${OTP_MEMORY_MAX_ENTRIES:10000}
 
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:true}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:true}
+
 sms:
   provider: ${SMS_PROVIDER:console}
   twilio:
