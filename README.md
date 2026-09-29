@@ -25,6 +25,7 @@ Backend en Spring Boot que genera códigos de un solo uso, los envía por SMS al
 - [Variables de Entorno](#variables-de-entorno)
 - [Scripts Disponibles](#scripts-disponibles)
 - [API Endpoints](#api-endpoints)
+- [Flujos de Uso](#flujos-de-uso)
 - [Limitaciones Conocidas](#limitaciones-conocidas)
 - [Contribución](#contribución)
 
@@ -147,29 +148,6 @@ lo usan todas las capas y no depende de ninguna.
 
 La regla de dependencia es `adapter → application → domain`. El detalle de paquetes y decisiones está en [ARQUITECTURA.md](./docs/ARQUITECTURA.md).
 
-### Flujo principal
-
-```mermaid
-sequenceDiagram
-    actor U as Usuario
-    participant A as API Spring Boot
-    participant M as MongoDB
-    participant S as Proveedor de SMS
-
-    U->>A: POST /otps con el celular
-    A->>M: Guarda el hash del código y su expiración
-    A->>S: Envía el mensaje con el código
-    S-->>U: SMS al celular
-    U->>A: POST /otps/verify con el código recibido
-    A->>M: Reclama el código de forma atómica
-    alt El código coincide
-        A-->>U: 200 verificado
-    else No coincide, expiró o está bloqueado
-        A-->>U: 401, 410 o 423 con su código de error
-    end
-```
-
-Los demás flujos (verificación paso a paso, ciclo de vida del código y Twilio por sesión) están en [FLUJOS.md](./docs/FLUJOS.md).
 
 ---
 
@@ -270,11 +248,11 @@ Estructura hexagonal del proyecto:
 
 ### Flujos
 [**FLUJOS.md**](./docs/FLUJOS.md)
-Diagramas de los procesos:
-- Generar un código
-- Verificar un código, paso a paso
+Diagramas complementarios a los [Flujos de Uso](#flujos-de-uso):
+- Generar un código, paso a paso
+- Verificar un código, con cada comprobación y su error
 - Ciclo de vida de un código
-- Twilio por sesión y qué proveedor envía cada flujo
+- Qué proveedor envía cada flujo
 
 ### Base de Datos
 [**BASE_DE_DATOS.md**](./docs/BASE_DE_DATOS.md)
@@ -577,6 +555,94 @@ Los errores de negocio y de validación comparten este formato:
 ```
 
 **Documentación completa:** [API.md](./docs/API.md)
+
+---
+
+## Flujos de Uso
+
+### Flujo 1: Generación Local (Motor Interno)
+
+```mermaid
+sequenceDiagram
+    participant Cliente
+    participant Backend
+    participant SMS as SMS Provider
+    participant Mongo as MongoDB
+
+    Cliente->>Backend: POST /otps<br/>{cellphone, digits, durationSeconds}
+    Backend->>Mongo: Invalidar códigos anteriores del celular
+    Backend->>Backend: Generar código con SecureRandom
+    Backend->>Backend: Hashear con HMAC-SHA256
+    Backend->>Mongo: Guardar {hash, intentos, expira}
+    Backend->>SMS: Mandar SMS con código
+    SMS-->>Cliente: SMS recibido
+    Backend-->>Cliente: 201 Código enviado
+
+    Cliente->>Backend: POST /otps/verify<br/>{cellphone, code}
+    Backend->>Mongo: Buscar código por celular
+    Backend->>Backend: Validar estado, intentos, expiración
+    alt Código válido
+        Backend->>Mongo: Marcar como usado
+        Backend-->>Cliente: 200 Código verificado
+    else Código incorrecto
+        Backend->>Mongo: Incrementar intentos
+        Backend-->>Cliente: 401 OTP_INVALID (423 OTP_BLOCKED si fue el último intento)
+    else Expirado, usado, invalidado, bloqueado o inexistente
+        Backend-->>Cliente: 410, 409, 423 o 404 con su código de error
+    end
+```
+
+**Cuándo usar**: pruebas de la API, demo local y cuando no se tiene una cuenta de Twilio. Con el proveedor `console` el código aparece en el log de la aplicación en lugar de llegar por SMS.
+
+### Flujo 2: Twilio por Sesión
+
+```mermaid
+sequenceDiagram
+    participant Usuario
+    participant index.html
+    participant Backend
+    participant Twilio
+    participant otp-service.html
+    participant Mongo
+
+    Usuario->>index.html: Abre http://localhost:8080
+    Usuario->>index.html: Ingresa credenciales Twilio
+    index.html->>Backend: POST /api/twilio/connect<br/>{accountSid, authToken, verifyServiceSid, phoneNumber}
+    Backend->>Twilio: Validar credenciales (consulta el Verify Service)
+    Twilio-->>Backend: OK / Error
+    alt Credenciales válidas
+        Backend->>Backend: Guardar en HttpSession (15 min)
+        Backend-->>index.html: 200 connected
+        index.html->>otp-service.html: Redirect
+    else Inválidas
+        Backend-->>index.html: 401 TWILIO_CREDENTIALS_INVALID
+    end
+
+    Usuario->>otp-service.html: Ingresa celular, dígitos y expiración
+    otp-service.html->>Backend: POST /api/twilio/otps<br/>{cellphone, digits, durationSeconds}
+    Backend->>Backend: Generar código + hashear
+    Backend->>Mongo: Guardar hash, expiración e intentos
+    Backend->>Twilio: Enviar SMS con las credenciales de la sesión
+    Twilio-->>Usuario: SMS con el código
+    Backend-->>otp-service.html: 201
+
+    Usuario->>otp-service.html: Ingresa el código recibido
+    otp-service.html->>Backend: POST /api/twilio/otps/verify<br/>{cellphone, code}
+    Backend->>Mongo: Reclamar el código (operación atómica)
+    alt Correcto
+        Backend-->>otp-service.html: 200 verificado
+        otp-service.html->>otp-service.html: Animación de éxito + resultado
+    else Incorrecto, expirado o bloqueado
+        Backend-->>otp-service.html: 401, 410 o 423 con su código de error
+    end
+
+    Usuario->>otp-service.html: Botón Cambiar configuración
+    otp-service.html->>Backend: POST /api/twilio/disconnect
+    Backend->>Backend: Borrar las credenciales de la sesión
+    Backend-->>index.html: Redirect
+```
+
+**Cuándo usar**: probar el flujo completo con SMS reales desde la interfaz web, con la cuenta de Twilio propia. Twilio solo valida las credenciales y entrega el SMS; el código lo genera y lo verifica el backend.
 
 ---
 

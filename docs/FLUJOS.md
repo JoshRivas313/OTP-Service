@@ -1,39 +1,19 @@
 # Flujos
 
-Diagramas de cómo se genera, se verifica y se envía un código.
+Diagramas complementarios a los dos flujos de uso del README: [Flujo 1: Generación Local](../README.md#flujo-1-generación-local-motor-interno) y [Flujo 2: Twilio por Sesión](../README.md#flujo-2-twilio-por-sesión).
 
 ## Contenido
 
-- [Generar un código](#generar-un-código)
+- [Generar un código, paso a paso](#generar-un-código-paso-a-paso)
 - [Verificar un código](#verificar-un-código)
 - [Ciclo de vida de un código](#ciclo-de-vida-de-un-código)
-- [Twilio por sesión (interfaz web)](#twilio-por-sesión-interfaz-web)
 - [Qué proveedor envía cada flujo](#qué-proveedor-envía-cada-flujo)
 
 ---
 
-## Generar un código
+## Generar un código, paso a paso
 
-`POST /otps` y `POST /api/twilio/otps` usan el mismo caso de uso; solo cambia el `SmsSender` que recibe.
-
-```mermaid
-sequenceDiagram
-    participant C as Cliente
-    participant H as HttpAdapter
-    participant U as GenerateOtpUseCase
-    participant M as MongoDB
-    participant S as SmsSender
-
-    C->>H: POST /otps con cellphone, digits y durationSeconds
-    H->>U: generate(command)
-    U->>M: Invalida los códigos activos del celular
-    U->>U: Genera el código con SecureRandom
-    U->>U: Calcula el hash HMAC-SHA256
-    U->>M: Guarda el hash, la ventana de validez y purgeAt
-    U->>S: send(celular, mensaje con el código)
-    U-->>H: GenerateOtpResult
-    H-->>C: 201 con success, message y demoCode
-```
+`POST /otps` y `POST /api/twilio/otps` usan el mismo caso de uso (`GenerateOtpUseCase`); solo cambia el `SmsSender` que recibe.
 
 1. Invalida los códigos anteriores del mismo celular que no estén usados ni invalidados.
 2. Genera el código (`OtpCode.generate`, `SecureRandom`).
@@ -91,52 +71,6 @@ stateDiagram-v2
 ```
 
 La purga ocurre solo si el índice TTL de `purgeAt` existe. Hoy no se crea automáticamente (ver [BASE_DE_DATOS.md](./BASE_DE_DATOS.md#índices)).
-
----
-
-## Twilio por sesión (interfaz web)
-
-Flujo completo de la interfaz web: conectar una cuenta propia de Twilio, enviar, verificar y desconectar.
-
-```mermaid
-sequenceDiagram
-    actor U as Usuario
-    participant W as Interfaz web
-    participant B as Backend
-    participant T as Twilio
-    participant M as MongoDB
-
-    U->>W: Escribe sus credenciales de Twilio
-    W->>B: POST /api/twilio/connect
-    B->>T: Consulta el Verify Service con esas credenciales
-    alt Credenciales válidas
-        T-->>B: Servicio encontrado
-        B->>B: Guarda las credenciales en la sesión por 15 minutos
-        B-->>W: 200 connected
-        W->>U: Abre otp-service.html
-    else Credenciales inválidas
-        T-->>B: Rechazo
-        B-->>W: 401 TWILIO_CREDENTIALS_INVALID
-    end
-
-    U->>W: Escribe su celular y pulsa Enviar código
-    W->>B: POST /api/twilio/otps
-    B->>M: Guarda el hash del código y su expiración
-    B->>T: Envía el SMS con las credenciales de la sesión
-    T-->>U: SMS al celular
-    B-->>W: 201
-
-    U->>W: Escribe el código recibido
-    W->>B: POST /api/twilio/otps/verify
-    B->>M: Reclama el código de forma atómica
-    B-->>W: 200 verificado
-
-    U->>W: Pulsa Cambiar configuración
-    W->>B: POST /api/twilio/disconnect
-    B->>B: Borra las credenciales de la sesión
-```
-
-Twilio interviene solo dos veces: al validar las credenciales y al entregar el SMS. La verificación del código la hace el backend contra MongoDB.
 
 ---
 

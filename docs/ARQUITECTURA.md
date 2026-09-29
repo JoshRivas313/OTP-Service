@@ -92,7 +92,7 @@ adapter/out/*                       MongoDB, Console/Twilio/Infobip, HMAC-SHA256
 
 Los casos de uso nunca reciben ni devuelven objetos HTTP: reciben un `Command` y devuelven un `Result`, y el adaptador HTTP los convierte de y hacia el JSON de la API.
 
-Los diagramas de generar un código, verificarlo, su ciclo de vida y el flujo de Twilio por sesión están en [FLUJOS.md](./FLUJOS.md).
+Los diagramas de los flujos de uso están en el [README](../README.md#flujos-de-uso), y los de verificación, ciclo de vida y proveedores en [FLUJOS.md](./FLUJOS.md).
 
 ---
 
