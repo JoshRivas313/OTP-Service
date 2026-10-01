@@ -7,6 +7,11 @@ document.querySelectorAll('input[inputmode="numeric"]').forEach(input => {
   });
 });
 
+const smsPanel = document.getElementById('sms-panel');
+if (window.location.hash === '#sms') {
+  smsPanel.open = true;
+}
+
 function showError(elementId, message) {
   const el = document.getElementById(elementId);
   el.innerHTML = ICON_ERR + '<span>' + message + '</span>';

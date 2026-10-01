@@ -1,6 +1,19 @@
 const ICON_OK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const ICON_ERR = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
+const CHANNEL = new URLSearchParams(window.location.search).get('canal') === 'correo' ? 'email' : 'sms';
+const API = CHANNEL === 'email'
+  ? { generate: '/api/email/otps', verify: '/api/email/otps/verify', key: 'email' }
+  : { generate: '/api/twilio/otps', verify: '/api/twilio/otps/verify', key: 'cellphone' };
+
+function validateEmail(email) {
+  return email.length <= 254 && /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/.test(email);
+}
+
+function maskEmail(email) {
+  return email[0] + '***' + email.slice(email.indexOf('@'));
+}
+
 function validatePeruvianMobile(national) {
   return /^9\d{8}$/.test(national);
 }
@@ -29,6 +42,14 @@ function clearFieldError(fieldId) {
   input.classList.remove('error');
 }
 
+const emailInput = document.getElementById('gen-email');
+emailInput.addEventListener('input', () => clearFieldError('gen-email'));
+emailInput.addEventListener('blur', () => {
+  if (emailInput.value && !validateEmail(emailInput.value.trim().toLowerCase())) {
+    showFieldError('gen-email', 'Ingresá un correo válido');
+  }
+});
+
 const cellphoneInput = document.getElementById('gen-cellphone');
 cellphoneInput.addEventListener('input', () => {
   cellphoneInput.value = cellphoneInput.value.replace(/\D/g, '');
@@ -45,11 +66,17 @@ const messageInput = document.getElementById('gen-message');
 let messageEdited = false;
 
 function purposeMessage() {
-  return PURPOSES[selectedPurposeKey()].sms;
+  const message = PURPOSES[selectedPurposeKey()].sms;
+  const type = selectedType();
+  if (type === 'HOTP') return message.replace('Vence en {seconds} segundos.', 'Sirve hasta que lo uses.');
+  if (type === 'TOTP') return message.replace('Vence en {seconds} segundos.', 'Vence en {seconds} segundos, al cerrar su ventana.');
+  return message;
 }
 
+// En TOTP los segundos reales dependen de en qué momento de la ventana se pida el código.
 function sampleSeconds() {
-  return document.getElementById('gen-expiration').value;
+  const seconds = parseInt(document.getElementById('gen-expiration').value, 10);
+  return selectedType() === 'TOTP' ? seconds + '–' + seconds * 2 : String(seconds);
 }
 
 function refreshMessagePreview() {
@@ -64,7 +91,14 @@ customToggle.addEventListener('change', () => {
   if (customToggle.checked) messageInput.focus();
 });
 document.querySelectorAll('input[name="purpose"]').forEach(radio => radio.addEventListener('change', refreshMessagePreview));
-document.getElementById('gen-expiration').addEventListener('change', refreshMessagePreview);
+document.getElementById('gen-expiration').addEventListener('change', () => {
+  document.getElementById('expiration-help').textContent =
+    TYPES[selectedType()].expirationHelp(parseInt(document.getElementById('gen-expiration').value, 10));
+  refreshMessagePreview();
+});
+document.querySelectorAll('input[name="otp-type"]').forEach(radio => radio.addEventListener('change', applyType));
+document.getElementById('dyk-next').addEventListener('click', () => showFact(true));
+document.getElementById('resend-btn').addEventListener('click', resendCode);
 messageInput.addEventListener('input', () => {
   messageEdited = true;
   document.getElementById('gen-message').classList.remove('error');
@@ -93,12 +127,13 @@ function resetProgress() {
   setProgressStep(3, null);
 }
 
-let codeInputListenerAttached = false;
+let lastDigits = 6;
 let timerInterval = null;
-let lastCellphone = null;
+let lastDestination = null;
+let lastDemoCode = null;
 let lastDurationSeconds = null;
 let lastPurpose = 'login';
-let lastMaskedPhone = '';
+let lastMaskedTarget = '';
 let otpExpired = false;
 
 // El propósito solo cambia el texto de la demo: el backend valida el código igual en todos los casos.
@@ -108,14 +143,14 @@ const PURPOSES = {
     action: 'Inicio de sesión',
     verifyHint: 'Confirmá que sos vos para iniciar sesión.',
     title: 'Acceso concedido',
-    desc: 'Comprobamos que tenés este celular. En una app real, acá entrarías a tu cuenta.'
+    desc: 'Comprobamos que el código llegó a vos. En una app real, acá entrarías a tu cuenta.'
   },
   signup: {
     sms: 'Tu código para crear tu cuenta es {code}. Vence en {seconds} segundos.',
     action: 'Registro',
-    verifyHint: 'Verificamos tu celular para crear tu cuenta.',
-    title: 'Celular verificado',
-    desc: 'Tu número es real y es tuyo. En una app real, acá seguirías con el registro.'
+    verifyHint: 'Verificamos que sos vos para crear tu cuenta.',
+    title: 'Verificación completa',
+    desc: 'El código era válido y solo lo tenías vos. En una app real, acá seguirías con el registro.'
   },
   reset: {
     sms: 'Tu código para recuperar tu acceso es {code}. Vence en {seconds} segundos.',
@@ -133,14 +168,140 @@ const PURPOSES = {
   }
 };
 
+const TYPES = {
+  OTP: {
+    formula: 'código = número aleatorio (SecureRandom)',
+    desc: 'El servidor guarda el hash del código. Caduca por tiempo y sirve una sola vez.',
+    expirationLabel: 'Expira en',
+    expirations: [[30, '30 segundos'], [60, '60 segundos'], [120, '2 minutos'], [300, '5 minutos']],
+    digits: [4, 10],
+    receipt: 'OTP · aleatorio',
+    expirationHelp: () => 'Cuenta desde el momento en que lo pedís.',
+    clockNote: 'Cuenta desde que lo pediste. Si pedís otro, este deja de servir.',
+    how: 'Comparó con el hash que guardó al enviarlo',
+    facts: [
+      'Un código de 6 dígitos tiene un millón de combinaciones: por eso se bloquea al tercer intento fallido.',
+      'El servidor no guarda tu código en claro, solo su HMAC: ni quien vea la base de datos puede leerlo.',
+      'Pedir un código nuevo invalida el anterior, aunque todavía no haya vencido.'
+    ]
+  },
+  HOTP: {
+    formula: 'código = HMAC(secreto, contador) · RFC 4226',
+    desc: 'No caduca por tiempo: sirve hasta que lo uses. El servidor no guarda el código, solo el secreto y el contador.',
+    expirationLabel: null,
+    expirations: [],
+    digits: [6, 8],
+    receipt: 'HOTP · por contador',
+    expirationHelp: () => 'HOTP no tiene reloj: el código vale hasta que lo uses.',
+    clockNote: 'Sin reloj: vale hasta que lo uses. Si pedís otro, este sigue sirviendo hasta que uses uno posterior.',
+    how: 'Recalculó HMAC(secreto, contador); no guardó el código',
+    facts: [
+      'HOTP nació para llaveros sin reloj: el código no vence, solo se gasta al usarlo.',
+      'Si pedís tres códigos, los tres sirven… hasta que usás uno: los anteriores quedan anulados. Probalo.',
+      'El servidor no guarda este código: cuando lo escribís, lo vuelve a calcular con el secreto y el contador.'
+    ]
+  },
+  TOTP: {
+    formula: 'código = HMAC(secreto, ⌊hora ÷ ventana⌋) · RFC 6238',
+    desc: 'Vale hasta que termina su ventana de tiempo, más una de tolerancia. Se recalcula con la hora; no se guarda.',
+    expirationLabel: 'Ventana de tiempo',
+    expirations: [[30, '30 segundos (estándar)'], [60, '60 segundos']],
+    digits: [6, 8],
+    receipt: 'TOTP · por tiempo',
+    expirationHelp: (period) => 'No es la vigencia exacta: el código vale hasta que cierra su ventana, más una de tolerancia (entre '
+      + period + ' y ' + period * 2 + ' s).',
+    clockNote: 'Si pedís otro dentro de la misma ventana, llega el mismo número.',
+    how: 'Recalculó HMAC(secreto, ventana actual ±1); no guardó el código',
+    facts: [
+      'Google Authenticator y el 2FA de GitHub usan TOTP: el mismo cálculo que hace este servidor.',
+      'Si pedís dos códigos dentro de la misma ventana de 30 s, llega el mismo número. Probalo.',
+      'Un código TOTP vencido no gasta intentos: el servidor sabe que era correcto, pero llegó tarde.'
+    ]
+  }
+};
+
+let lastType = 'OTP';
+let lastGenerateData = null;
+let lastPayload = null;
+let factIndex = 0;
+
+function selectedType() {
+  const checked = document.querySelector('input[name="otp-type"]:checked');
+  return checked && TYPES[checked.value] ? checked.value : 'OTP';
+}
+
+function showFact(advance) {
+  const type = selectedType();
+  const facts = TYPES[type].facts;
+  factIndex = advance ? (factIndex + 1) % facts.length : 0;
+  document.getElementById('dyk-text').textContent = facts[factIndex];
+  document.getElementById('dyk-app-link').hidden = type === 'OTP';
+}
+
+function applyType() {
+  const type = TYPES[selectedType()];
+  document.getElementById('type-formula').textContent = type.formula;
+  document.getElementById('type-desc').textContent = type.desc;
+
+  const field = document.getElementById('field-expiration');
+  const select = document.getElementById('gen-expiration');
+  field.hidden = !type.expirationLabel;
+  if (type.expirationLabel) {
+    document.getElementById('gen-expiration-label').textContent = type.expirationLabel;
+    const previous = parseInt(select.value, 10);
+    select.innerHTML = type.expirations
+      .map(([seconds, label]) => '<option value="' + seconds + '">' + label + '</option>')
+      .join('');
+    select.value = type.expirations.some(([seconds]) => seconds === previous) ? previous : type.expirations[0][0];
+  }
+
+  const digits = document.getElementById('gen-digits');
+  const [min, max] = type.digits;
+  Array.from(digits.options).forEach(option => {
+    const value = parseInt(option.value, 10);
+    option.disabled = value < min || value > max;
+  });
+  const current = parseInt(digits.value, 10);
+  if (current < min || current > max) digits.value = '6';
+
+  document.getElementById('expiration-help').textContent = type.expirationHelp(parseInt(select.value, 10));
+  showFact(false);
+  refreshMessagePreview();
+}
+
 function selectedPurposeKey() {
   const checked = document.querySelector('input[name="purpose"]:checked');
   return checked && PURPOSES[checked.value] ? checked.value : 'login';
 }
 
+function buildCodeBoxes(count) {
+  lastDigits = count;
+  const wrapper = document.querySelector('.code-boxes-wrapper');
+  wrapper.innerHTML = '';
+  wrapper.style.setProperty('--code-len', count);
+  wrapper.classList.toggle('long', count > 6);
+  for (let i = 0; i < count; i++) {
+    const box = document.createElement('input');
+    box.className = 'code-box';
+    box.type = 'text';
+    box.inputMode = 'numeric';
+    box.maxLength = 1;
+    box.autocomplete = 'off';
+    box.dataset.index = String(i);
+    box.setAttribute('aria-label', 'Dígito ' + (i + 1));
+    wrapper.appendChild(box);
+  }
+  attachCodeBoxListeners();
+}
+
 function attachCodeBoxListeners() {
   const boxes = document.querySelectorAll('.code-box');
   boxes.forEach((box, index) => {
+    box.addEventListener('input', () => {
+      if (Array.from(boxes).some(b => b.value)) {
+        setProgressStep(2, 'active');
+      }
+    });
     box.addEventListener('input', (e) => {
       e.target.value = e.target.value.replace(/\D/g, '');
       e.target.classList.toggle('filled', e.target.value !== '');
@@ -175,7 +336,7 @@ function attachCodeBoxListeners() {
 function updateVerifyButtonState() {
   const code = Array.from(document.querySelectorAll('.code-box')).map(b => b.value).join('');
   const btn = document.getElementById('ver-btn');
-  btn.disabled = code.length < 6;
+  btn.disabled = code.length < lastDigits;
 }
 
 function formatClock(totalSeconds) {
@@ -199,8 +360,57 @@ function resetTimerUi() {
   document.getElementById('otp-expired').classList.remove('show');
 }
 
+function setTimerVisible(visible) {
+  document.getElementById('timer-text').hidden = !visible;
+  document.getElementById('timer-track').hidden = !visible;
+}
+
+function describeIssuedCode(data) {
+  if (data.type === 'HOTP') return 'HOTP · contador ' + data.counter;
+  if (data.type === 'TOTP') return 'TOTP · ventana T = ' + data.timeStep;
+  return 'OTP · aleatorio';
+}
+
+let windowInterval = null;
+
+function stopWindow() {
+  clearInterval(windowInterval);
+  windowInterval = null;
+  document.getElementById('totp-window').hidden = true;
+}
+
+// El servidor fija T; el navegador solo lo hace avanzar con su reloj para mostrar cuándo cambia.
+function startWindow(data, periodSeconds, issuedAt) {
+  stopWindow();
+  const panel = document.getElementById('totp-window');
+  const stepEl = document.getElementById('totp-step');
+  const leftEl = document.getElementById('totp-left');
+  const bar = document.getElementById('totp-bar');
+  const track = panel.querySelector('.totp-window-track');
+  const offset = data.timeStep - Math.floor(issuedAt / 1000 / periodSeconds);
+  const until = new Date(issuedAt + data.expiresInSeconds * 1000);
+  document.getElementById('totp-until').textContent =
+    until.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  panel.hidden = false;
+
+  const tick = () => {
+    const now = Date.now() / 1000;
+    const step = Math.floor(now / periodSeconds) + offset;
+    const left = periodSeconds - (now % periodSeconds);
+    const inTolerance = step > data.timeStep;
+    stepEl.textContent = 'T = ' + step + (inTolerance ? ' · tolerancia' : '');
+    panel.classList.toggle('in-tolerance', inTolerance);
+    leftEl.textContent = String(Math.ceil(left));
+    bar.style.width = (left / periodSeconds * 100) + '%';
+    track.setAttribute('aria-valuenow', String(Math.round(left / periodSeconds * 100)));
+  };
+  tick();
+  windowInterval = setInterval(tick, 250);
+}
+
 function expireTimerUi() {
   otpExpired = true;
+  stopWindow();
   const bar = document.getElementById('timer-bar');
   bar.style.width = '0%';
   bar.classList.remove('warn');
@@ -277,12 +487,21 @@ function resetOtpFlow(keepNumber = false) {
   showOtpStep(1);
   resetProgress();
   clearInterval(timerInterval);
-  lastCellphone = null;
+  lastDestination = null;
+  lastDemoCode = null;
+  lastGenerateData = null;
+  document.getElementById('demo-code-box').hidden = true;
+  document.getElementById('type-chip').hidden = true;
+  document.getElementById('resend-note').hidden = true;
+  stopWindow();
+  setTimerVisible(true);
   lastDurationSeconds = null;
   if (!keepNumber) {
     document.getElementById('gen-cellphone').value = '';
+    document.getElementById('gen-email').value = '';
   }
   clearFieldError('gen-cellphone');
+  clearFieldError('gen-email');
   document.getElementById('gen-result').className = 'result';
   document.getElementById('gen-result').innerHTML = '';
   document.getElementById('gen-success').style.display = 'none';
@@ -299,70 +518,139 @@ function resetOtpFlow(keepNumber = false) {
   document.getElementById('ver-btn').disabled = true;
 }
 
-async function generateOtp() {
-  const national = cellphoneInput.value.trim();
-  const cellphone = '+51' + national;
+function readTarget() {
+  if (CHANNEL === 'email') {
+    const email = emailInput.value.trim().toLowerCase();
+    if (!email) {
+      showFieldError('gen-email', 'Correo requerido');
+      return null;
+    }
+    if (!validateEmail(email)) {
+      showFieldError('gen-email', 'Ingresá un correo válido');
+      return null;
+    }
+    clearFieldError('gen-email');
+    return { value: email, masked: maskEmail(email) };
+  }
 
+  const national = cellphoneInput.value.trim();
   if (!national) {
     showFieldError('gen-cellphone', 'Número requerido');
-    return;
+    return null;
   }
-
   if (!validatePeruvianMobile(national)) {
     showFieldError('gen-cellphone', 'Ingresá 9 dígitos que empiecen con 9');
-    return;
+    return null;
   }
-
   clearFieldError('gen-cellphone');
+  return { value: '+51' + national, masked: maskPhone(national) };
+}
+
+async function generateOtp() {
+  const target = readTarget();
+  if (!target) return;
+
+  const type = selectedType();
   const digits = parseInt(document.getElementById('gen-digits').value, 10);
-  const durationSeconds = parseInt(document.getElementById('gen-expiration').value, 10);
+  const durationSeconds = type === 'HOTP' ? null : parseInt(document.getElementById('gen-expiration').value, 10);
   const message = customToggle.checked ? messageInput.value.trim() : purposeMessage();
   if (!message.includes('{code}')) {
     messageInput.classList.add('error');
     showMessageError('El mensaje debe incluir {code}');
     return;
   }
-  const payload = { cellphone, digits, durationSeconds, message };
+  const payload = { [API.key]: target.value, type, digits, durationSeconds, message };
 
-  const ok = await submit('gen-btn', 'gen-result', '/api/twilio/otps', payload);
+  const ok = await submit('gen-btn', 'gen-result', API.generate, payload);
   if (ok) {
     const issuedAt = Date.now();
-    lastCellphone = cellphone;
-    lastDurationSeconds = durationSeconds;
+    lastPayload = payload;
+    lastDestination = target.value;
+    lastType = type;
     lastPurpose = selectedPurposeKey();
     resetProgress();
     setProgressStep(1, 'done');
 
     document.getElementById('gen-success').style.display = 'flex';
-    const displayPhone = maskPhone(national);
-    document.getElementById('gen-phone-display').textContent = displayPhone;
-    lastMaskedPhone = displayPhone;
-    document.getElementById('ver-phone-display').textContent = displayPhone;
+    document.getElementById('gen-phone-display').textContent = target.masked;
+    lastMaskedTarget = target.masked;
+    document.getElementById('ver-phone-display').textContent = target.masked;
     document.getElementById('ver-purpose-desc').textContent = PURPOSES[lastPurpose].verifyHint;
+    document.getElementById('otp-expired-text').textContent = type === 'TOTP'
+      ? 'Su ventana y la de tolerancia ya cerraron.'
+      : 'El código expiró.';
+    document.getElementById('clock-note').textContent = TYPES[type].clockNote;
 
     setTimeout(() => {
       showOtpStep(2);
-      if (!codeInputListenerAttached) {
-        codeInputListenerAttached = true;
-        attachCodeBoxListeners();
-        document.querySelectorAll('.code-box').forEach(box => {
-          box.addEventListener('input', () => {
-            if (Array.from(document.querySelectorAll('.code-box')).some(b => b.value)) {
-              setProgressStep(2, 'active');
-            }
-          });
-        });
-      }
-      startTimer(durationSeconds, issuedAt);
+      showIssuedCode(lastGenerateData, issuedAt);
       document.querySelector('.code-box').focus();
     }, 600);
   }
 }
 
+function showIssuedCode(data, issuedAt) {
+  const demoBox = document.getElementById('demo-code-box');
+  demoBox.hidden = !lastDemoCode;
+  document.getElementById('demo-code-value').textContent = lastDemoCode || '';
+
+  const chip = document.getElementById('type-chip');
+  chip.textContent = data && data.type ? describeIssuedCode(data) : '';
+  chip.hidden = !chip.textContent;
+
+  buildCodeBoxes(lastPayload.digits);
+  document.getElementById('ver-btn').disabled = true;
+  clearInterval(timerInterval);
+  resetTimerUi();
+  stopWindow();
+  lastDurationSeconds = data && data.expiresInSeconds ? data.expiresInSeconds : lastPayload.durationSeconds;
+
+  if (lastType === 'HOTP') {
+    setTimerVisible(false);
+    return;
+  }
+  startTimer(lastDurationSeconds, issuedAt);
+  if (lastType === 'TOTP' && data && data.timeStep != null) {
+    setTimerVisible(false);
+    startWindow(data, lastPayload.durationSeconds, issuedAt);
+  } else {
+    setTimerVisible(true);
+  }
+}
+
+// Pedir otro con el mismo protocolo muestra en vivo la diferencia entre los tres.
+async function resendCode() {
+  if (!lastPayload) return;
+  const previous = lastGenerateData;
+  const previousCode = lastDemoCode;
+  const ok = await submit('resend-btn', 'ver-result', API.generate, lastPayload, { quietSuccess: true });
+  if (!ok) return;
+  showIssuedCode(lastGenerateData, Date.now());
+  const note = document.getElementById('resend-note');
+  note.textContent = resendExplanation(previous, lastGenerateData, previousCode, lastDemoCode);
+  note.hidden = false;
+  document.querySelector('.code-box').focus();
+}
+
+function resendExplanation(previous, current, previousCode, currentCode) {
+  if (current.type === 'TOTP') {
+    const sameWindow = previous && previous.timeStep === current.timeStep;
+    if (sameWindow) {
+      return 'Llegó el mismo número' + (currentCode && currentCode === previousCode ? ' (' + currentCode + ')' : '')
+        + ': seguís en la ventana T = ' + current.timeStep + '. TOTP no sortea el código, lo calcula con la hora.';
+    }
+    return 'La ventana ya cambió (T = ' + current.timeStep + '), por eso llegó un número distinto.';
+  }
+  if (current.type === 'HOTP') {
+    return 'Contador ' + current.counter + ': llegó un número nuevo. El anterior sigue sirviendo hasta que uses uno posterior.';
+  }
+  return 'Llegó un código distinto, sorteado de nuevo. El anterior quedó anulado.';
+}
+
 async function verifyOtp() {
   const code = Array.from(document.querySelectorAll('.code-box')).map(b => b.value).join('').trim();
 
-  if (!code || code.length < 4) {
+  if (!code || code.length < lastDigits) {
     document.querySelectorAll('.code-box').forEach(box => box.classList.add('error'));
     setTimeout(() => {
       document.querySelectorAll('.code-box').forEach(box => box.classList.remove('error'));
@@ -370,11 +658,11 @@ async function verifyOtp() {
     return;
   }
 
-  if (!lastCellphone) {
+  if (!lastDestination) {
     return;
   }
 
-  const ok = await submit('ver-btn', 'ver-result', '/api/twilio/otps/verify', { cellphone: lastCellphone, code });
+  const ok = await submit('ver-btn', 'ver-result', API.verify, { [API.key]: lastDestination, type: lastType, code });
   if (ok) {
     clearInterval(timerInterval);
     document.querySelectorAll('.code-box').forEach(box => box.disabled = true);
@@ -400,13 +688,15 @@ function renderVerifiedResult() {
   document.getElementById('ok-title').textContent = purpose.title;
   document.getElementById('ok-desc').textContent = purpose.desc;
   document.getElementById('rc-purpose').textContent = purpose.action;
-  document.getElementById('rc-phone').textContent = lastMaskedPhone;
+  document.getElementById('rc-type').textContent = TYPES[lastType].receipt;
+  document.getElementById('rc-how').textContent = TYPES[lastType].how;
+  document.getElementById('rc-phone').textContent = lastMaskedTarget;
   document.getElementById('rc-time').textContent = new Date().toLocaleTimeString('es-PE', {
     hour: '2-digit', minute: '2-digit', second: '2-digit'
   });
 }
 
-async function submit(buttonId, resultId, url, body) {
+async function submit(buttonId, resultId, url, body, options = {}) {
   const btn = document.getElementById(buttonId);
   btn.disabled = true;
   btn.classList.add('loading');
@@ -420,8 +710,17 @@ async function submit(buttonId, resultId, url, body) {
     });
     const data = await response.json();
     ok = response.ok;
+    if (url === API.generate && ok) {
+      lastDemoCode = data.demoCode || null;
+      lastGenerateData = data;
+    }
 
-    if (ok && resultId === 'ver-result') {
+    if (ok && options.quietSuccess) {
+      document.getElementById(resultId).className = 'result';
+      document.getElementById(resultId).innerHTML = '';
+      return ok;
+    }
+    if (ok && url === API.verify) {
       showOtpSuccessOverlay();
     }
     showResult(resultId, ok, data.message || data.code);
@@ -502,9 +801,30 @@ async function checkTwilioBanner() {
 
 async function changeTwilioConfig() {
   await fetch('/api/twilio/disconnect', { method: 'POST' });
-  window.location.href = '/';
+  window.location.href = '/#sms';
 }
 
-checkTwilioBanner();
+function applyChannel() {
+  if (CHANNEL !== 'email') {
+    checkTwilioBanner();
+    return;
+  }
+  document.getElementById('field-phone').hidden = true;
+  document.getElementById('field-email').hidden = false;
+  document.getElementById('gen-subtitle').textContent = 'Solicitá un código de verificación por correo';
+  document.getElementById('gen-help').textContent = 'El código llega a tu correo real. Si no lo ves, revisá la carpeta de spam.';
+  document.getElementById('gen-sent-label').textContent = 'Correo enviado a';
+  document.getElementById('ver-target-label').textContent = 'Correo confirmado';
+  document.getElementById('ver-back-btn').textContent = '← Cambiar correo';
+  document.getElementById('rc-target-label').textContent = 'Correo verificado';
+  document.getElementById('gen-message').setAttribute('aria-label', 'Mensaje del correo');
+  document.getElementById('twilio-status-bar').style.display = 'flex';
+  const back = document.getElementById('twilio-connect-link');
+  back.textContent = '← Elegir otro canal';
+  back.href = '/';
+  back.style.display = 'inline';
+}
 
-refreshMessagePreview();
+applyChannel();
+
+applyType();

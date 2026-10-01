@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Un Solo Uso · App autenticadora</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%2314210d'/%3E%3Cpath d='M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z' fill='none' stroke='%236db33f' stroke-width='1.6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500;600&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body class="auth-page">
+  <div class="app-wrapper">
+    <div class="app">
+      <header>
+        <div class="badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="6" y="2.5" width="12" height="19" rx="2.5" stroke="#6db33f" stroke-width="1.5"/>
+            <path d="M10 18.5h4" stroke="#6db33f" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M9.5 11l2 2 3.5-3.5" stroke="#6db33f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h1 data-brand>Un Solo Uso</h1>
+        <p>Canal: <strong>app autenticadora</strong>. El código lo genera tu celular y el servidor no envía nada.</p>
+      </header>
+
+      <div class="twilio-status-bar" style="display:flex;">
+        <a href="/" class="twilio-link">← Elegir otro canal</a>
+      </div>
+
+      <p id="memory-warning" class="auth-warning" role="note" hidden>
+        Este servidor guarda los registros en memoria: si se reinicia, tu app deja de servir aquí.
+        Borrá la cuenta vieja de tu app y registrala de nuevo.
+      </p>
+
+      <ol class="auth-steps" aria-label="Pasos">
+        <li id="nav-1" class="active">Correo</li>
+        <li id="nav-2">Escanear</li>
+        <li id="nav-3">Confirmar</li>
+        <li id="nav-4">Iniciar sesión</li>
+      </ol>
+
+      <div class="otp-card-container">
+        <div class="card otp-card otp-card-glass">
+
+          <!-- PASO 1: Verificar el correo con un OTP -->
+          <section id="step-1" class="auth-step" aria-labelledby="step-1-title">
+            <div class="step-header">
+              <h2 id="step-1-title">Verificá tu correo</h2>
+              <p>Antes de vincular una app comprobamos que el correo es tuyo, con un código de un solo uso.</p>
+            </div>
+
+            <div class="form-section">
+              <div class="field">
+                <label for="email">Correo electrónico</label>
+                <input id="email" type="email" inputmode="email" placeholder="tu@correo.com" maxlength="254" autocomplete="email">
+              </div>
+            </div>
+            <button id="send-btn" class="btn-primary" type="button">
+              <span class="spinner"></span>
+              <span class="btn-label">Enviarme un código</span>
+            </button>
+            <div id="send-result" class="result" role="status" aria-live="polite"></div>
+
+            <div id="email-code-box" hidden>
+              <div class="form-section auth-gap">
+                <div id="email-demo" class="demo-code" hidden>Modo demostración: el correo no se envía. Tu código es&nbsp;<strong id="email-demo-value"></strong></div>
+                <div class="field">
+                  <label for="email-code">Código que llegó a tu correo</label>
+                  <input id="email-code" class="code-input mono" type="text" inputmode="numeric" maxlength="10" autocomplete="one-time-code">
+                </div>
+              </div>
+              <button id="email-verify-btn" class="btn-primary" type="button">
+                <span class="spinner"></span>
+                <span class="btn-label">Verificar correo</span>
+              </button>
+              <div id="email-verify-result" class="result" role="status" aria-live="polite"></div>
+            </div>
+          </section>
+
+          <!-- PASO 2: Elegir protocolo y escanear el QR -->
+          <section id="step-2" class="auth-step" aria-labelledby="step-2-title" hidden>
+            <div class="step-header">
+              <h2 id="step-2-title">Elegí el protocolo y vinculá tu app</h2>
+              <p>Escaneá el QR con Google Authenticator, Microsoft Authenticator o similar.</p>
+            </div>
+
+            <div class="form-section">
+              <div class="field">
+                <span class="field-legend" id="type-legend">Protocolo</span>
+                <div class="purpose-grid type-grid" role="radiogroup" aria-labelledby="type-legend" aria-describedby="type-help">
+                  <label class="purpose-option" title="Un código aleatorio necesita un canal que lo entregue">
+                    <input type="radio" name="auth-type" value="OTP" disabled>
+                    <span class="purpose-body"><span class="purpose-name">OTP</span><span class="purpose-sub">Solo por SMS o correo</span></span>
+                  </label>
+                  <label class="purpose-option">
+                    <input type="radio" name="auth-type" value="HOTP">
+                    <span class="purpose-body"><span class="purpose-name">HOTP</span><span class="purpose-sub">Por contador</span></span>
+                  </label>
+                  <label class="purpose-option">
+                    <input type="radio" name="auth-type" value="TOTP" checked>
+                    <span class="purpose-body"><span class="purpose-name">TOTP</span><span class="purpose-sub">Por tiempo</span></span>
+                  </label>
+                </div>
+                <div id="type-help" class="type-help" aria-live="polite">
+                  <code id="type-formula"></code>
+                  <span id="type-desc"></span>
+                </div>
+              </div>
+
+              <aside class="did-you-know" aria-labelledby="dyk-title">
+                <svg class="did-you-know-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1.1 2.2h5c.1-1 .5-1.7 1.1-2.2A6 6 0 0 0 12 3z"/></svg>
+                <div class="did-you-know-head">
+                  <span id="dyk-title" class="did-you-know-title">¿Sabías que…?</span>
+                  <button type="button" id="dyk-next" class="did-you-know-next">Otro dato</button>
+                </div>
+                <p id="dyk-text" aria-live="polite"></p>
+              </aside>
+
+              <div class="field-row">
+                <div class="field">
+                  <label for="digits">Dígitos</label>
+                  <select id="digits">
+                    <option value="6" selected>6</option>
+                    <option value="8">8</option>
+                  </select>
+                </div>
+                <div class="field" id="period-field">
+                  <label for="period">Ventana de tiempo</label>
+                  <select id="period">
+                    <option value="30" selected>30 segundos</option>
+                    <option value="60">60 segundos</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <button id="enroll-btn" class="btn-primary" type="button">
+              <span class="spinner"></span>
+              <span class="btn-label">Generar código QR</span>
+            </button>
+            <div id="enroll-result" class="result" role="status" aria-live="polite"></div>
+
+            <div id="qr-section" class="auth-gap" hidden>
+              <div class="qr-box" id="qr-box" aria-live="polite"></div>
+              <p class="field-help qr-caption">¿No podés escanear? Escribí esta clave en tu app como "clave de configuración":</p>
+              <div class="secret-row">
+                <code id="secret" class="mono"></code>
+                <button id="copy-btn" class="btn-ghost btn-inline" type="button">Copiar</button>
+              </div>
+              <p class="field-help">La clave se muestra solo esta vez. Authy no admite HOTP: para HOTP usá Google Authenticator.</p>
+              <button id="to-confirm-btn" class="btn-primary btn-full" type="button">Ya la escaneé</button>
+            </div>
+          </section>
+
+          <!-- PASO 3: Confirmar con el primer código -->
+          <section id="step-3" class="auth-step" aria-labelledby="step-3-title" hidden>
+            <div class="step-header">
+              <h2 id="step-3-title">Confirmá el registro</h2>
+              <p id="confirm-hint">Escribí el código que muestra tu app ahora.</p>
+            </div>
+            <div class="form-section">
+              <div class="field">
+                <label for="confirm-code">Código de tu app</label>
+                <input id="confirm-code" class="code-input mono" type="text" inputmode="numeric" maxlength="8" autocomplete="one-time-code">
+              </div>
+            </div>
+            <div class="step-actions">
+              <button id="confirm-btn" class="btn-primary" type="button">
+                <span class="spinner"></span>
+                <span class="btn-label">Confirmar</span>
+              </button>
+              <button id="back-to-qr-btn" class="btn-ghost" type="button">← Ver el QR otra vez</button>
+            </div>
+            <div id="confirm-result" class="result" role="status" aria-live="polite"></div>
+          </section>
+
+          <!-- PASO 4: Iniciar sesión con el código de la app -->
+          <section id="step-4" class="auth-step" aria-labelledby="step-4-title" hidden>
+            <div class="step-header">
+              <h2 id="step-4-title">Iniciá sesión</h2>
+              <p id="login-hint">Ya no hace falta pedir nada: abrí tu app y escribí el código que muestra.</p>
+            </div>
+            <div class="form-section">
+              <div class="field">
+                <label for="login-code">Código de tu app</label>
+                <input id="login-code" class="code-input mono" type="text" inputmode="numeric" maxlength="8" autocomplete="one-time-code">
+              </div>
+            </div>
+            <button id="login-btn" class="btn-primary btn-full" type="button">
+              <span class="spinner"></span>
+              <span class="btn-label">Iniciar sesión</span>
+            </button>
+            <div id="login-result" class="result" role="status" aria-live="polite"></div>
+
+            <dl id="login-receipt" class="receipt auth-gap" aria-label="Último inicio de sesión" hidden>
+              <div class="receipt-row"><dt>Tipo</dt><dd id="rc-type">—</dd></div>
+              <div class="receipt-row"><dt id="rc-value-label">Ventana T</dt><dd id="rc-value" class="mono">—</dd></div>
+              <div class="receipt-row"><dt>Hora</dt><dd id="rc-time" class="mono">—</dd></div>
+              <div class="receipt-row"><dt>El servidor</dt><dd>Recalculó el código; no guardó ninguno</dd></div>
+            </dl>
+
+            <div class="step-actions auth-gap">
+              <button id="remove-btn" class="btn-ghost" type="button">Desvincular la app</button>
+              <button id="restart-btn" class="btn-ghost" type="button">Empezar de nuevo</button>
+            </div>
+          </section>
+
+          <!-- Autenticador simulado -->
+          <details id="simulator" class="simulator" hidden>
+            <summary>Autenticador simulado (demo sin celular)</summary>
+            <div class="simulator-body">
+              <p class="field-help">Calcula en este navegador el mismo código que calcularía tu app, con la clave recibida. En la vida real esto vive solo en el celular.</p>
+              <div class="sim-code mono" id="sim-code" aria-live="polite">------</div>
+              <div class="sim-meta" id="sim-meta"></div>
+              <div class="otp-timer" id="sim-timer"><span class="otp-timer-bar" id="sim-bar"></span></div>
+              <div class="step-actions">
+                <button id="sim-next-btn" class="btn-ghost" type="button" hidden>Siguiente código</button>
+                <button id="sim-use-btn" class="btn-ghost" type="button">Usar este código</button>
+              </div>
+            </div>
+          </details>
+
+        </div>
+      </div>
+
+      <footer><span data-brand>Un Solo Uso</span> · RFC 4226 · RFC 6238 · secreto cifrado con AES-256-GCM</footer>
+    </div>
+  </div>
+
+<script src="/js/brand.js"></script>
+<script src="/js/authenticator.js"></script>
+</body>
+</html>

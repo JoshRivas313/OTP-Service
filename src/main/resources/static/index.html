@@ -3,111 +3,264 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OTP Service</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%2314210d'/%3E%3Cpath d='M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z' fill='none' stroke='%236db33f' stroke-width='1.6'/%3E%3C/svg%3E">
+<title>Un Solo Uso</title>
+<meta name="description" content="OTP, HOTP y TOTP en un mismo tablero: mirá en vivo cómo cambia cada código de un solo uso y probalo por correo, SMS o app autenticadora.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='3' fill='%230e0e0d'/%3E%3Crect x='5' y='5' width='14' height='14' rx='1.5' fill='%23232321'/%3E%3Cpath d='M5 12h14' stroke='%230e0e0d' stroke-width='1.2'/%3E%3Cpath d='M12 7.5v9' stroke='%23f5b301' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500;600&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/board.css">
 </head>
-<body>
-  <div class="app-wrapper">
-    <div class="app app-login">
-      <div class="login-container">
+<body class="board-page">
+  <a class="skip-link" href="#tablero">Saltar al tablero</a>
 
-        <!-- COLUMNA IZQUIERDA: Info & Branding -->
-        <div class="login-info">
-          <div class="badge" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" stroke="#6db33f" stroke-width="1.5"/>
-              <path d="M9 12l2 2 4-4" stroke="#6db33f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <h1>Prueba OTP Real</h1>
-          <p class="lead">Conectá tu cuenta Twilio para probar el flujo completo</p>
+  <header class="station">
+    <div class="station-inner">
+      <a class="station-brand" href="/" data-brand>Un Solo Uso</a>
+      <p class="station-clock" aria-label="Hora local">
+        <span class="station-clock-label">Hora local</span>
+        <time id="clock" class="station-clock-time">--:--:--</time>
+      </p>
+    </div>
+  </header>
 
-          <div class="benefits">
-            <div class="benefit-item">
-              <span class="benefit-icon">✓</span>
-              <span class="benefit-text"><strong>SMS real</strong> — El código llega por SMS a un número que verificaste en Twilio</span>
-            </div>
-            <div class="benefit-item">
-              <span class="benefit-icon">✓</span>
-              <span class="benefit-text"><strong>Tu cuenta, tu saldo</strong> — Cada envío sale de tu cuenta de Twilio y consume su saldo</span>
-            </div>
-            <div class="benefit-item">
-              <span class="benefit-icon">✓</span>
-              <span class="benefit-text"><strong>Sin base de datos</strong> — Las credenciales viven 15 minutos en la memoria del servidor</span>
-            </div>
-          </div>
+  <main class="stage">
+    <section class="intro" aria-labelledby="intro-title">
+      <h1 id="intro-title">Tres códigos.<br>Tres reglas.</h1>
+      <div class="intro-side">
+        <p class="intro-lead">
+          OTP se sortea, HOTP cuenta y TOTP mira el reloj.
+          Pulsá <strong>Otro</strong> en cada fila y mirá qué cambia.
+        </p>
+        <a class="intro-cta" href="/otp-service.html?canal=correo">
+          <span class="intro-cta-gate" aria-hidden="true">1</span>
+          <span>Probalo por correo</span>
+          <svg class="arrow" width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" aria-hidden="true"><path d="M1 7h18M13 1l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </section>
 
-          <div class="info-footer">
-            <p class="info-footer-title">¿No tenés Twilio?</p>
-            <a class="btn-outline" href="https://console.twilio.com/" target="_blank" rel="noopener noreferrer">
-              <span>Crear una cuenta gratis</span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                <polyline points="15 3 21 3 21 9"/>
-                <line x1="10" y1="14" x2="21" y2="3"/>
-              </svg>
-            </a>
-            <p class="info-footer-note">Las cuentas de prueba de Twilio solo envían SMS a números que hayas verificado.</p>
-          </div>
-        </div>
-
-        <!-- COLUMNA DERECHA: Form Card -->
-        <div class="login-form-wrapper">
-          <div class="card login-card">
-            <div class="card-header">
-              <h2>Conectar Twilio</h2>
-              <p class="card-subtitle">Ingresá tus credenciales de Twilio Verify</p>
-            </div>
-
-            <div class="form-section">
-              <div class="field">
-                <label for="tw-account-sid">Account SID</label>
-                <input id="tw-account-sid" type="text" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off">
-                <p class="field-help">Encontralo en tu dashboard de Twilio</p>
+    <section id="tablero" class="board" aria-label="Tablero de códigos de un solo uso">
+      <table class="board-table">
+        <caption class="visually-hidden">Los tres protocolos, con su código actual, cuándo cambia, qué guarda el servidor y su estado</caption>
+        <thead>
+          <tr>
+            <th scope="col">Protocolo</th>
+            <th scope="col">Código</th>
+            <th scope="col">Cambia</th>
+            <th scope="col">Guarda el servidor</th>
+            <th scope="col">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="board-row" data-protocol="OTP">
+            <th scope="row" class="cell-proto">
+              <span class="proto-name">OTP</span>
+              <span class="proto-sub">Aleatorio</span>
+            </th>
+            <td class="cell-code" data-label="Código">
+              <div class="code-line">
+                <span class="flaps" data-flaps="6" role="img" aria-label="Código"></span>
+                <button type="button" class="key" data-action="otro" aria-label="Pedir otro código OTP">Otro</button>
               </div>
-
-              <div class="field">
-                <label for="tw-auth-token">Auth Token</label>
-                <input id="tw-auth-token" type="password" placeholder="••••••••••••••••••••••••••••••••">
-                <p class="field-help">Se mantiene en la memoria del servidor durante 15 minutos</p>
+              <p class="previous" hidden></p>
+            </td>
+            <td class="cell-change" data-label="Cambia">Al pedir otro</td>
+            <td class="cell-stores" data-label="Guarda el servidor">El hash del código</td>
+            <td class="cell-status" data-label="Estado">
+              <span class="status"><span class="lamp" aria-hidden="true"></span><span class="status-text">—</span></span>
+            </td>
+          </tr>
+          <tr class="board-row" data-protocol="HOTP">
+            <th scope="row" class="cell-proto">
+              <span class="proto-name">HOTP</span>
+              <span class="proto-sub">Por contador</span>
+            </th>
+            <td class="cell-code" data-label="Código">
+              <div class="code-line">
+                <span class="flaps" data-flaps="6" role="img" aria-label="Código"></span>
+                <button type="button" class="key" data-action="otro" aria-label="Pedir otro código HOTP">Otro</button>
               </div>
-
-              <div class="field">
-                <label for="tw-phone-number">Número de Twilio</label>
-                <input id="tw-phone-number" type="text" placeholder="+15017122661">
-                <p class="field-help">El número que usarás para mandar el SMS</p>
+              <p class="previous" hidden></p>
+            </td>
+            <td class="cell-change" data-label="Cambia">Al pedir otro · <span class="mono">contador <span data-field="counter">0</span></span></td>
+            <td class="cell-stores" data-label="Guarda el servidor">El secreto y el contador</td>
+            <td class="cell-status" data-label="Estado">
+              <span class="status"><span class="lamp" aria-hidden="true"></span><span class="status-text">—</span></span>
+            </td>
+          </tr>
+          <tr class="board-row" data-protocol="TOTP">
+            <th scope="row" class="cell-proto">
+              <span class="proto-name">TOTP</span>
+              <span class="proto-sub">Por tiempo</span>
+            </th>
+            <td class="cell-code" data-label="Código">
+              <div class="code-line">
+                <span class="flaps" data-flaps="6" role="img" aria-label="Código"></span>
+                <button type="button" class="key" data-action="otro" aria-label="Pedir otro código TOTP">Otro</button>
               </div>
+              <p class="previous" hidden></p>
+            </td>
+            <td class="cell-change" data-label="Cambia">
+              Cada 30 s
+              <span class="mono window-step">T = <span data-field="step">—</span></span>
+              <span class="window-left">cambia en <span class="mono" data-field="left">--</span> s</span>
+              <span class="window-track" aria-hidden="true"><span class="window-bar" data-field="bar"></span></span>
+            </td>
+            <td class="cell-stores" data-label="Guarda el servidor">El secreto y la última ventana usada</td>
+            <td class="cell-status" data-label="Estado">
+              <span class="status"><span class="lamp" aria-hidden="true"></span><span class="status-text">—</span></span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p id="board-live" class="visually-hidden" aria-live="polite"></p>
+      <p class="board-note">
+        Demostración calculada en tu navegador con el secreto de prueba de los RFC 4226 y 6238
+        (<span class="mono">12345678901234567890</span>). Los códigos reales los genera el servidor.
+      </p>
+    </section>
 
-              <div class="field">
-                <label for="tw-verify-sid">Verify Service SID</label>
-                <input id="tw-verify-sid" type="text" placeholder="VAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
-                <p class="field-help"><a href="https://console.twilio.com/us1/develop/verify/services" target="_blank" rel="noopener noreferrer" class="link-accent">¿Dónde lo encuentro? →</a></p>
-              </div>
-            </div>
-
-            <button id="tw-connect-btn" onclick="connectTwilio()" class="btn-primary">
-              <span class="spinner"></span>
-              <span class="btn-label">Conectar con Twilio</span>
-            </button>
-
-            <div id="tw-connect-result" class="result" role="status" aria-live="polite"></div>
-
-            <div class="form-footer">
-              <p class="hint"><strong>Privacidad:</strong> las credenciales se guardan solo en la memoria del servidor, ligadas a tu sesión. Se borran a los 15 minutos, al desconectar o si el servidor se reinicia. No se escriben en ninguna base de datos ni en el log.</p>
-            </div>
-          </div>
-        </div>
-
+    <section id="puertas" class="gates" aria-labelledby="gates-title">
+      <h2 id="gates-title" class="gates-title">Probalo de verdad</h2>
+      <div class="gates-row">
+        <a class="gate gate-primary" href="/otp-service.html?canal=correo">
+          <span class="gate-number" aria-hidden="true">1</span>
+          <span class="gate-body">
+            <span class="gate-name">Correo</span>
+            <span class="gate-sub">Sin cuenta: elegís el protocolo y pedís un código con tu correo.</span>
+          </span>
+          <span class="gate-arrow"><svg class="arrow" width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" aria-hidden="true"><path d="M1 7h18M13 1l6 6-6 6"/></svg></span>
+        </a>
+        <button type="button" class="gate" id="gate-sms" aria-expanded="false" aria-controls="sms-panel">
+          <span class="gate-number" aria-hidden="true">2</span>
+          <span class="gate-body">
+            <span class="gate-name">SMS</span>
+            <span class="gate-sub">Con tu propia cuenta de Twilio.</span>
+          </span>
+        </button>
+        <a class="gate" href="/authenticator.html">
+          <span class="gate-number" aria-hidden="true">3</span>
+          <span class="gate-body">
+            <span class="gate-name">App autenticadora</span>
+            <span class="gate-sub">HOTP y TOTP desde tu celular, con un QR.</span>
+          </span>
+        </a>
       </div>
 
-      <footer>Spring Boot · Arquitectura hexagonal · HMAC-SHA256</footer>
-    </div>
-  </div>
+      <p class="gates-note">
+        La demo corre en el plan gratuito de Render: si estuvo inactiva, la primera carga tarda cerca de un minuto,
+        y al reiniciarse la memoria se vacía.
+      </p>
 
+      <div id="sms-panel" class="sms-panel" hidden>
+        <h3 class="sms-title">Puerta 2 · Conectá tu Twilio</h3>
+        <p class="sms-intro">
+          El SMS sale de tu cuenta y usa su saldo.
+          ¿No tenés una? <a href="https://console.twilio.com/" target="_blank" rel="noopener noreferrer">Creala gratis</a>.
+        </p>
+        <div class="sms-fields">
+          <label class="field">
+            <span>Account SID</span>
+            <input id="tw-account-sid" type="text" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="field">
+            <span>Auth Token</span>
+            <input id="tw-auth-token" type="password" placeholder="Tu Auth Token" autocomplete="off">
+          </label>
+          <label class="field">
+            <span>Número de Twilio</span>
+            <input id="tw-phone-number" type="text" placeholder="+15017122661" autocomplete="off">
+          </label>
+          <label class="field">
+            <span>Verify Service SID</span>
+            <input id="tw-verify-sid" type="text" placeholder="VAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+          </label>
+        </div>
+        <button id="tw-connect-btn" type="button" onclick="connectTwilio()" class="btn-primary">
+          <span class="spinner" aria-hidden="true"></span>
+          <span class="btn-label">Conectar con Twilio</span>
+        </button>
+        <div id="tw-connect-result" class="result" role="status" aria-live="polite"></div>
+        <p class="sms-note">
+          Las credenciales quedan 15 minutos en la memoria del servidor, sin base de datos.
+          Una cuenta de prueba solo envía a números verificados.
+          <a href="https://console.twilio.com/us1/develop/verify/services" target="_blank" rel="noopener noreferrer">¿Dónde encuentro estos datos?</a>
+        </p>
+      </div>
+    </section>
+
+    <section id="ficha" class="spec" aria-labelledby="spec-title">
+      <h2 id="spec-title">Qué pasa detrás de cada fila</h2>
+      <div class="spec-scroll">
+        <table class="spec-table">
+          <thead>
+            <tr>
+              <th scope="col"><span class="visually-hidden">Aspecto</span></th>
+              <th scope="col">OTP</th>
+              <th scope="col">HOTP</th>
+              <th scope="col">TOTP</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Estándar</th>
+              <td>—</td>
+              <td class="mono">RFC 4226</td>
+              <td class="mono">RFC 6238</td>
+            </tr>
+            <tr>
+              <th scope="row">Cómo se obtiene</th>
+              <td class="mono">SecureRandom</td>
+              <td class="mono">HMAC-SHA1(secreto, contador)</td>
+              <td class="mono">HMAC-SHA1(secreto, ⌊t ÷ 30⌋)</td>
+            </tr>
+            <tr>
+              <th scope="row">Qué guarda el servidor</th>
+              <td>El hash HMAC-SHA256 del código</td>
+              <td>El secreto cifrado y el contador</td>
+              <td>El secreto cifrado y la última ventana usada</td>
+            </tr>
+            <tr>
+              <th scope="row">Cómo verifica</th>
+              <td>Compara con el hash guardado</td>
+              <td>Recalcula los contadores pendientes</td>
+              <td>Recalcula la ventana actual ±1</td>
+            </tr>
+            <tr>
+              <th scope="row">Qué lo anula</th>
+              <td>El tiempo o pedir otro</td>
+              <td>Solo usarlo, o usar uno posterior</td>
+              <td>El cierre de su ventana o usarlo</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="hecho" class="built" aria-labelledby="built-title">
+      <h2 id="built-title">Cómo está hecho</h2>
+      <ul class="built-list">
+        <li>Java 21 y Spring Boot 4</li>
+        <li>Arquitectura hexagonal</li>
+        <li>101 tests automáticos, con los vectores de los RFC</li>
+        <li>Secretos cifrados con AES-256-GCM</li>
+        <li>MongoDB opcional</li>
+      </ul>
+      <p class="built-links">
+        <a href="https://github.com/JoshRivas313/OTP-Service" target="_blank" rel="noopener noreferrer">Código en GitHub <svg class="arrow" width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" aria-hidden="true"><path d="M1 7h18M13 1l6 6-6 6"/></svg></a>
+        <a href="https://www.linkedin.com/in/jose-hurtado-rivas-8150b0231/" target="_blank" rel="noopener noreferrer">Jose Hurtado Rivas en LinkedIn <svg class="arrow" width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" aria-hidden="true"><path d="M1 7h18M13 1l6 6-6 6"/></svg></a>
+      </p>
+    </section>
+  </main>
+
+  <footer class="station-foot">
+    <span data-brand>Un Solo Uso</span>
+    <span>Códigos de un solo uso por SMS, correo o app</span>
+  </footer>
+
+<script src="/js/brand.js"></script>
+<script src="/js/board.js"></script>
 <script src="/js/twilio-connect.js"></script>
 </body>
 </html>
