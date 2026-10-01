@@ -3,60 +3,69 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Un Solo Uso · Código por SMS o correo</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%2314210d'/%3E%3Cpath d='M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z' fill='none' stroke='%236db33f' stroke-width='1.6'/%3E%3C/svg%3E">
+<title>Un Solo Uso · Código por correo</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='3' fill='%230e0e0d'/%3E%3Crect x='5' y='5' width='14' height='14' rx='1.5' fill='%23232321'/%3E%3Cpath d='M5 12h14' stroke='%230e0e0d' stroke-width='1.2'/%3E%3Cpath d='M12 7.5v9' stroke='%236db33f' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500;600&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/theme.css">
 <link rel="stylesheet" href="/style.css">
 </head>
-<body>
-  <div class="app-wrapper">
-    <div class="app">
-      <header>
-        <div class="badge" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none">
-            <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" stroke="#6db33f" stroke-width="1.5"/>
-            <path d="M9 12l2 2 4-4" stroke="#6db33f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
-        <h1 data-brand>Un Solo Uso</h1>
-        <p data-brand-tagline>OTP · HOTP · TOTP por SMS, correo o app</p>
-      </header>
+<body class="board-page">
+  <header class="station">
+    <div class="station-inner">
+      <a class="station-brand" href="/" data-brand>Un Solo Uso</a>
+      <p class="station-clock">
+        <span class="station-clock-label">Canal</span>
+        <span class="station-clock-time">Correo</span>
+      </p>
+    </div>
+  </header>
 
-      <div id="twilio-status-bar" class="twilio-status-bar" style="display:none;" role="status" aria-live="polite">
-        <span id="twilio-connected-badge" style="display:none;">
-          <span class="tw-dot"></span>Twilio conectado <span id="tw-masked-inline"></span>
-        </span>
-        <button id="twilio-disconnect-btn" onclick="changeTwilioConfig(); return false;" class="twilio-link-btn" style="display:none;">Cambiar configuración</button>
-        <a id="twilio-connect-link" href="/#sms" class="twilio-link" style="display:none;">Conectá tu cuenta de Twilio para continuar →</a>
+  <main class="stage page">
+    <div class="page-intro">
+      <a class="back-link" href="/"><svg width="18" height="12" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" aria-hidden="true"><path d="M21 7H3M9 1L3 7l6 6"/></svg>Elegir otro canal</a>
+      <h1>Código por correo</h1>
+      <p class="page-lead">Elegí el protocolo, pedí el código y verificalo. OTP se sortea, HOTP cuenta y TOTP mira el reloj.</p>
+    </div>
+
+    <div class="page-grid">
+      <div class="page-side">
+        <div>
+          <h2 class="side-title">Pasos</h2>
+          <div class="otp-progress" role="status" aria-live="polite">
+            <div class="otp-progress-step" id="progress-step-1">
+              <span class="otp-progress-dot">1</span>
+              <span class="otp-progress-label">Código enviado</span>
+            </div>
+            <div class="otp-progress-line" id="progress-line-1"></div>
+            <div class="otp-progress-step" id="progress-step-2">
+              <span class="otp-progress-dot">2</span>
+              <span class="otp-progress-label">Escribiendo código</span>
+            </div>
+            <div class="otp-progress-line" id="progress-line-2"></div>
+            <div class="otp-progress-step" id="progress-step-3">
+              <span class="otp-progress-dot">3</span>
+              <span class="otp-progress-label">Verificado</span>
+            </div>
+          </div>
+        </div>
+        <aside class="did-you-know" aria-labelledby="dyk-title">
+          <div class="did-you-know-head">
+            <span id="dyk-title" class="did-you-know-title">¿Sabías que…?</span>
+            <button type="button" id="dyk-next" class="did-you-know-next">Otro dato</button>
+          </div>
+          <p id="dyk-text" aria-live="polite"></p>
+        </aside>
       </div>
 
-      <div class="otp-progress" role="status" aria-live="polite">
-        <div class="otp-progress-step" id="progress-step-1">
-          <span class="otp-progress-dot">1</span>
-          <span class="otp-progress-label">Código enviado</span>
-        </div>
-        <div class="otp-progress-line" id="progress-line-1"></div>
-        <div class="otp-progress-step" id="progress-step-2">
-          <span class="otp-progress-dot">2</span>
-          <span class="otp-progress-label">Escribiendo código</span>
-        </div>
-        <div class="otp-progress-line" id="progress-line-2"></div>
-        <div class="otp-progress-step" id="progress-step-3">
-          <span class="otp-progress-dot">3</span>
-          <span class="otp-progress-label">Verificado</span>
-        </div>
-      </div>
-
-      <div class="otp-card-container">
-        <div class="card otp-card otp-card-glass">
+      <section class="panel" aria-label="Código">
 
           <!-- PASO 1: Generar Código -->
           <div class="otp-step" id="otp-step-1" data-step="1">
             <div class="step-header">
               <h2>Generar código</h2>
-              <p id="gen-subtitle">Solicitá un código de verificación por SMS</p>
+              <p>Solicitá un código de verificación por correo</p>
             </div>
 
             <div class="form-section">
@@ -82,18 +91,6 @@
                 </div>
               </div>
 
-              <aside class="did-you-know" aria-labelledby="dyk-title">
-                <svg class="did-you-know-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1.1 2.2h5c.1-1 .5-1.7 1.1-2.2A6 6 0 0 0 12 3z"/></svg>
-                <div class="did-you-know-head">
-                  <span id="dyk-title" class="did-you-know-title">¿Sabías que…?</span>
-                  <button type="button" id="dyk-next" class="did-you-know-next">Otro dato</button>
-                </div>
-                <p id="dyk-text" aria-live="polite"></p>
-                <a id="dyk-app-link" class="did-you-know-link" href="/authenticator.html" hidden>
-                  Normalmente HOTP y TOTP no necesitan SMS ni correo: los genera tu celular. Probalo con tu app →
-                </a>
-              </aside>
-
               <div class="field">
                 <span class="field-legend" id="purpose-legend">¿Para qué es este código?</span>
                 <div class="purpose-grid" role="radiogroup" aria-labelledby="purpose-legend">
@@ -116,18 +113,9 @@
                 </div>
               </div>
 
-              <div class="field" id="field-email" hidden>
+              <div class="field" id="field-email">
                 <label for="gen-email">Correo electrónico</label>
                 <input id="gen-email" type="email" inputmode="email" placeholder="tu@correo.com" maxlength="254" autocomplete="email">
-              </div>
-
-              <div class="field" id="field-phone">
-                <label for="gen-cellphone">Celular</label>
-                <div class="field-wrap">
-                  <span class="prefix">+51</span>
-                  <input id="gen-cellphone" class="with-prefix" type="tel" inputmode="numeric" placeholder="987654321" maxlength="9" autocomplete="off">
-                </div>
-                <p id="gen-verified-hint" class="field-help" hidden></p>
               </div>
 
               <div class="field-row">
@@ -161,13 +149,13 @@
                   <span>Escribir mi propio mensaje</span>
                 </label>
                 <div id="gen-message-box" class="message-box" hidden>
-                  <textarea id="gen-message" rows="3" maxlength="300" aria-label="Mensaje del SMS"></textarea>
+                  <textarea id="gen-message" rows="3" maxlength="300" aria-label="Mensaje del correo"></textarea>
                   <p class="field-help">Usá <code>{code}</code> donde va el código (obligatorio) y <code>{seconds}</code> para los segundos de vigencia.</p>
                 </div>
                 <p id="gen-message-default" class="field-help">Se enviará: <span id="gen-message-preview"></span></p>
               </div>
 
-              <p id="gen-help" class="field-help">El código llega por SMS real a través de tu cuenta de Twilio conectada. Una cuenta de prueba de Twilio solo entrega a números que hayas verificado en su consola.</p>
+              <p class="field-help">El código llega a tu correo real. Si no lo ves, revisá la carpeta de spam.</p>
             </div>
 
             <button id="gen-btn" onclick="generateOtp()" class="btn-primary">
@@ -177,7 +165,7 @@
             <div id="gen-result" class="result" role="status" aria-live="polite"></div>
             <div id="gen-success" class="gen-success-indicator" style="display:none;" role="status" aria-live="polite">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              <span id="gen-sent-label">SMS enviado a</span>&nbsp;<span id="gen-phone-display"></span>
+              <span>Correo enviado a</span>&nbsp;<span id="gen-phone-display"></span>
             </div>
           </div>
 
@@ -185,14 +173,14 @@
           <div class="otp-step" id="otp-step-2" data-step="2" style="display:none;">
             <div class="step-header">
               <h2>Verificar código</h2>
-              <p id="ver-purpose-desc">Ingresá el código que recibiste por SMS</p>
+              <p id="ver-purpose-desc">Ingresá el código que recibiste por correo</p>
             </div>
 
             <div class="form-section">
               <div class="field">
-                <label id="ver-target-label">Número confirmado</label>
+                <label>Correo confirmado</label>
                 <div class="phone-summary">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
                   <span id="ver-phone-display">••••••••</span>
                 </div>
               </div>
@@ -233,7 +221,7 @@
                 <span class="btn-label">Verificar</span>
               </button>
               <div class="step-actions-row">
-                <button type="button" onclick="resetOtpFlow(true)" id="ver-back-btn" class="btn-ghost">← Cambiar número</button>
+                <button type="button" onclick="resetOtpFlow(true)" id="ver-back-btn" class="btn-ghost">Cambiar correo</button>
                 <button type="button" id="resend-btn" class="btn-ghost">
                   <span class="spinner"></span>
                   <span class="btn-label">Pedir otro código</span>
@@ -252,7 +240,7 @@
             </div>
 
             <div class="success-state">
-              <svg class="success-icon" viewBox="0 0 52 52" width="72" height="72">
+              <svg class="success-icon" viewBox="0 0 52 52" width="72" height="72" aria-hidden="true">
                 <circle class="success-circle" cx="26" cy="26" r="24" fill="none"/>
                 <path class="success-mark" fill="none" d="M14 27l7 7 17-17"/>
               </svg>
@@ -262,7 +250,7 @@
               <div class="receipt-row"><dt>Acción</dt><dd id="rc-purpose">—</dd></div>
               <div class="receipt-row"><dt>Protocolo</dt><dd id="rc-type">—</dd></div>
               <div class="receipt-row"><dt>Cómo se comprobó</dt><dd id="rc-how">—</dd></div>
-              <div class="receipt-row"><dt id="rc-target-label">Número verificado</dt><dd id="rc-phone" class="mono">—</dd></div>
+              <div class="receipt-row"><dt>Correo verificado</dt><dd id="rc-phone" class="mono">—</dd></div>
               <div class="receipt-row"><dt>Verificado a las</dt><dd id="rc-time" class="mono">—</dd></div>
               <div class="receipt-row"><dt>Código</dt><dd>De un solo uso, ya consumido</dd></div>
             </dl>
@@ -273,28 +261,17 @@
             </button>
           </div>
 
-        </div>
-      </div>
-
-      <footer><span data-brand>Un Solo Uso</span> · Spring Boot · RFC 4226 · RFC 6238</footer>
+      </section>
     </div>
-  </div>
+  </main>
 
-  <div id="otp-success-overlay" class="otp-success-overlay" style="display:none;" role="status" aria-live="assertive">
-    <div class="otp-success-modal">
-      <div class="otp-success-check-wrap">
-        <svg class="otp-success-check" viewBox="0 0 52 52" width="60" height="60">
-          <circle class="otp-success-check-circle" cx="26" cy="26" r="24" fill="none"/>
-          <path class="otp-success-check-mark" fill="none" d="M14 27l7 7 17-17"/>
-        </svg>
-        <span class="otp-success-particles"></span>
-      </div>
-      <h2 class="otp-success-title">¡Código verificado!</h2>
-      <p class="otp-success-text">El OTP es válido.</p>
-    </div>
-  </div>
+  <footer class="station-foot">
+    <span data-brand>Un Solo Uso</span>
+    <span>Spring Boot · RFC 4226 · RFC 6238</span>
+  </footer>
 
 <script src="/js/brand.js"></script>
-<script src="/js/otp-service.js"></script>
+<script src="/js/canal-correo.js"></script>
+<script src="/js/otp-flow.js"></script>
 </body>
 </html>

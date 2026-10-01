@@ -1,26 +1,7 @@
 const ICON_OK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const ICON_ERR = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-const CHANNEL = new URLSearchParams(window.location.search).get('canal') === 'correo' ? 'email' : 'sms';
-const API = CHANNEL === 'email'
-  ? { generate: '/api/email/otps', verify: '/api/email/otps/verify', key: 'email' }
-  : { generate: '/api/twilio/otps', verify: '/api/twilio/otps/verify', key: 'cellphone' };
-
-function validateEmail(email) {
-  return email.length <= 254 && /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/.test(email);
-}
-
-function maskEmail(email) {
-  return email[0] + '***' + email.slice(email.indexOf('@'));
-}
-
-function validatePeruvianMobile(national) {
-  return /^9\d{8}$/.test(national);
-}
-
-function maskPhone(national) {
-  return '+51 ' + national.slice(0, 2) + '*'.repeat(national.length - 4) + national.slice(-2);
-}
+const API = OTP_CHANNEL.api;
 
 function showFieldError(fieldId, message) {
   const input = document.getElementById(fieldId);
@@ -41,25 +22,6 @@ function clearFieldError(fieldId) {
   if (existingError) existingError.remove();
   input.classList.remove('error');
 }
-
-const emailInput = document.getElementById('gen-email');
-emailInput.addEventListener('input', () => clearFieldError('gen-email'));
-emailInput.addEventListener('blur', () => {
-  if (emailInput.value && !validateEmail(emailInput.value.trim().toLowerCase())) {
-    showFieldError('gen-email', 'Ingresá un correo válido');
-  }
-});
-
-const cellphoneInput = document.getElementById('gen-cellphone');
-cellphoneInput.addEventListener('input', () => {
-  cellphoneInput.value = cellphoneInput.value.replace(/\D/g, '');
-  clearFieldError('gen-cellphone');
-});
-cellphoneInput.addEventListener('blur', () => {
-  if (cellphoneInput.value && !validatePeruvianMobile(cellphoneInput.value)) {
-    showFieldError('gen-cellphone', 'Ingresá 9 dígitos que empiecen con 9');
-  }
-});
 
 const customToggle = document.getElementById('gen-custom-toggle');
 const messageInput = document.getElementById('gen-message');
@@ -235,7 +197,6 @@ function showFact(advance) {
   const facts = TYPES[type].facts;
   factIndex = advance ? (factIndex + 1) % facts.length : 0;
   document.getElementById('dyk-text').textContent = facts[factIndex];
-  document.getElementById('dyk-app-link').hidden = type === 'OTP';
 }
 
 function applyType() {
@@ -496,12 +457,7 @@ function resetOtpFlow(keepNumber = false) {
   stopWindow();
   setTimerVisible(true);
   lastDurationSeconds = null;
-  if (!keepNumber) {
-    document.getElementById('gen-cellphone').value = '';
-    document.getElementById('gen-email').value = '';
-  }
-  clearFieldError('gen-cellphone');
-  clearFieldError('gen-email');
+  OTP_CHANNEL.resetTarget(keepNumber);
   document.getElementById('gen-result').className = 'result';
   document.getElementById('gen-result').innerHTML = '';
   document.getElementById('gen-success').style.display = 'none';
@@ -518,36 +474,8 @@ function resetOtpFlow(keepNumber = false) {
   document.getElementById('ver-btn').disabled = true;
 }
 
-function readTarget() {
-  if (CHANNEL === 'email') {
-    const email = emailInput.value.trim().toLowerCase();
-    if (!email) {
-      showFieldError('gen-email', 'Correo requerido');
-      return null;
-    }
-    if (!validateEmail(email)) {
-      showFieldError('gen-email', 'Ingresá un correo válido');
-      return null;
-    }
-    clearFieldError('gen-email');
-    return { value: email, masked: maskEmail(email) };
-  }
-
-  const national = cellphoneInput.value.trim();
-  if (!national) {
-    showFieldError('gen-cellphone', 'Número requerido');
-    return null;
-  }
-  if (!validatePeruvianMobile(national)) {
-    showFieldError('gen-cellphone', 'Ingresá 9 dígitos que empiecen con 9');
-    return null;
-  }
-  clearFieldError('gen-cellphone');
-  return { value: '+51' + national, masked: maskPhone(national) };
-}
-
 async function generateOtp() {
-  const target = readTarget();
+  const target = OTP_CHANNEL.readTarget();
   if (!target) return;
 
   const type = selectedType();
@@ -720,9 +648,6 @@ async function submit(buttonId, resultId, url, body, options = {}) {
       document.getElementById(resultId).innerHTML = '';
       return ok;
     }
-    if (ok && url === API.verify) {
-      showOtpSuccessOverlay();
-    }
     showResult(resultId, ok, data.message || data.code);
   } catch (error) {
     showResult(resultId, false, 'No se pudo conectar con el servidor');
@@ -740,91 +665,5 @@ function showResult(elementId, ok, message) {
   el.className = 'result show ' + (ok ? 'ok' : 'err');
 }
 
-function spawnOtpSuccessParticles(container) {
-  if (!container || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const count = 24;
-  for (let i = 0; i < count; i++) {
-    const particle = document.createElement('span');
-    particle.className = 'otp-success-particle';
-    const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.6;
-    const distance = 40 + Math.random() * 60;
-    const duration = 800 + Math.random() * 400;
-    particle.style.setProperty('--dx', Math.cos(angle) * distance + 'px');
-    particle.style.setProperty('--dy', Math.sin(angle) * distance + 'px');
-    particle.style.animationDelay = Math.round(Math.random() * 150) + 'ms';
-    particle.style.animationDuration = duration + 'ms';
-    container.appendChild(particle);
-    setTimeout(() => particle.remove(), duration + 150);
-  }
-  const bgPulse = document.createElement('div');
-  bgPulse.style.cssText = 'position:fixed;inset:0;background:radial-gradient(circle at 50% 50%, rgba(109,179,63,0.1) 0%, transparent 70%);pointer-events:none;animation:bgPulse 600ms ease-out forwards;';
-  document.body.appendChild(bgPulse);
-  setTimeout(() => bgPulse.remove(), 600);
-}
-
-function showOtpSuccessOverlay() {
-  const overlay = document.getElementById('otp-success-overlay');
-  overlay.style.display = 'flex';
-  spawnOtpSuccessParticles(document.querySelector('.otp-success-particles'));
-  setTimeout(() => {
-    overlay.style.display = 'none';
-  }, 1800);
-}
-
-function showVerifiedHint(status) {
-  const hint = document.getElementById('gen-verified-hint');
-  if (!status.restrictedToVerifiedNumbers) {
-    hint.hidden = true;
-    return;
-  }
-  hint.textContent = status.verifiedNumbers.length
-    ? 'Tu cuenta de Twilio solo puede enviar a los números que verificaste: ' + status.verifiedNumbers.join(', ') + '.'
-    : 'Tu cuenta de Twilio no tiene números verificados. Verificá tu celular en la consola de Twilio para poder enviar.';
-  hint.hidden = false;
-}
-
-async function checkTwilioBanner() {
-  try {
-    const statusResponse = await fetch('/api/twilio/status');
-    const status = await statusResponse.json();
-    document.getElementById('twilio-status-bar').style.display = 'flex';
-    document.getElementById('twilio-connected-badge').style.display = status.connected ? 'flex' : 'none';
-    document.getElementById('twilio-disconnect-btn').style.display = status.connected ? 'inline' : 'none';
-    document.getElementById('twilio-connect-link').style.display = status.connected ? 'none' : 'inline';
-    if (status.connected) {
-      document.getElementById('tw-masked-inline').textContent = status.maskedCredentials;
-      showVerifiedHint(status);
-    }
-  } catch (error) {
-  }
-}
-
-async function changeTwilioConfig() {
-  await fetch('/api/twilio/disconnect', { method: 'POST' });
-  window.location.href = '/#sms';
-}
-
-function applyChannel() {
-  if (CHANNEL !== 'email') {
-    checkTwilioBanner();
-    return;
-  }
-  document.getElementById('field-phone').hidden = true;
-  document.getElementById('field-email').hidden = false;
-  document.getElementById('gen-subtitle').textContent = 'Solicitá un código de verificación por correo';
-  document.getElementById('gen-help').textContent = 'El código llega a tu correo real. Si no lo ves, revisá la carpeta de spam.';
-  document.getElementById('gen-sent-label').textContent = 'Correo enviado a';
-  document.getElementById('ver-target-label').textContent = 'Correo confirmado';
-  document.getElementById('ver-back-btn').textContent = '← Cambiar correo';
-  document.getElementById('rc-target-label').textContent = 'Correo verificado';
-  document.getElementById('gen-message').setAttribute('aria-label', 'Mensaje del correo');
-  document.getElementById('twilio-status-bar').style.display = 'flex';
-  const back = document.getElementById('twilio-connect-link');
-  back.textContent = '← Elegir otro canal';
-  back.href = '/';
-  back.style.display = 'inline';
-}
-
-applyChannel();
-
 applyType();
+OTP_CHANNEL.start();

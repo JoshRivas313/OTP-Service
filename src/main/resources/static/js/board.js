@@ -215,21 +215,6 @@ document.querySelectorAll('.key[data-action="otro"]').forEach((key) => {
   });
 });
 
-// --- Puerta de SMS --------------------------------------------------------------
-
-const smsGate = document.getElementById('gate-sms');
-const smsPanel = document.getElementById('sms-panel');
-
-function setSmsPanel(open) {
-  smsPanel.hidden = !open;
-  smsGate.setAttribute('aria-expanded', String(open));
-  smsGate.classList.toggle('is-open', open);
-  if (open) document.getElementById('tw-account-sid').focus();
-}
-
-smsGate.addEventListener('click', () => setSmsPanel(smsPanel.hidden));
-if (window.location.hash === '#sms') setSmsPanel(true);
-
 // --- Arranque -------------------------------------------------------------------
 
 async function start() {
