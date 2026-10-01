@@ -59,7 +59,7 @@ La interfaz web no usa el proveedor global. Pide al usuario sus propias credenci
 3. `POST /api/twilio/otps` comprueba que el destino sea uno de los números verificados de la cuenta (si es de prueba o tiene números verificados; si no, `403 DESTINATION_NOT_VERIFIED`), toma las credenciales de la sesión, arma un `SmsSender` (`TwilioSessionSmsSender`) y se lo pasa al caso de uso de generar código.
 4. `POST /api/twilio/disconnect`, o el vencimiento de la sesión, las descartan.
 
-`TwilioOnboardingFilter` redirige a `/` cuando se pide `otp-service.html` sin credenciales en la sesión. Solo protege esa página: los endpoints se protegen por su cuenta (responden `400 TWILIO_NOT_CONNECTED`).
+La página de SMS (`sms.html`) muestra primero el formulario de conexión cuando la sesión no tiene credenciales. Los endpoints se protegen por su cuenta: sin conexión responden `400 TWILIO_NOT_CONNECTED`.
 
 Cada SMS de este flujo lo paga la cuenta de Twilio conectada.
 

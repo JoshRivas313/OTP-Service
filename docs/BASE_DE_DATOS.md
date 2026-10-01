@@ -103,31 +103,29 @@ db.otps.createIndex({ destination: 1, "validityWindow.generatedAt": -1 }, { name
 
 ## Credenciales HOTP y TOTP
 
-Colección `hmac_credentials`: un secreto por destino, tipo (HOTP o TOTP) y modo (`DELIVERED` si el servidor envía el código por SMS o correo, `APP` si lo genera la app del usuario).
+Colección `hmac_credentials`: un secreto por destino y tipo (HOTP o TOTP). El servidor calcula el código con ese secreto y lo envía por SMS o correo.
 
 | Campo | Tipo | Notas |
 |---|---|---|
-| `_id` | String | Se conserva al volver a vincular el mismo correo y tipo |
-| `destination` | String | Correo normalizado |
+| `_id` | String | |
+| `destination` | String | Celular o correo normalizado |
 | `type` | String | `HOTP` o `TOTP` |
-| `mode` | String | `DELIVERED` o `APP` |
 | `secretCiphertext` | Binary | Secreto cifrado con AES-256-GCM (`OTP_SECRET_ENCRYPTION_KEY`) |
 | `secretNonce` | Binary | 12 bytes, distinto en cada cifrado |
 | `digits` | int | 6 u 8 |
-| `periodSeconds` | int | TOTP: 30 o 60. HOTP: 0 |
+| `periodSeconds` | int | TOTP: entre 15 y 300. HOTP: 0 |
 | `counter` | long | HOTP: próximo contador que se acepta |
-| `issuedCounter` | long | HOTP en modo `DELIVERED`: próximo contador que se emite. Los contadores entre `counter` e `issuedCounter` son códigos enviados y aún sin usar |
+| `issuedCounter` | long | HOTP: próximo contador que se emite. Los contadores entre `counter` e `issuedCounter` son códigos enviados y aún sin usar |
 | `lastUsedTimeStep` | long | TOTP: última ventana aceptada (`-1` si ninguna) |
-| `status` | String | `PENDING` hasta confirmar la app, luego `ACTIVE`. En modo `DELIVERED` nace `ACTIVE` |
 | `failedAttempts` | int | Fallos seguidos; vuelve a 0 al acertar o al bloquear |
 | `lockedUntil` | Date | Fin del bloqueo, o ausente |
-| `createdAt`, `confirmedAt` | Date | |
+| `createdAt` | Date | |
 
-**Índice:** `credential_destination_type_mode_idx`, único sobre `{ destination: 1, type: 1, mode: 1 }`.
+**Índice:** `credential_destination_type_idx`, único sobre `{ destination: 1, type: 1 }`.
 
 **Operaciones atómicas:** aceptar un código es un `updateFirst` condicionado. En TOTP, `lastUsedTimeStep < ventana`; en HOTP, `counter == esperado`. Si dos peticiones llegan con el mismo código, solo una modifica el documento y la otra recibe `409 OTP_ALREADY_USED`. Los fallos suman con `$inc`.
 
-**No se guarda ningún código** de la app: se recalcula en cada verificación.
+**No se guarda ningún código** de HOTP ni de TOTP: se recalcula en cada verificación.
 
 ---
 
@@ -139,13 +137,13 @@ Sin el perfil `mongo`, `InMemoryOtpPersistenceAdapter` implementa el mismo puert
 - **Purga:** al guardar un código nuevo se eliminan los que ya superaron `purgeAt` (expiración más `otp.retention-seconds`), y las consultas ignoran los ya purgados.
 - **Tope:** se guardan como máximo `OTP_MEMORY_MAX_ENTRIES` códigos (10000 por defecto). Al llegar, se descartan los más antiguos, incluso si aún estaban vigentes. Sirve para que el consumo de memoria no crezca sin límite.
 - **Persistencia:** ninguna. Al reiniciar la aplicación se pierden todos los códigos, y tampoco se comparten entre instancias.
-- **Apps autenticadoras:** `InMemoryCredentialAdapter` guarda los registros con el mismo esquema de lock único. Un reinicio los borra y el usuario tiene que volver a vincular su app; `GET /health` devuelve `storage: memory` para que la interfaz lo advierta.
+- **Secretos de HOTP y TOTP:** `InMemoryCredentialAdapter` los guarda con el mismo esquema de lock único. Un reinicio los borra y el siguiente código de ese destino empieza con un secreto nuevo.
 ---
 
 ## Datos que se guardan
 
 - El código nunca se guarda, solo su hash con clave (HMAC-SHA256 con `OTP_HASH_SECRET`).
 - El destino (celular o correo) se guarda en claro. Es un dato personal. Es un dato personal: la retención por defecto es de 24 horas después de la expiración, siempre que el índice TTL esté activo (perfil `mongo`). En memoria desaparece al reiniciar o cuando lo purga la aplicación.
-- El secreto de cada app autenticadora se guarda cifrado con AES-256-GCM. Sin `OTP_SECRET_ENCRYPTION_KEY` no se puede descifrar; si esa clave se pierde o se cambia, todas las apps vinculadas dejan de servir.
+- El secreto de HOTP y TOTP de cada destino se guarda cifrado con AES-256-GCM. Sin `OTP_SECRET_ENCRYPTION_KEY` no se puede descifrar; si esa clave se pierde o se cambia, los secretos guardados dejan de servir.
 - Las credenciales de Twilio no se guardan en la base de datos: viven en la sesión HTTP (ver [PROVEEDORES_SMS.md](./PROVEEDORES_SMS.md)).
 - Un código de 6 dígitos tiene un millón de combinaciones. Si alguien obtiene la base de datos y la clave `OTP_HASH_SECRET`, puede recuperar los códigos por fuerza bruta. Por eso hay que cambiar la clave por defecto (`dev-only-secret-change-me`); la aplicación lo avisa en el arranque.

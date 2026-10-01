@@ -8,7 +8,7 @@ Diagramas complementarios a los dos flujos de uso del README: [Flujo 1: Generaci
 - [Verificar un código](#verificar-un-código)
 - [Ciclo de vida de un código](#ciclo-de-vida-de-un-código)
 - [Qué proveedor envía cada flujo](#qué-proveedor-envía-cada-flujo)
-- [Verificar un código de la app autenticadora](#verificar-un-código-de-la-app-autenticadora)
+- [Verificar un código HOTP o TOTP](#verificar-un-código-hotp-o-totp)
 
 ---
 
@@ -91,32 +91,31 @@ Más detalle en [PROVEEDORES_SMS.md](./PROVEEDORES_SMS.md).
 
 ---
 
-## Verificar un código de la app autenticadora
+## Verificar un código HOTP o TOTP
 
-HOTP y TOTP no pasan por los flujos anteriores: no se genera ni se envía nada. El servidor recalcula el código con el secreto guardado y lo compara.
+Con HOTP y TOTP no hay hash guardado: el servidor recalcula el código con el secreto del destino y lo compara.
 
 ```mermaid
 flowchart TD
-    A["POST /api/authenticator/verify"] --> B{"¿Hay registro para correo y tipo?"}
-    B -- no --> X1["404 ENROLLMENT_NOT_FOUND"]
-    B -- sí --> C{"¿Confirmado?"}
-    C -- no --> X2["409 ENROLLMENT_NOT_CONFIRMED"]
-    C -- sí --> D{"¿Bloqueado?"}
-    D -- sí --> X3["423 AUTHENTICATOR_LOCKED"]
+    A["POST .../verify con type HOTP o TOTP"] --> B{"¿Hay secreto para destino y tipo?"}
+    B -- no --> X1["404 OTP_NOT_FOUND"]
+    B -- sí --> D{"¿Bloqueado?"}
+    D -- sí --> X3["423 OTP_BLOCKED"]
     D -- no --> E["Descifrar el secreto (AES-256-GCM)"]
     E --> F{"Tipo"}
     F -- TOTP --> G["Recalcular para las ventanas T-1, T y T+1"]
-    F -- HOTP --> H["Recalcular para los contadores c a c+10"]
+    F -- HOTP --> H["Recalcular para los contadores enviados y sin usar"]
     G --> I{"¿Coincide?"}
     H --> I
     I -- "sí, con una ventana o contador ya usado" --> X4["409 OTP_ALREADY_USED"]
+    I -- "TOTP de una ventana ya cerrada" --> X6["410 OTP_EXPIRED"]
     I -- no --> J["Sumar un fallo"]
-    J --> K{"¿5 fallos seguidos?"}
+    J --> K{"¿3 fallos seguidos?"}
     K -- sí --> X3
-    K -- no --> X5["401 OTP_INVALID (intento n de 5)"]
+    K -- no --> X5["401 OTP_INVALID (intento n de 3)"]
     I -- sí --> L["Claim atómico: guardar la ventana o el contador siguiente"]
     L -- "otra petición llegó antes" --> X4
     L -- ok --> OK["200 Código verificado"]
 ```
 
-Confirmar el registro sigue el mismo camino, salvo la comprobación de "¿Confirmado?", y además pasa el registro a `ACTIVE`.
+El bloqueo se levanta al pedir un código nuevo para ese destino.

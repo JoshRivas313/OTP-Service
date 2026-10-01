@@ -24,35 +24,33 @@ adapter  ->  application  ->  domain
 src/main/java/com/otpservice/otp/
 ├── domain/                                Reglas de negocio, sin Spring
 │   ├── model/Otp                           Modelo del OTP (isExpired, isBlocked, isUsed...)
-│   ├── model/HmacCredential                Secreto de HOTP/TOTP con su contador o ventana (APP o DELIVERED)
+│   ├── model/HmacCredential                Secreto de HOTP/TOTP con su contador o ventana
 │   ├── valueobject/                        Destination, Cellphone, EmailAddress, OtpCode,
 │   │                                       ValidityWindow, VerificationStatus, TwilioCredentials,
-│   │                                       OtpProtocol, HmacType, CredentialMode, CredentialStatus,
-│   │                                       AuthenticatorSecret, EncryptedSecret,
-│   │                                       OtpAuthUri
+│   │                                       OtpProtocol, HmacType, HmacSecret, EncryptedSecret
 │   ├── service/                            HmacOtpAlgorithm (RFC 4226/6238), TotpVerifier,
-│   │                                       HotpVerifier, CodeMatch, Base32
+│   │                                       HotpVerifier, CodeMatch
 │   └── exception/                          Reglas de negocio que pueden fallar
-│       ├── OtpDomainException               Base: código de error + mensaje, sin HTTP
+│       ├── ErrorCode                        Todos los códigos de error de la API, en un enum
+│       ├── OtpDomainException               Base: ErrorCode + mensaje, sin HTTP
 │       ├── OtpExpiredException
 │       ├── OtpBlockedException
 │       ├── OtpAlreadyUsedException
 │       ├── OtpInvalidatedException
 │       ├── InvalidOtpException
-│       └── InvalidCodeRequestException, AuthenticatorLockedException, EnrollmentNotConfirmedException
+│       └── InvalidCodeRequestException
 │
 ├── application/                           Casos de uso
 │   ├── port/
-│   │   ├── in/    GenerateOtpUseCase, VerifyOtpUseCase, EnrollAuthenticatorUseCase,
-│   │   │          ConfirmEnrollmentUseCase, VerifyAuthenticatorCodeUseCase, RemoveEnrollmentUseCase
+│   │   ├── in/    GenerateOtpUseCase, VerifyOtpUseCase
 │   │   └── out/   OtpPersistencePort, MessageSender, SmsSender, EmailSender,
-│   │              CodeHasherPort, CredentialPersistencePort, SecretCipherPort, QrCodePort
-│   ├── usecase/   GenerateOtpUseCaseImpl, VerifyOtpUseCaseImpl, EnrollAuthenticatorUseCaseImpl,
-│   │              ConfirmEnrollmentUseCaseImpl, VerifyAuthenticatorCodeUseCaseImpl,
-│   │              RemoveEnrollmentUseCaseImpl, AuthenticatorCodeChecker, DeliveredHmacCodes
-│   ├── config/    AuthenticatorSettings
-│   ├── dto/       GenerateOtpResult, VerifyOtpResult, EnrollmentResult, AuthenticatorVerifyResult
-│   └── exception/ OtpNotFoundException, EnrollmentNotFoundException
+│   │              CodeHasherPort, CredentialPersistencePort, SecretCipherPort
+│   ├── protocol/  CodeProtocol, CodeProtocols, RandomCodeProtocol, HmacCodeProtocol,
+│   │              HotpProtocol, TotpProtocol, IssuedCode, VerifiedCode
+│   ├── usecase/   GenerateOtpUseCaseImpl, VerifyOtpUseCaseImpl, OtpMessage
+│   ├── config/    HmacSettings, OtpSettings
+│   ├── dto/       GenerateOtpResult, VerifyOtpResult
+│   └── exception/ OtpNotFoundException
 │
 └── adapter/                               Todo lo técnico
     ├── in/http/
@@ -60,8 +58,6 @@ src/main/java/com/otpservice/otp/
     │   ├── TwilioOtpHttpAdapter             POST /api/twilio/otps, /api/twilio/otps/verify
     │   ├── EmailOtpHttpAdapter              POST /api/email/otps, /api/email/otps/verify
     │   ├── TwilioConnectHttpAdapter         /api/twilio/connect, /status, /disconnect
-    │   ├── AuthenticatorHttpAdapter         /api/authenticator/enrollments, /confirm, /verify
-    │   ├── EmailVerificationSession         Marca de sesión: correo verificado con OTP
     │   ├── GlobalExceptionHandler           Excepciones -> códigos HTTP
     │   └── dto/{request,response}
     ├── out/
@@ -72,20 +68,18 @@ src/main/java/com/otpservice/otp/
     │   │   └── memory/InMemoryOtpPersistenceAdapter, InMemoryCredentialAdapter   Por defecto (perfil !mongo)
     │   ├── security/CodeHasher              Implementa CodeHasherPort (HMAC-SHA256)
     │   ├── security/AesGcmSecretCipher      Implementa SecretCipherPort (AES-256-GCM)
-    │   ├── qr/ZxingQrCodeAdapter            Implementa QrCodePort (SVG)
     │   ├── email/                           ConsoleEmailSender, BrevoEmailSender
     │   └── sms/                             ConsoleSmsSender, TwilioSmsSender, InfobipSmsSender
-    │       └── twilio/                      TwilioSessionService, TwilioSessionSmsSender,
-    │                                        TwilioVerifyService
+    │       └── twilio/                      TwilioGateway, TwilioSessionService,
+    │                                        TwilioSessionSmsSender, TwilioVerifyService
     ├── exception/                           SmsDeliveryFailedException, EmailDeliveryFailedException,
-    │                                        RateLimitExceededException, EmailNotVerifiedException,
+    │                                        RateLimitExceededException,
     │                                        TwilioCredentialsInvalidException,
     │                                        TwilioNotConnectedException, DestinationNotVerifiedException
-    └── config/                              ClockConfig, OtpProperties, SmsProperties, EmailProperties,
-                                             AuthenticatorProperties, AuthenticatorConfig,
-                                             SendRateLimiter,
-                                             DemoModeGuard, OpenApiConfig,
-                                             TwilioOnboardingFilter
+    └── config/                              ClockConfig, OtpProperties, OtpConfig, SmsProperties,
+                                             SmsProvider, EmailProperties, EmailProvider,
+                                             HmacProperties, HmacConfig, SendRateLimiter,
+                                             DemoModeGuard, OpenApiConfig
 ```
 
 Los recursos estáticos (interfaz web) están en `src/main/resources/static/`.
@@ -122,7 +116,7 @@ Los diagramas de los flujos de uso están en el [README](../README.md#flujos-de-
 
 ## Manejo de errores
 
-Cada regla de negocio que puede fallar tiene su propia excepción, y todas extienden `OtpDomainException`, que solo lleva un código estable y un mensaje, sin estado HTTP. Se reparten según dónde nacen:
+Cada regla de negocio que puede fallar tiene su propia excepción, y todas extienden `OtpDomainException`, que solo lleva un `ErrorCode` y un mensaje, sin estado HTTP. `ErrorCode` es un enum: el nombre de cada valor es el código estable que ve el cliente (`OTP_EXPIRED`, `RATE_LIMIT_EXCEEDED`…). Se reparten según dónde nacen:
 
 | Capa | Excepciones | Motivo |
 |---|---|---|
@@ -130,7 +124,7 @@ Cada regla de negocio que puede fallar tiene su propia excepción, y todas extie
 | `application/exception` | `OtpNotFoundException` | Resultado vacío de un puerto, decidido por el caso de uso |
 | `adapter/exception` | `SmsDeliveryFailedException`, `TwilioCredentialsInvalidException`, `TwilioNotConnectedException`, `DestinationNotVerifiedException` | Solo se lanzan desde adaptadores |
 
-`GlobalExceptionHandler` es el único lugar que conoce el código HTTP de cada una, con un `switch` de pattern matching sobre el tipo. La tabla completa está en [API.md](./API.md#códigos-de-error).
+`GlobalExceptionHandler` es el único lugar que conoce el estado HTTP de cada código, con un `switch` sobre `ErrorCode` sin `default`: si se agrega un código y no se mapea, no compila. La tabla completa está en [API.md](./API.md#códigos-de-error).
 
 ---
 
@@ -145,18 +139,19 @@ Cada regla de negocio que puede fallar tiene su propia excepción, y todas extie
 - **El tiempo entra por `java.time.Clock`.** No hay `Instant.now()` en el código.
 - **`domain` no conoce HTTP.** Los casos de uso devuelven `GenerateOtpResult` / `VerifyOtpResult`, no los DTO de la API.
 - **Agregar un proveedor de SMS es agregar una clase.** Implementa `SmsSender`, lleva `@ConditionalOnProperty(name = "sms.provider", havingValue = "...")` y sus propiedades van en `SmsProperties`. Ver [PROVEEDORES_SMS.md](./PROVEEDORES_SMS.md).
+- **Cada protocolo es una clase (`CodeProtocol`).** `RandomCodeProtocol`, `HotpProtocol` y `TotpProtocol` implementan emitir y verificar; `HmacCodeProtocol` concentra lo que HOTP y TOTP comparten (secreto cifrado, bloqueo por intentos, orden de la verificación). Los casos de uso piden el protocolo a `CodeProtocols` y no preguntan cuál es: agregar uno nuevo es agregar una clase.
+- **La configuración que necesita la aplicación entra como `OtpSettings`**, igual que `HmacSettings`, y la arma `OtpConfig` desde `OtpProperties`. Así `application` no importa nada de `adapter`.
+- **Los proveedores son enums (`SmsProvider`, `EmailProvider`).** Un valor mal escrito en `SMS_PROVIDER` falla al arrancar con los valores válidos, y `isReal()` reemplaza las comparaciones de texto.
 - **La interfaz web es HTML, CSS y JavaScript sin framework**, servida por Spring Boot desde `static/`.
-- **El canal y el protocolo son independientes.** El canal (SMS, correo o app) solo decide cómo llega el código; el protocolo decide cómo se obtiene y cómo se comprueba. OTP guarda el hash del código en `OtpPersistencePort`. HOTP y TOTP guardan un `HmacCredential` (secreto cifrado y contador o ventana) y verifican recalculando; `CredentialMode` distingue si el código lo calcula el servidor y lo envía (`DELIVERED`) o la app del usuario (`APP`).
-- **El secreto de las apps se cifra, no se hashea.** Hay que poder recuperarlo para recalcular. AES-256-GCM usa como datos asociados `correo|tipo`, así un secreto copiado a otro registro no se puede descifrar.
-- **Vincular una app exige haber verificado el correo con OTP en la misma sesión.** Sin cuentas de usuario, es lo que impide que alguien vincule su app al correo de otro.
-- **Los casos de uso de la app autenticadora no importan `adapter.config`.** Reciben `AuthenticatorSettings`, un record de `application` que construye `AuthenticatorConfig`; no repiten la deuda del punto 1 de la sección siguiente.
+- **El canal y el protocolo son independientes.** El canal (SMS o correo) solo decide cómo llega el código; el protocolo decide cómo se obtiene y cómo se comprueba. OTP guarda el hash del código en `OtpPersistencePort`. HOTP y TOTP guardan un `HmacCredential` (secreto cifrado y contador o ventana) por destino y tipo, y verifican recalculando.
+- **El secreto de HOTP y TOTP se cifra, no se hashea.** Hay que poder recuperarlo para recalcular. AES-256-GCM usa como datos asociados `destino|tipo`, así un secreto copiado a otro registro no se puede descifrar.
+- **La configuración de HOTP y TOTP entra como `HmacSettings`**, un record de `application` que construye `HmacConfig` a partir de `HmacProperties` (prefijo `hmac`).
 
 ---
 
 ## Limitaciones y deuda técnica
 
-1. **`application` importa `adapter.config.OtpProperties`** (`GenerateOtpUseCaseImpl`, `VerifyOtpUseCaseImpl`). Es la única dependencia de `application` hacia `adapter`. Mover ese `record` de configuración a `application` la eliminaría.
-2. **`domain` usa anotaciones de Jackson** en `Cellphone` y `OtpCode` (`@JsonCreator`, `@JsonValue`) y Lombok en `Otp` (solo en compilación). No hay Spring, MongoDB, Twilio ni HTTP en `domain`, pero no compila como Java puro sin las anotaciones de Jackson.
-3. **El almacenamiento en memoria no sobrevive a un reinicio ni se comparte entre instancias.** Ver [BASE_DE_DATOS.md](./BASE_DE_DATOS.md#almacenamiento-en-memoria).
-4. **Los errores de formato devuelven el cuerpo estándar de Spring.** Un celular o código con formato inválido y un JSON malformado responden `400` con `{"timestamp", "status", "error", "path"}`, no con el formato `{success, code, message}` del resto de la API.
-5. **Sin autenticación ni límite de envíos** en los endpoints. Ver [Limitaciones conocidas](../README.md#limitaciones-conocidas).
+1. **`domain` usa anotaciones de Jackson** en `Cellphone` y `OtpCode` (`@JsonCreator`, `@JsonValue`) y Lombok en `Otp` (solo en compilación). No hay Spring, MongoDB, Twilio ni HTTP en `domain`, pero no compila como Java puro sin las anotaciones de Jackson.
+2. **El almacenamiento en memoria no sobrevive a un reinicio ni se comparte entre instancias.** Ver [BASE_DE_DATOS.md](./BASE_DE_DATOS.md#almacenamiento-en-memoria).
+3. **Los errores de formato devuelven el cuerpo estándar de Spring.** Un celular o código con formato inválido y un JSON malformado responden `400` con `{"timestamp", "status", "error", "path"}`, no con el formato `{success, code, message}` del resto de la API.
+4. **Sin autenticación** en los endpoints; hay un límite de envíos por destino y por IP, pero no lo reemplaza. Ver [Limitaciones conocidas](../README.md#limitaciones-conocidas).

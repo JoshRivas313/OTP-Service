@@ -11,7 +11,6 @@ Referencia de los endpoints. La documentación interactiva se genera con springd
 - [OTP local](#otp-local)
 - [OTP con Twilio por sesión](#otp-con-twilio-por-sesión)
 - [OTP por correo](#otp-por-correo)
-- [App autenticadora (HOTP y TOTP)](#app-autenticadora-hotp-y-totp)
 - [Estado del servicio](#estado-del-servicio)
 - [Códigos de error](#códigos-de-error)
 - [Errores de formato](#errores-de-formato)
@@ -370,96 +369,6 @@ Igual que `POST /otps/verify`, pero con `email` en lugar de `cellphone`. Un `cod
 
 ---
 
-## App autenticadora (HOTP y TOTP)
-
-El código lo genera la app del usuario (Google Authenticator, Microsoft Authenticator…). El servidor no envía nada: guarda el secreto cifrado con AES-256-GCM y verifica **recalculando** el código.
-
-Flujo: verificar el correo con `POST /api/email/otps/verify` → vincular → confirmar con el primer código de la app → iniciar sesión con los códigos siguientes.
-
-### POST /api/authenticator/enrollments — Vincular una app
-
-Exige que el correo se haya verificado con `POST /api/email/otps/verify` **en la misma sesión** y hace menos de 10 minutos (`authenticator.email-verification-max-age-seconds`). Si no, responde `403 EMAIL_NOT_VERIFIED`. Volver a vincular el mismo correo y tipo reemplaza el secreto anterior.
-
-| Campo | Obligatorio | Regla |
-|---|---|---|
-| `email` | sí | Correo verificado en la sesión |
-| `type` | sí | `TOTP` o `HOTP` |
-| `digits` | no | `6` u `8`. Por defecto 6 |
-| `periodSeconds` | no | Solo TOTP: `30` o `60`. Por defecto 30 |
-
-**Response `201`** — con `Cache-Control: no-store`. Es la única respuesta que contiene el secreto.
-
-```json
-{
-  "success": true,
-  "message": "Escaneá el código QR con tu app y confirmá con el primer código",
-  "type": "TOTP",
-  "otpauthUri": "otpauth://totp/Un%20Solo%20Uso:visitante%40gmail.com?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&issuer=Un%20Solo%20Uso&algorithm=SHA1&digits=6&period=30",
-  "qrSvg": "<svg xmlns=\"http://www.w3.org/2000/svg\" ...>",
-  "secretBase32": "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP",
-  "digits": 6,
-  "periodSeconds": 30
-}
-```
-
-En HOTP la respuesta trae `"counter": 0` en lugar de `periodSeconds`. El registro queda **pendiente** hasta confirmarlo.
-
-### POST /api/authenticator/enrollments/confirm — Confirmar el registro
-
-| Campo | Obligatorio | Regla |
-|---|---|---|
-| `email` | sí | Correo del registro |
-| `type` | sí | `TOTP` o `HOTP` |
-| `code` | sí | 6 u 8 dígitos, el que muestra la app |
-
-**Response `200`**
-
-```json
-{
-  "success": true,
-  "message": "App autenticadora vinculada correctamente",
-  "type": "TOTP",
-  "timeStep": 59694214
-}
-```
-
-### POST /api/authenticator/verify — Iniciar sesión
-
-Mismos campos que la confirmación. El registro debe estar confirmado (`409 ENROLLMENT_NOT_CONFIRMED`).
-
-- **TOTP:** acepta la ventana actual y una a cada lado. Una ventana ya usada no se acepta otra vez (`409 OTP_ALREADY_USED`).
-- **HOTP:** acepta el contador esperado y hasta 10 por delante (códigos generados en la app y no usados). Al aceptar, el contador pasa al siguiente del aceptado; los anteriores responden `409 OTP_ALREADY_USED`.
-- **Bloqueo:** tras 5 códigos incorrectos seguidos el registro se bloquea 10 minutos (`423 AUTHENTICATOR_LOCKED`), aunque después llegue el correcto. Un acierto reinicia el contador de fallos.
-
-**Response `200`**
-
-```json
-{
-  "success": true,
-  "message": "Código verificado correctamente",
-  "type": "HOTP",
-  "counter": 4
-}
-```
-
-`timeStep` (TOTP) o `counter` (HOTP) indican con qué valor coincidió el código. No sirven para calcular otro sin el secreto.
-
-**Response `401`** (código incorrecto)
-
-```json
-{
-  "success": false,
-  "code": "OTP_INVALID",
-  "message": "El código no coincide con el de tu app (intento 1 de 5)"
-}
-```
-
-### DELETE /api/authenticator/enrollments — Desvincular
-
-Parámetros de consulta `email` y `type` (`TOTP` o `HOTP`, en mayúsculas). Exige el correo verificado en la sesión, igual que la vinculación. Responde `204` sin cuerpo, o `404 ENROLLMENT_NOT_FOUND` si no había registro.
-
----
-
 ## Estado del servicio
 
 ### GET /health — Estado
@@ -475,7 +384,7 @@ Responde `200` mientras la aplicación esté levantada. Sirve como Health Check 
 }
 ```
 
-`storage` es `memory` o `mongo`. La interfaz lo usa para advertir que, en memoria, las apps autenticadoras vinculadas se pierden al reiniciar.
+`storage` es `memory` o `mongo`. En memoria, un reinicio borra los códigos pendientes y los secretos de HOTP y TOTP.
 
 ---
 
@@ -489,7 +398,7 @@ Responde `200` mientras la aplicación esté levantada. Sirve como Health Check 
 | `OTP_EXPIRED` | 410 | Pasó la duración del código |
 | `OTP_BLOCKED` | 423 | Se alcanzó el máximo de intentos fallidos |
 | `OTP_INVALID` | 401 | El código es incorrecto |
-| `OTP_INVALID_REQUEST` | 400 | HOTP o TOTP con menos de 6 o más de 8 dígitos, TOTP con una ventana fuera de 15 a 300 s, o una app autenticadora con dígitos distintos de 6 u 8 o periodo distinto de 30 o 60 |
+| `OTP_INVALID_REQUEST` | 400 | HOTP o TOTP con menos de 6 o más de 8 dígitos, o TOTP con una ventana fuera de 15 a 300 s |
 | `SMS_DELIVERY_FAILED` | 502 | El proveedor de SMS rechazó o no pudo enviar el mensaje. Con Twilio, `message` explica la causa cuando se conoce (número no verificado en una cuenta de prueba, país sin permiso, remitente sin SMS) y el log del servidor registra el código de error de Twilio |
 | `EMAIL_DELIVERY_FAILED` | 502 | El proveedor de correo rechazó o no pudo enviar el mensaje. El log del servidor registra el motivo que devolvió el proveedor |
 | `RATE_LIMIT_EXCEEDED` | 429 | Se superó el límite de envíos para ese destino o esa IP |
@@ -497,10 +406,6 @@ Responde `200` mientras la aplicación esté levantada. Sirve como Health Check 
 | `TWILIO_NOT_CONNECTED` | 400 | El flujo de Twilio se usó sin conectar una cuenta en la sesión |
 | `DESTINATION_NOT_VERIFIED` | 403 | La cuenta de Twilio conectada solo puede enviar a sus números verificados y el destino no es uno de ellos |
 | `VALIDATION_ERROR` | 400 | Un campo obligatorio falta o está fuera de rango |
-| `EMAIL_NOT_VERIFIED` | 403 | Se intentó vincular o desvincular una app sin haber verificado ese correo en la sesión |
-| `ENROLLMENT_NOT_FOUND` | 404 | No hay app vinculada para ese correo y tipo |
-| `ENROLLMENT_NOT_CONFIRMED` | 409 | Se intentó iniciar sesión con un registro sin confirmar |
-| `AUTHENTICATOR_LOCKED` | 423 | Demasiados códigos incorrectos seguidos; el mensaje indica los minutos de espera |
 
 Mensajes de `VALIDATION_ERROR` (formato `campo: mensaje`):
 
