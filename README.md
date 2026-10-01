@@ -1,7 +1,7 @@
-<h1 align="center">OTP Service</h1>
+<h1 align="center">Un Solo Uso</h1>
 
 <p align="center">
-  API para generar y verificar códigos de un solo uso (OTP) y enviarlos por SMS
+  Códigos de un solo uso por SMS, correo o app autenticadora, con OTP, HOTP y TOTP
 </p>
 
 <p align="center">
@@ -11,7 +11,7 @@
   <img alt="Licencia MIT" src="https://img.shields.io/badge/Licencia-MIT-blue">
 </p>
 
-Backend en Spring Boot que genera códigos de un solo uso, los envía por SMS al celular del usuario y los verifica de forma segura y atómica. El proveedor de SMS es intercambiable (consola, Twilio o Infobip) y el proyecto incluye una interfaz web y documentación interactiva con Swagger.
+Backend en Spring Boot que genera y verifica códigos de un solo uso con tres protocolos (OTP aleatorio, HOTP y TOTP). Los entrega por SMS o correo, o deja que los genere la app autenticadora del usuario, y los verifica de forma segura y atómica. El proveedor de SMS es intercambiable (consola, Twilio o Infobip) y el proyecto incluye una interfaz web y documentación interactiva con Swagger.
 
 **Demo:** [otp-service-78yu.onrender.com](https://otp-service-78yu.onrender.com). Corre en el plan gratuito de Render: si estuvo inactivo, la primera carga puede tardar cerca de un minuto. Para enviar SMS hay que conectar una cuenta propia de Twilio.
 
@@ -19,6 +19,7 @@ Backend en Spring Boot que genera códigos de un solo uso, los envía por SMS al
 
 - [Descripción General](#descripción-general)
 - [Características Principales](#características-principales)
+- [OTP, HOTP y TOTP](#otp-hotp-y-totp)
 - [Stack Tecnológico](#stack-tecnológico)
 - [Arquitectura del Sistema](#arquitectura-del-sistema)
 - [Módulos del Sistema](#módulos-del-sistema)
@@ -36,12 +37,12 @@ Backend en Spring Boot que genera códigos de un solo uso, los envía por SMS al
 
 ## Descripción General
 
-OTP Service es una API REST desarrollada con **Spring Boot** para verificar la posesión de un celular mediante un código enviado por SMS:
+Un Solo Uso es una API REST desarrollada con **Spring Boot** para verificar que alguien controla un celular, un correo o una app autenticadora. Primero se elige el canal (SMS, correo o app) y después el protocolo (OTP, HOTP o TOTP):
 
-- El backend genera el código, guarda solo su hash, controla la expiración y los intentos, y decide si un código es válido.
+- El backend genera el código y decide si es válido. Con OTP guarda solo su hash; con HOTP y TOTP no guarda el código: lo recalcula a partir de un secreto cifrado.
 - Un proveedor de SMS, intercambiable por configuración, solo se encarga de entregar el mensaje.
 - Un mismo código solo puede verificarse una vez, aunque lleguen dos peticiones a la vez.
-- La interfaz web permite probar el flujo completo conectando una cuenta propia de Twilio.
+- La interfaz web permite probar el flujo completo por correo, sin ninguna cuenta, o por SMS conectando una cuenta propia de Twilio.
 
 ### Qué hace el backend y qué hace el proveedor de SMS
 
@@ -62,13 +63,14 @@ El proveedor nunca sabe si un código es correcto. Más detalle en [PROVEEDORES_
 - Códigos de 4 a 10 dígitos (6 por defecto), generados con `SecureRandom`
 - Duración configurable por petición, de 1 a 86.400 segundos (30 por defecto)
 - Máximo de intentos por código (3 por defecto): el intento fallido que llega al máximo bloquea el código
-- Generar un código nuevo invalida los anteriores del mismo celular
+- Generar un código nuevo invalida los anteriores del mismo destino (celular o correo)
 - Cada código se acepta una sola vez
 
 ### Seguridad
 - Nunca se guarda el código, solo su hash HMAC-SHA256 con clave (`OTP_HASH_SECRET`)
 - Verificación atómica (en memoria o en MongoDB): sin condiciones de carrera entre verificaciones simultáneas
-- Validación del celular (formato peruano `+51 9XXXXXXXX`)
+- Validación del celular (formato peruano `+51 9XXXXXXXX`) y del correo electrónico
+- Límite de envíos por destino y por IP (`429 RATE_LIMIT_EXCEEDED`), configurable
 - Las credenciales de Twilio viven solo en la memoria del servidor, ligadas a la sesión HTTP (15 minutos), y no se escriben en ninguna base de datos ni en el log
 - El modo demo no puede combinarse con un proveedor de SMS real (la aplicación no arranca)
 
@@ -82,8 +84,27 @@ El proveedor nunca sabe si un código es correcto. Más detalle en [PROVEEDORES_
 - `infobip`: envío con Infobip
 - Flujo web con la cuenta de Twilio del propio usuario, por sesión
 
+### Correo electrónico
+- Canal de envío por correo, sin cuentas para el visitante: escribe su email y recibe el código
+- `console` (por defecto) escribe el correo en el log; `brevo` envía con la API HTTPS de Brevo (plan gratuito de 300 correos al día)
+- No usa SMTP: los servicios gratuitos de Render bloquean los puertos 25, 465 y 587. Ver [CORREO.md](./docs/CORREO.md)
+
+### Tres protocolos por cualquier canal
+- OTP aleatorio, HOTP ([RFC 4226](https://www.rfc-editor.org/rfc/rfc4226)) y TOTP ([RFC 6238](https://www.rfc-editor.org/rfc/rfc6238)), elegibles al enviar el código
+- Con HOTP y TOTP el servidor no guarda el código: guarda el secreto cifrado y lo recalcula al verificar
+- HOTP no caduca por tiempo y acepta los códigos emitidos que aún no se usaron; TOTP cambia con cada ventana y repite código dentro de la misma
+
+### App autenticadora (HOTP y TOTP)
+- Se vincula Google Authenticator, Microsoft Authenticator o similar escaneando un QR
+- El código lo genera el celular; el servidor no envía nada y lo verifica **recalculándolo**, sin guardar ningún código
+- TOTP (RFC 6238) con tolerancia de una ventana; HOTP (RFC 4226) con ventana de adelanto de 10
+- Solo se vincula un correo que se acaba de verificar con OTP, como en un 2FA real
+- El secreto se guarda cifrado con AES-256-GCM; bloqueo tras 5 códigos incorrectos seguidos
+
 ### Interfaz web incluida
-- Conexión de cuenta Twilio y flujo en tres pasos: enviar, verificar y resultado
+- Pantalla de inicio con tres caminos: código por correo (sin cuenta), SMS con la cuenta de Twilio del usuario y app autenticadora
+- Flujo en tres pasos: elegir canal y protocolo, verificar y resultado
+- Un recuadro "¿Sabías que…?" explica qué cambia con cada protocolo
 - El propósito del código (iniciar sesión, registro, recuperar acceso, confirmar un pago) define el texto del SMS, o se puede escribir un mensaje propio con `{code}` y `{seconds}`
 - Cuenta regresiva del código y estados de error y de expiración
 - HTML, CSS y JavaScript sin framework, servidos por Spring Boot
@@ -95,9 +116,25 @@ El proveedor nunca sabe si un código es correcto. Más detalle en [PROVEEDORES_
 ### Arquitectura hexagonal
 - Dominio sin dependencias de Spring, MongoDB ni proveedores de SMS
 - El almacenamiento es un puerto con dos adaptadores: memoria y MongoDB
+- El destino del código es un concepto general (`Destination`): celular o correo
 - Agregar un proveedor de SMS es agregar una clase
 
 ---
+
+## OTP, HOTP y TOTP
+
+Primero se elige **el canal** (SMS, correo o app autenticadora) y después **el protocolo**. Lo que cambia entre protocolos es cómo se obtiene el código, qué guarda el servidor y qué lo invalida:
+
+| | OTP | HOTP | TOTP |
+|---|---|---|---|
+| Cómo se obtiene el código | Número aleatorio (`SecureRandom`) | `HMAC-SHA1(secreto, contador)` · [RFC 4226](https://www.rfc-editor.org/rfc/rfc4226) | `HMAC-SHA1(secreto, ⌊hora ÷ ventana⌋)` · [RFC 6238](https://www.rfc-editor.org/rfc/rfc6238) |
+| Qué guarda el servidor | El hash del código enviado | El secreto cifrado y el contador | El secreto cifrado y la última ventana usada |
+| Cómo verifica | Compara con el hash guardado | Recalcula con los contadores pendientes | Recalcula con la ventana actual ±1 |
+| Qué lo invalida | El tiempo y el uso | Solo el uso | El fin de su ventana y el uso |
+| Pedir otro código | Invalida el anterior | Avanza el contador; los anteriores siguen valiendo hasta que se usa uno posterior | En la misma ventana llega el mismo código |
+| Canales | SMS y correo | SMS, correo y app | SMS, correo y app |
+
+**Por SMS o correo**, el servidor hace de dispositivo: calcula el código y lo envía. **Con la app autenticadora**, el código lo calcula el celular y no viaja; para vincularla primero se verifica el correo con un OTP, se escanea un QR y se confirma con el primer código de la app.
 
 ## Stack Tecnológico
 
@@ -141,7 +178,7 @@ El proveedor nunca sabe si un código es correcto. Más detalle en [PROVEEDORES_
 │ application                                           │
 │  GenerateOtpUseCase · VerifyOtpUseCase                │
 │  Puertos: OtpPersistencePort · SmsSender ·            │
-│           CodeHasherPort                              │
+│           EmailSender · CodeHasherPort                │
 └───────────────────────┬───────────────────────────────┘
                         │ implementan los puertos
                         ▼
@@ -214,6 +251,18 @@ Entrega del mensaje con el proveedor elegido.
 
 ---
 
+### Correo
+Entrega del código por email, sin cuentas para el visitante.
+
+**Características:**
+- Proveedor elegido con `EMAIL_PROVIDER`: `console` (por defecto) o `brevo`
+- API HTTPS de Brevo, porque Render gratis bloquea SMTP
+- Error `EMAIL_DELIVERY_FAILED` (502) si el proveedor falla, y `RATE_LIMIT_EXCEEDED` (429) si se supera el límite de envíos
+
+**Clases principales:** `EmailOtpHttpAdapter`, `EmailSender`, `ConsoleEmailSender`, `BrevoEmailSender`, `SendRateLimiter`
+
+---
+
 ### Twilio por sesión
 Flujo de la interfaz web con la cuenta de Twilio del usuario.
 
@@ -282,6 +331,13 @@ Referencia de los endpoints:
 - Campos, reglas, request y response de cada endpoint
 - Flujo de Twilio por sesión
 - Códigos de error y errores de formato
+
+### Correo
+[**CORREO.md**](./docs/CORREO.md)
+Envío por correo electrónico:
+- Por qué Brevo y no Gmail por SMTP
+- Configuración paso a paso
+- Límites y buenas prácticas
 
 ### Proveedores de SMS
 [**PROVEEDORES_SMS.md**](./docs/PROVEEDORES_SMS.md)
@@ -370,6 +426,8 @@ La aplicación lee estas variables del entorno del sistema. **El archivo `.env` 
 | `SPRING_PROFILES_ACTIVE` | vacío | `mongo` activa el almacenamiento en MongoDB. Sin él, los códigos se guardan en memoria |
 | `MONGODB_URI` | `mongodb://localhost:27017/otp_service` | Conexión a MongoDB. Solo se lee con el perfil `mongo` |
 | `OTP_HASH_SECRET` | `dev-only-secret-change-me` | Clave del HMAC-SHA256. Cámbiala fuera de desarrollo: la aplicación avisa si queda el valor por defecto |
+| `OTP_SECRET_ENCRYPTION_KEY` | clave de desarrollo | Clave AES-256 en Base64 (32 bytes) que cifra los secretos de las apps autenticadoras. Generala con `openssl rand -base64 32`. Si se pierde o se cambia, todas las apps vinculadas dejan de servir |
+| `AUTHENTICATOR_ISSUER` | `Un Solo Uso` | Nombre con el que aparece la cuenta en la app autenticadora |
 | `OTP_DEMO_MODE` | `false` | Si es `true`, `POST /otps` devuelve el código en `demoCode`. No se puede combinar con `twilio` ni `infobip` |
 | `SMS_PROVIDER` | `console` | `console`, `twilio` o `infobip` |
 | `TWILIO_ACCOUNT_SID` | vacío | Obligatoria si `SMS_PROVIDER=twilio` |
@@ -378,6 +436,13 @@ La aplicación lee estas variables del entorno del sistema. **El archivo `.env` 
 | `INFOBIP_BASE_URL` | vacío | Obligatoria si `SMS_PROVIDER=infobip` |
 | `INFOBIP_API_KEY` | vacío | Obligatoria si `SMS_PROVIDER=infobip` |
 | `INFOBIP_SENDER` | vacío | Obligatoria si `SMS_PROVIDER=infobip` |
+| `EMAIL_PROVIDER` | `console` | `console` o `brevo` |
+| `BREVO_API_KEY` | vacío | Clave de la API de Brevo. Obligatoria si `EMAIL_PROVIDER=brevo` |
+| `EMAIL_SENDER_ADDRESS` | vacío | Correo remitente, validado en Brevo. Obligatoria si `EMAIL_PROVIDER=brevo` |
+| `EMAIL_SENDER_NAME` | `Un Solo Uso` | Nombre que ve el destinatario como remitente |
+| `OTP_RATE_LIMIT_PER_DESTINATION` | `5` | Envíos permitidos por celular o correo en la ventana. `0` desactiva el límite |
+| `OTP_RATE_LIMIT_PER_IP` | `20` | Envíos permitidos por IP en la ventana. `0` desactiva el límite |
+| `OTP_RATE_LIMIT_WINDOW_SECONDS` | `600` | Duración de la ventana del límite de envíos |
 | `PORT` | `8080` | Puerto HTTP. Las plataformas como Render lo definen solas |
 | `SESSION_COOKIE_SECURE` | `false` | Si es `true`, la cookie de sesión solo viaja por HTTPS. Actívalo al publicar |
 | `OTP_LOCAL_API_ENABLED` | `true` | Si es `false`, se deshabilitan `POST /otps` y `POST /otps/verify`; quedan solo los endpoints de Twilio por sesión |
@@ -420,17 +485,26 @@ La aplicación se despliega como un **Web Service con Docker** usando el `Docker
 | Variable | Valor |
 |---|---|
 | `OTP_HASH_SECRET` | Una clave larga y aleatoria, por ejemplo la salida de `openssl rand -hex 32` |
+| `OTP_SECRET_ENCRYPTION_KEY` | La salida de `openssl rand -base64 32`. No la cambies después: las apps vinculadas dejarían de servir |
 | `SESSION_COOKIE_SECURE` | `true` |
 | `OTP_LOCAL_API_ENABLED` | `false` |
+
+Para que el canal de correo envíe correos reales, agrega también estas variables (ver [CORREO.md](./docs/CORREO.md)); sin ellas el correo se escribe solo en el log:
+
+| Variable | Valor |
+|---|---|
+| `EMAIL_PROVIDER` | `brevo` |
+| `BREVO_API_KEY` | La clave de API de tu cuenta de Brevo. Guárdala solo en Render, nunca en el repositorio |
+| `EMAIL_SENDER_ADDRESS` | El correo remitente que validaste en Brevo |
 
 4. En **Health Check Path** pon `/health`.
 5. Despliega. La interfaz web queda disponible en la URL que asigna Render.
 
 La imagen Docker deshabilita Swagger UI por defecto (`SWAGGER_ENABLED=false`); para activarlo en un despliegue, define `SWAGGER_ENABLED=true`.
 
-Con esta configuración el servicio público solo expone el flujo de Twilio por sesión: cada visitante conecta su propia cuenta de Twilio y los envíos salen de ella. **No definas `SMS_PROVIDER=twilio` con tus propias credenciales en el servidor público**, porque cualquiera podría generar SMS a cargo de tu cuenta.
+Con esta configuración el servicio público expone dos canales: el correo (sin cuentas) y el SMS por sesión, donde cada visitante conecta su propia cuenta de Twilio y los envíos salen de ella. **No definas `SMS_PROVIDER=twilio` con tus propias credenciales en el servidor público**, porque cualquiera podría generar SMS a cargo de tu cuenta.
 
-En el plan gratuito de Render el servicio se suspende tras un rato sin tráfico y, al despertar, empieza con la memoria vacía: los códigos pendientes y las sesiones de Twilio se pierden.
+En el plan gratuito de Render el servicio se suspende tras un rato sin tráfico y, al despertar, empieza con la memoria vacía: los códigos pendientes, las sesiones de Twilio y las apps autenticadoras vinculadas se pierden. La página de la app autenticadora lo advierte; para conservarlas, usá el perfil `mongo`.
 
 ---
 
@@ -503,6 +577,88 @@ Documentación interactiva: `http://localhost:8080/swagger-ui.html`
   "message": "Código verificado correctamente"
 }
 ```
+
+### OTP por correo
+
+Mismos campos que `POST /otps`, con `email` en lugar de `cellphone` y un `message` opcional que debe contener `{code}`.
+
+**POST /api/email/otps** — Generar y enviar el código
+
+```json
+{
+  "email": "visitante@gmail.com",
+  "type": "TOTP",
+  "digits": 6,
+  "durationSeconds": 30
+}
+```
+
+`type` es `OTP` (por defecto), `HOTP` o `TOTP`, y existe en los tres endpoints de envío (`/otps`, `/api/email/otps`, `/api/twilio/otps`). En TOTP, `durationSeconds` es el tamaño de la ventana; en HOTP se ignora. La respuesta indica `type`, `expiresInSeconds` (ausente en HOTP, que no caduca por tiempo) y `counter` (HOTP) o `timeStep` (TOTP).
+
+**POST /api/email/otps/verify** — Verificar el código. Si es correcto, la sesión queda habilitada 10 minutos para vincular una app autenticadora a ese correo.
+
+```json
+{
+  "email": "visitante@gmail.com",
+  "type": "TOTP",
+  "code": "123456"
+}
+```
+
+Al verificar hay que mandar el mismo `type` con el que se envió el código.
+
+### App autenticadora (HOTP y TOTP)
+
+**POST /api/authenticator/enrollments** — Vincular una app. Exige haber verificado el correo en la misma sesión (si no, `403 EMAIL_NOT_VERIFIED`).
+
+```json
+{
+  "email": "visitante@gmail.com",
+  "type": "TOTP",
+  "digits": 6,
+  "periodSeconds": 30
+}
+```
+
+**Response `201`** (con `Cache-Control: no-store`: es la única respuesta que lleva el secreto)
+
+```json
+{
+  "success": true,
+  "message": "Escaneá el código QR con tu app y confirmá con el primer código",
+  "type": "TOTP",
+  "otpauthUri": "otpauth://totp/Un%20Solo%20Uso:visitante%40gmail.com?secret=JBSW...&issuer=Un%20Solo%20Uso&algorithm=SHA1&digits=6&period=30",
+  "qrSvg": "<svg ...>",
+  "secretBase32": "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP",
+  "digits": 6,
+  "periodSeconds": 30
+}
+```
+
+**POST /api/authenticator/enrollments/confirm** — Confirmar con el primer código de la app. **POST /api/authenticator/verify** — Iniciar sesión con el código que muestra la app. Ambos reciben:
+
+```json
+{
+  "email": "visitante@gmail.com",
+  "type": "TOTP",
+  "code": "482913"
+}
+```
+
+**Response `200`**
+
+```json
+{
+  "success": true,
+  "message": "Código verificado correctamente",
+  "type": "TOTP",
+  "timeStep": 59694216
+}
+```
+
+En HOTP la respuesta trae `counter` en lugar de `timeStep`.
+
+**DELETE /api/authenticator/enrollments?email=...&type=TOTP** — Desvincular la app. También exige el correo verificado en la sesión. Responde `204`.
 
 ### OTP con Twilio por sesión
 
@@ -696,15 +852,77 @@ sequenceDiagram
 
 **Cuándo usar**: probar el flujo completo con SMS reales desde la interfaz web, con la cuenta de Twilio propia. Twilio solo valida las credenciales y entrega el SMS; el código lo genera y lo verifica el backend.
 
+### Flujo 3: Correo
+
+```mermaid
+sequenceDiagram
+    participant Usuario
+    participant otp-service.html
+    participant Backend
+    participant Store as Almacén de códigos
+    participant Correo as Proveedor de correo
+
+    Usuario->>otp-service.html: Elige "Probar con mi correo" e ingresa su email
+    otp-service.html->>Backend: POST /api/email/otps<br/>{email, digits, durationSeconds, message}
+    Backend->>Backend: Comprobar el límite de envíos (destino e IP)
+    alt Límite superado
+        Backend-->>otp-service.html: 429 RATE_LIMIT_EXCEEDED
+    else Permitido
+        Backend->>Store: Invalidar códigos anteriores del correo
+        Backend->>Backend: Generar código + hashear con HMAC-SHA256
+        Backend->>Store: Guardar {hash, intentos, expira}
+        Backend->>Correo: Enviar el mensaje con el código
+        Correo-->>Usuario: Correo con el código
+        Backend-->>otp-service.html: 201 Código enviado
+    end
+
+    Usuario->>otp-service.html: Ingresa el código recibido
+    otp-service.html->>Backend: POST /api/email/otps/verify<br/>{email, code}
+    Backend->>Store: Reclamar el código (operación atómica)
+    alt Correcto
+        Backend-->>otp-service.html: 200 verificado
+    else Incorrecto, expirado o bloqueado
+        Backend-->>otp-service.html: 401, 410 o 423 con su código de error
+    end
+```
+
+**Cuándo usar**: probar el flujo completo sin ninguna cuenta. El backend hace exactamente lo mismo que con SMS; solo cambia el canal de entrega.
+
 ---
+
+### Flujo 4: App autenticadora
+
+```mermaid
+sequenceDiagram
+    participant Usuario
+    participant Web as authenticator.html
+    participant Backend
+    participant App as App autenticadora
+
+    Web->>Backend: POST /api/email/otps
+    Backend-->>Usuario: OTP por correo
+    Web->>Backend: POST /api/email/otps/verify
+    Backend-->>Web: 200 (sesión habilitada)
+    Web->>Backend: POST /api/authenticator/enrollments
+    Backend-->>Web: QR + secreto (registro pendiente)
+    Usuario->>App: Escanea el QR
+    App-->>Usuario: Muestra un código
+    Web->>Backend: POST /api/authenticator/enrollments/confirm
+    Backend->>Backend: Recalcula HMAC y compara
+    Backend-->>Web: 200 (registro activo)
+    Note over Usuario,App: Más tarde, sin pedir nada al servidor
+    Web->>Backend: POST /api/authenticator/verify
+    Backend-->>Web: 200 Acceso concedido
+```
 
 ## Limitaciones Conocidas
 
-- **Solo celulares peruanos.** Se acepta `9XXXXXXXX` o `+519XXXXXXXX`.
-- **La interfaz web exige conectar una cuenta de Twilio.** Sin ella se puede probar la API directamente con el proveedor `console`.
+- **Los celulares son solo peruanos.** Se acepta `9XXXXXXXX` o `+519XXXXXXXX`. Los correos pueden ser de cualquier dominio.
+- **El SMS de la interfaz web exige conectar una cuenta de Twilio.** El canal de correo no necesita ninguna cuenta.
 - **Con el almacenamiento en memoria, un reinicio borra los códigos pendientes y las sesiones de Twilio.** Además, la memoria no se comparte entre instancias: para varias réplicas hay que usar el perfil `mongo`.
+- **Las apps autenticadoras vinculadas viven donde vive el almacenamiento.** En memoria, un reinicio las borra y el usuario tiene que volver a vincularlas.
 - **En memoria hay un tope de códigos** (`OTP_MEMORY_MAX_ENTRIES`). Al llegar, se descartan los más antiguos, incluso si aún estaban vigentes.
-- **La API no tiene autenticación ni límite de envíos.** No la publiques en internet con `SMS_PROVIDER=twilio` o `infobip`: cualquiera podría generar SMS a cargo de esa cuenta. Para una instancia pública usa `OTP_LOCAL_API_ENABLED=false`.
+- **La API no tiene autenticación.** Sí hay un límite de envíos por destino y por IP, pero no reemplaza a la autenticación: no publiques `SMS_PROVIDER=twilio` ni `infobip` en internet, porque cualquiera podría generar SMS a cargo de esa cuenta. Para una instancia pública usa `OTP_LOCAL_API_ENABLED=false`. En el canal de correo, el límite y el tope diario de Brevo acotan el abuso.
 - **Los errores de formato devuelven el cuerpo estándar de Spring.** Un celular o un código mal formados responden `400` sin `code` ni `message`. 
 - **Solo se envía a los números verificados de la cuenta de Twilio conectada.** Al conectar, el servicio consulta a Twilio qué números tiene verificados la cuenta (siempre en las cuentas de prueba) y solo permite enviar a esos; otro destino responde `403 DESTINATION_NOT_VERIFIED`. Una cuenta de pago sin números verificados puede enviar a cualquier celular peruano.
 
@@ -746,4 +964,4 @@ Dudas o problemas: [GitHub Issues](https://github.com/JoshRivas313/OTP-Service/i
 ---
 
 **Versión:** 0.0.1-SNAPSHOT
-**Última actualización:** 28 de septiembre de 2026
+**Última actualización:** 1 de octubre de 2026

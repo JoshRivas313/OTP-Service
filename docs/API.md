@@ -10,6 +10,8 @@ Referencia de los endpoints. La documentación interactiva se genera con springd
 - [Convenciones](#convenciones)
 - [OTP local](#otp-local)
 - [OTP con Twilio por sesión](#otp-con-twilio-por-sesión)
+- [OTP por correo](#otp-por-correo)
+- [App autenticadora (HOTP y TOTP)](#app-autenticadora-hotp-y-totp)
 - [Estado del servicio](#estado-del-servicio)
 - [Códigos de error](#códigos-de-error)
 - [Errores de formato](#errores-de-formato)
@@ -21,7 +23,11 @@ Referencia de los endpoints. La documentación interactiva se genera con springd
 - Todas las peticiones y respuestas son JSON (`Content-Type: application/json`).
 - Las respuestas correctas de OTP llevan `"success": true`. Los errores de negocio y de validación llevan `{"success": false, "code": "...", "message": "..."}`.
 - **Celular:** solo números peruanos. Se acepta `9XXXXXXXX` o `+519XXXXXXXX` (9 dígitos que empiezan con 9) y se normaliza a `+519XXXXXXXX`.
-- **Código:** entre 4 y 10 dígitos.
+- **Código:** entre 4 y 10 dígitos en OTP; entre 6 y 8 en HOTP y TOTP.
+- **Protocolo (`type`):** los endpoints de envío y de verificación aceptan `OTP` (por defecto), `HOTP` o `TOTP`. Al verificar se manda el mismo `type` con el que se envió. Con HOTP y TOTP el servidor no guarda el código: lo recalcula.
+- **Respuesta de envío:** además de `success` y `message` trae `type`, `expiresInSeconds` (ausente en HOTP), `counter` (HOTP) o `timeStep` (TOTP). `demoCode` solo aparece con `OTP_DEMO_MODE=true`.
+- **Correo:** dirección válida de hasta 254 caracteres. Se normaliza a minúsculas.
+- **Límite de envíos:** los endpoints que generan códigos aceptan por defecto 5 envíos por destino y 20 por IP cada 10 minutos; el siguiente responde `429 RATE_LIMIT_EXCEEDED`.
 
 ---
 
@@ -36,8 +42,9 @@ Genera un código y lo envía. Generar un código nuevo invalida los anteriores 
 | Campo | Obligatorio | Regla |
 |---|---|---|
 | `cellphone` | sí | Celular peruano |
-| `digits` | no | Entero de 4 a 10. Por defecto 6 |
-| `durationSeconds` | no | Entero de 1 a 86400. Por defecto 30 |
+| `type` | no | `OTP`, `HOTP` o `TOTP`. Por defecto `OTP` |
+| `digits` | no | Entero de 4 a 10 (6 a 8 en HOTP y TOTP). Por defecto 6 |
+| `durationSeconds` | no | OTP: vigencia, de 1 a 86400. TOTP: ventana, de 15 a 300. HOTP: se ignora. Por defecto 30 |
 
 **Request**
 
@@ -55,7 +62,8 @@ Genera un código y lo envía. Generar un código nuevo invalida los anteriores 
 {
   "success": true,
   "message": "Código enviado correctamente",
-  "demoCode": null
+  "type": "OTP",
+  "expiresInSeconds": 60
 }
 ```
 
@@ -70,6 +78,7 @@ Un código correcto solo se acepta una vez.
 | Campo | Obligatorio | Regla |
 |---|---|---|
 | `cellphone` | sí | Celular peruano |
+| `type` | no | El protocolo con el que se envió. Por defecto `OTP` |
 | `code` | sí | De 4 a 10 dígitos |
 
 **Request**
@@ -222,7 +231,8 @@ La interfaz web siempre envía `message`: el texto del propósito elegido (por e
 {
   "success": true,
   "message": "Código enviado correctamente",
-  "demoCode": null
+  "type": "OTP",
+  "expiresInSeconds": 60
 }
 ```
 
@@ -278,6 +288,178 @@ curl -b cookies.txt -X POST http://localhost:8080/api/twilio/otps \
 
 ---
 
+## OTP por correo
+
+Usan el proveedor de correo elegido con `EMAIL_PROVIDER` (`console` por defecto). No requieren sesión. El destino es un correo en lugar de un celular; el resto de reglas (dígitos, duración, intentos, expiración) son las mismas.
+
+### POST /api/email/otps — Generar código OTP
+
+| Campo | Obligatorio | Regla |
+|---|---|---|
+| `email` | sí | Correo electrónico válido |
+| `type` | no | `OTP`, `HOTP` o `TOTP`. Por defecto `OTP` |
+| `digits` | no | De 4 a 10 (6 a 8 en HOTP y TOTP). Por defecto 6 |
+| `durationSeconds` | no | OTP: vigencia, de 1 a 86400. TOTP: ventana, de 15 a 300. HOTP: se ignora. Por defecto 30 |
+| `message` | no | Texto del correo. Máximo 300 caracteres y debe contener `{code}`. `{seconds}` se reemplaza por los segundos de vigencia |
+
+**Request**
+
+```json
+{
+  "email": "visitante@correo.com",
+  "digits": 6,
+  "durationSeconds": 60,
+  "message": "Tu código para iniciar sesión es {code}. Vence en {seconds} segundos."
+}
+```
+
+**Response `201`**
+
+```json
+{
+  "success": true,
+  "message": "Código enviado correctamente",
+  "type": "OTP",
+  "expiresInSeconds": 60
+}
+```
+
+**Response `429`** (demasiados envíos al mismo correo o desde la misma IP)
+
+```json
+{
+  "success": false,
+  "code": "RATE_LIMIT_EXCEEDED",
+  "message": "Demasiados envíos seguidos. Probá de nuevo en unos minutos"
+}
+```
+
+**Response `502`** (el proveedor de correo rechazó el envío)
+
+```json
+{
+  "success": false,
+  "code": "EMAIL_DELIVERY_FAILED",
+  "message": "No se pudo enviar el correo"
+}
+```
+
+---
+
+### POST /api/email/otps/verify — Verificar código
+
+Igual que `POST /otps/verify`, pero con `email` en lugar de `cellphone`. Un `code` con formato inválido responde `401 OTP_INVALID`.
+
+**Request**
+
+```json
+{
+  "email": "visitante@correo.com",
+  "code": "482913"
+}
+```
+
+**Response `200`**
+
+```json
+{
+  "success": true,
+  "message": "Código verificado correctamente"
+}
+```
+
+---
+
+## App autenticadora (HOTP y TOTP)
+
+El código lo genera la app del usuario (Google Authenticator, Microsoft Authenticator…). El servidor no envía nada: guarda el secreto cifrado con AES-256-GCM y verifica **recalculando** el código.
+
+Flujo: verificar el correo con `POST /api/email/otps/verify` → vincular → confirmar con el primer código de la app → iniciar sesión con los códigos siguientes.
+
+### POST /api/authenticator/enrollments — Vincular una app
+
+Exige que el correo se haya verificado con `POST /api/email/otps/verify` **en la misma sesión** y hace menos de 10 minutos (`authenticator.email-verification-max-age-seconds`). Si no, responde `403 EMAIL_NOT_VERIFIED`. Volver a vincular el mismo correo y tipo reemplaza el secreto anterior.
+
+| Campo | Obligatorio | Regla |
+|---|---|---|
+| `email` | sí | Correo verificado en la sesión |
+| `type` | sí | `TOTP` o `HOTP` |
+| `digits` | no | `6` u `8`. Por defecto 6 |
+| `periodSeconds` | no | Solo TOTP: `30` o `60`. Por defecto 30 |
+
+**Response `201`** — con `Cache-Control: no-store`. Es la única respuesta que contiene el secreto.
+
+```json
+{
+  "success": true,
+  "message": "Escaneá el código QR con tu app y confirmá con el primer código",
+  "type": "TOTP",
+  "otpauthUri": "otpauth://totp/Un%20Solo%20Uso:visitante%40gmail.com?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&issuer=Un%20Solo%20Uso&algorithm=SHA1&digits=6&period=30",
+  "qrSvg": "<svg xmlns=\"http://www.w3.org/2000/svg\" ...>",
+  "secretBase32": "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP",
+  "digits": 6,
+  "periodSeconds": 30
+}
+```
+
+En HOTP la respuesta trae `"counter": 0` en lugar de `periodSeconds`. El registro queda **pendiente** hasta confirmarlo.
+
+### POST /api/authenticator/enrollments/confirm — Confirmar el registro
+
+| Campo | Obligatorio | Regla |
+|---|---|---|
+| `email` | sí | Correo del registro |
+| `type` | sí | `TOTP` o `HOTP` |
+| `code` | sí | 6 u 8 dígitos, el que muestra la app |
+
+**Response `200`**
+
+```json
+{
+  "success": true,
+  "message": "App autenticadora vinculada correctamente",
+  "type": "TOTP",
+  "timeStep": 59694214
+}
+```
+
+### POST /api/authenticator/verify — Iniciar sesión
+
+Mismos campos que la confirmación. El registro debe estar confirmado (`409 ENROLLMENT_NOT_CONFIRMED`).
+
+- **TOTP:** acepta la ventana actual y una a cada lado. Una ventana ya usada no se acepta otra vez (`409 OTP_ALREADY_USED`).
+- **HOTP:** acepta el contador esperado y hasta 10 por delante (códigos generados en la app y no usados). Al aceptar, el contador pasa al siguiente del aceptado; los anteriores responden `409 OTP_ALREADY_USED`.
+- **Bloqueo:** tras 5 códigos incorrectos seguidos el registro se bloquea 10 minutos (`423 AUTHENTICATOR_LOCKED`), aunque después llegue el correcto. Un acierto reinicia el contador de fallos.
+
+**Response `200`**
+
+```json
+{
+  "success": true,
+  "message": "Código verificado correctamente",
+  "type": "HOTP",
+  "counter": 4
+}
+```
+
+`timeStep` (TOTP) o `counter` (HOTP) indican con qué valor coincidió el código. No sirven para calcular otro sin el secreto.
+
+**Response `401`** (código incorrecto)
+
+```json
+{
+  "success": false,
+  "code": "OTP_INVALID",
+  "message": "El código no coincide con el de tu app (intento 1 de 5)"
+}
+```
+
+### DELETE /api/authenticator/enrollments — Desvincular
+
+Parámetros de consulta `email` y `type` (`TOTP` o `HOTP`, en mayúsculas). Exige el correo verificado en la sesión, igual que la vinculación. Responde `204` sin cuerpo, o `404 ENROLLMENT_NOT_FOUND` si no había registro.
+
+---
+
 ## Estado del servicio
 
 ### GET /health — Estado
@@ -288,9 +470,12 @@ Responde `200` mientras la aplicación esté levantada. Sirve como Health Check 
 
 ```json
 {
-  "status": "UP"
+  "status": "UP",
+  "storage": "memory"
 }
 ```
+
+`storage` es `memory` o `mongo`. La interfaz lo usa para advertir que, en memoria, las apps autenticadoras vinculadas se pierden al reiniciar.
 
 ---
 
@@ -304,11 +489,18 @@ Responde `200` mientras la aplicación esté levantada. Sirve como Health Check 
 | `OTP_EXPIRED` | 410 | Pasó la duración del código |
 | `OTP_BLOCKED` | 423 | Se alcanzó el máximo de intentos fallidos |
 | `OTP_INVALID` | 401 | El código es incorrecto |
+| `OTP_INVALID_REQUEST` | 400 | HOTP o TOTP con menos de 6 o más de 8 dígitos, TOTP con una ventana fuera de 15 a 300 s, o una app autenticadora con dígitos distintos de 6 u 8 o periodo distinto de 30 o 60 |
 | `SMS_DELIVERY_FAILED` | 502 | El proveedor de SMS rechazó o no pudo enviar el mensaje. Con Twilio, `message` explica la causa cuando se conoce (número no verificado en una cuenta de prueba, país sin permiso, remitente sin SMS) y el log del servidor registra el código de error de Twilio |
+| `EMAIL_DELIVERY_FAILED` | 502 | El proveedor de correo rechazó o no pudo enviar el mensaje. El log del servidor registra el motivo que devolvió el proveedor |
+| `RATE_LIMIT_EXCEEDED` | 429 | Se superó el límite de envíos para ese destino o esa IP |
 | `TWILIO_CREDENTIALS_INVALID` | 401 | Credenciales de Twilio con formato inválido o rechazadas por Twilio |
 | `TWILIO_NOT_CONNECTED` | 400 | El flujo de Twilio se usó sin conectar una cuenta en la sesión |
 | `DESTINATION_NOT_VERIFIED` | 403 | La cuenta de Twilio conectada solo puede enviar a sus números verificados y el destino no es uno de ellos |
 | `VALIDATION_ERROR` | 400 | Un campo obligatorio falta o está fuera de rango |
+| `EMAIL_NOT_VERIFIED` | 403 | Se intentó vincular o desvincular una app sin haber verificado ese correo en la sesión |
+| `ENROLLMENT_NOT_FOUND` | 404 | No hay app vinculada para ese correo y tipo |
+| `ENROLLMENT_NOT_CONFIRMED` | 409 | Se intentó iniciar sesión con un registro sin confirmar |
+| `AUTHENTICATOR_LOCKED` | 423 | Demasiados códigos incorrectos seguidos; el mensaje indica los minutos de espera |
 
 Mensajes de `VALIDATION_ERROR` (formato `campo: mensaje`):
 
