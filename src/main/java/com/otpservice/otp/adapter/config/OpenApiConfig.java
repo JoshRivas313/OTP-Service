@@ -12,7 +12,7 @@ public class OpenApiConfig {
     public OpenAPI otpServiceOpenApi() {
         return new OpenAPI().info(new Info()
                 .title("Un Solo Uso")
-                .description("Códigos de un solo uso por SMS, correo o app autenticadora, con tres protocolos: OTP aleatorio, HOTP (RFC 4226) y TOTP (RFC 6238).")
+                .description("Códigos de un solo uso por SMS o correo, con tres protocolos: OTP aleatorio, HOTP (RFC 4226) y TOTP (RFC 6238).")
                 .version("v0.0.1"));
     }
 }

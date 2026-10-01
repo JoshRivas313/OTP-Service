@@ -9,6 +9,14 @@ public enum HmacType {
     HOTP,
     TOTP;
 
+    // HOTP no tiene ventana de tiempo.
+    public int effectivePeriod(int periodSeconds) {
+        return switch (this) {
+            case HOTP -> 0;
+            case TOTP -> periodSeconds;
+        };
+    }
+
     @JsonCreator
     public static HmacType from(String value) {
         if (value == null) {
@@ -17,7 +25,4 @@ public enum HmacType {
         return HmacType.valueOf(value.trim().toUpperCase(Locale.ROOT));
     }
 
-    public String uriName() {
-        return name().toLowerCase(Locale.ROOT);
-    }
 }

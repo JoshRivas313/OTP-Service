@@ -10,11 +10,9 @@ import com.otpservice.otp.application.dto.VerifyOtpResult;
 import com.otpservice.otp.application.port.in.GenerateOtpUseCase;
 import com.otpservice.otp.application.port.in.VerifyOtpUseCase;
 import com.otpservice.otp.application.port.out.EmailSender;
-import com.otpservice.otp.domain.exception.InvalidOtpException;
 import com.otpservice.otp.domain.valueobject.OtpCode;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -34,7 +32,6 @@ public class EmailOtpHttpAdapter {
   private final VerifyOtpUseCase verifyUseCase;
   private final EmailSender emailSender;
   private final SendRateLimiter rateLimiter;
-  private final EmailVerificationSession emailVerification;
 
   @PostMapping
   public ResponseEntity<OtpGenerateResponse> generateOtp(
@@ -58,21 +55,11 @@ public class EmailOtpHttpAdapter {
 
   @PostMapping("/verify")
   public ResponseEntity<OtpVerifyResponse> verifyOtp(
-    @Valid @RequestBody EmailOtpVerifyRequest request,
-    HttpSession session
+    @Valid @RequestBody EmailOtpVerifyRequest request
   ) {
     var command = new VerifyOtpUseCase.VerifyOtpCommand(
-      request.getEmail(), request.getType(), toOtpCode(request.getCode()));
+      request.getEmail(), request.getType(), OtpCode.parse(request.getCode()));
     VerifyOtpResult result = verifyUseCase.verify(command);
-    emailVerification.markVerified(session, request.getEmail());
     return ResponseEntity.ok(OtpVerifyResponse.from(result));
-  }
-
-  private OtpCode toOtpCode(String code) {
-    try {
-      return new OtpCode(code);
-    } catch (IllegalArgumentException exception) {
-      throw new InvalidOtpException();
-    }
   }
 }

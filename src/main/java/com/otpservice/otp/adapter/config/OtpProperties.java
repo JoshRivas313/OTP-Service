@@ -1,5 +1,6 @@
 package com.otpservice.otp.adapter.config;
 
+import com.otpservice.otp.application.config.OtpSettings;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
@@ -21,6 +22,10 @@ public record OtpProperties(
         @DefaultValue("600") int rateLimitWindowSeconds
 ) {
     public static final String INSECURE_DEV_SECRET = "dev-only-secret-change-me";
+
+    public OtpSettings settings() {
+        return new OtpSettings(digits, durationSeconds, maxAttempts, retentionSeconds, messageTemplate, demoMode);
+    }
 
     public boolean usingInsecureDevSecret() {
         return INSECURE_DEV_SECRET.equals(hashSecret);

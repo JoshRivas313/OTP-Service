@@ -1,17 +1,23 @@
 package com.otpservice.otp.application.usecase;
 
-import com.otpservice.otp.adapter.config.AuthenticatorProperties;
+import com.otpservice.otp.adapter.config.HmacProperties;
 import com.otpservice.otp.adapter.config.OtpProperties;
 import com.otpservice.otp.adapter.out.persistence.memory.InMemoryCredentialAdapter;
 import com.otpservice.otp.adapter.out.persistence.memory.InMemoryOtpPersistenceAdapter;
 import com.otpservice.otp.adapter.out.security.AesGcmSecretCipher;
 import com.otpservice.otp.adapter.out.security.CodeHasher;
-import com.otpservice.otp.application.config.AuthenticatorSettings;
+import com.otpservice.otp.application.config.HmacSettings;
+import com.otpservice.otp.application.config.OtpSettings;
 import com.otpservice.otp.application.dto.GenerateOtpResult;
 import com.otpservice.otp.application.dto.VerifyOtpResult;
 import com.otpservice.otp.application.exception.OtpNotFoundException;
 import com.otpservice.otp.application.port.in.GenerateOtpUseCase.GenerateOtpCommand;
 import com.otpservice.otp.application.port.in.VerifyOtpUseCase.VerifyOtpCommand;
+import com.otpservice.otp.application.port.out.CredentialPersistencePort;
+import com.otpservice.otp.application.protocol.CodeProtocols;
+import com.otpservice.otp.application.protocol.HotpProtocol;
+import com.otpservice.otp.application.protocol.RandomCodeProtocol;
+import com.otpservice.otp.application.protocol.TotpProtocol;
 import com.otpservice.otp.domain.exception.InvalidCodeRequestException;
 import com.otpservice.otp.domain.exception.InvalidOtpException;
 import com.otpservice.otp.domain.exception.OtpAlreadyUsedException;
@@ -20,11 +26,13 @@ import com.otpservice.otp.domain.exception.OtpExpiredException;
 import com.otpservice.otp.domain.valueobject.EmailAddress;
 import com.otpservice.otp.domain.valueobject.OtpCode;
 import com.otpservice.otp.domain.valueobject.OtpProtocol;
+import com.otpservice.otp.support.MutableClock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -33,7 +41,7 @@ class DeliveredProtocolsTest {
 
     private static final EmailAddress ANA = new EmailAddress("ana@gmail.com");
 
-    private AuthenticatorUseCasesTest.MutableClock clock;
+    private MutableClock clock;
     private InMemoryOtpPersistenceAdapter otpStore;
     private GenerateOtpUseCaseImpl generate;
     private VerifyOtpUseCaseImpl verify;
@@ -41,19 +49,23 @@ class DeliveredProtocolsTest {
 
     @BeforeEach
     void setUp() {
-        clock = new AuthenticatorUseCasesTest.MutableClock(Instant.parse("2026-10-01T14:00:10Z"));
+        clock = new MutableClock(Instant.parse("2026-10-01T14:00:10Z"));
         OtpProperties otp = new OtpProperties(6, 30, 3, 86400,
                 "Tu código de verificación es %s. Vence en %d segundos.", "secreto", true, 10000, 0, 0, 600);
-        AuthenticatorProperties auth =
-                new AuthenticatorProperties("Un Solo Uso", 1, 10, 5, 600, 600, AuthenticatorProperties.INSECURE_DEV_KEY);
-        AuthenticatorSettings settings = new AuthenticatorSettings("Un Solo Uso", 1, 10, 5, 600);
+        HmacProperties hmacProperties = new HmacProperties(1, 10, HmacProperties.INSECURE_DEV_KEY);
+        HmacSettings settings = new HmacSettings(1, 10);
 
         otpStore = new InMemoryOtpPersistenceAdapter(clock, otp);
         CodeHasher hasher = new CodeHasher(otp);
-        DeliveredHmacCodes hmac = new DeliveredHmacCodes(
-                new InMemoryCredentialAdapter(otp), new AesGcmSecretCipher(auth), settings, otp, clock);
-        generate = new GenerateOtpUseCaseImpl(otpStore, hasher, hmac, otp, clock);
-        verify = new VerifyOtpUseCaseImpl(otpStore, hasher, hmac, otp, clock);
+        OtpSettings otpSettings = otp.settings();
+        CredentialPersistencePort credentials = new InMemoryCredentialAdapter(otp);
+        AesGcmSecretCipher cipher = new AesGcmSecretCipher(hmacProperties);
+        CodeProtocols protocols = new CodeProtocols(List.of(
+                new RandomCodeProtocol(otpStore, hasher, otpSettings, clock),
+                new HotpProtocol(credentials, cipher, settings, otpSettings, clock),
+                new TotpProtocol(credentials, cipher, settings, otpSettings, clock)));
+        generate = new GenerateOtpUseCaseImpl(protocols, otpSettings);
+        verify = new VerifyOtpUseCaseImpl(protocols);
     }
 
     private GenerateOtpResult send(OtpProtocol protocol, Integer duration) {

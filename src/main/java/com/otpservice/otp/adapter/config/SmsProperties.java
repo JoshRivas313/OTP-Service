@@ -5,7 +5,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 
 @ConfigurationProperties(prefix = "sms")
 public record SmsProperties(
-        @DefaultValue("console") String provider,
+        @DefaultValue("console") SmsProvider provider,
         @DefaultValue Twilio twilio,
         @DefaultValue Infobip infobip
 ) {

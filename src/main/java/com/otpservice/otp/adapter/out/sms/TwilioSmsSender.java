@@ -1,14 +1,10 @@
 package com.otpservice.otp.adapter.out.sms;
 
 import com.otpservice.otp.adapter.config.SmsProperties;
+import com.otpservice.otp.adapter.out.sms.twilio.TwilioGateway;
 import com.otpservice.otp.application.port.out.SmsSender;
 import com.otpservice.otp.domain.valueobject.Cellphone;
-import com.otpservice.otp.adapter.exception.SmsDeliveryFailedException;
-import com.otpservice.otp.adapter.out.sms.twilio.TwilioErrorMessages;
-import com.twilio.Twilio;
-import com.twilio.exception.TwilioException;
-import com.twilio.rest.api.v2010.account.Message;
-import com.twilio.type.PhoneNumber;
+import com.twilio.http.TwilioRestClient;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +18,7 @@ import org.springframework.stereotype.Component;
 public class TwilioSmsSender implements SmsSender {
 
     private final SmsProperties properties;
+    private TwilioRestClient client;
 
     @PostConstruct
     void initialize() {
@@ -30,23 +27,12 @@ public class TwilioSmsSender implements SmsSender {
             throw new IllegalStateException("sms.provider=twilio requiere TWILIO_ACCOUNT_SID, "
                     + "TWILIO_AUTH_TOKEN y TWILIO_PHONE_NUMBER");
         }
-        Twilio.init(twilio.accountSid(), twilio.authToken());
+        this.client = TwilioGateway.client(twilio.accountSid(), twilio.authToken());
         log.info("Proveedor de SMS = twilio");
     }
 
     @Override
     public void send(Cellphone destination, String message) {
-        try {
-            Message sent = Message.creator(
-                    new PhoneNumber(destination.getValue()),
-                    new PhoneNumber(properties.twilio().phoneNumber()),
-                    message).create();
-
-            log.info("SMS entregado a Twilio para={} sid={}", destination.masked(), sent.getSid());
-        } catch (TwilioException exception) {
-            Integer code = TwilioErrorMessages.codeOf(exception);
-            log.warn("Twilio rechazo el envio para={} codigo={}: {}", destination.masked(), code, exception.getMessage());
-            throw new SmsDeliveryFailedException(TwilioErrorMessages.describe(code));
-        }
+        TwilioGateway.sendSms(client, properties.twilio().phoneNumber(), destination, message, "servidor");
     }
 }

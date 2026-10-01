@@ -1,7 +1,7 @@
 package com.otpservice.otp.adapter.out.security;
 
-import com.otpservice.otp.adapter.config.AuthenticatorProperties;
-import com.otpservice.otp.domain.valueobject.AuthenticatorSecret;
+import com.otpservice.otp.adapter.config.HmacProperties;
+import com.otpservice.otp.domain.valueobject.HmacSecret;
 import com.otpservice.otp.domain.valueobject.EncryptedSecret;
 import org.junit.jupiter.api.Test;
 
@@ -12,12 +12,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AesGcmSecretCipherTest {
 
-    private static AuthenticatorProperties withKey(String key) {
-        return new AuthenticatorProperties("OTP Service", 1, 10, 5, 600, 600, key);
+    private static HmacProperties withKey(String key) {
+        return new HmacProperties(1, 10, key);
     }
 
-    private final AesGcmSecretCipher cipher = new AesGcmSecretCipher(withKey(AuthenticatorProperties.INSECURE_DEV_KEY));
-    private final AuthenticatorSecret secret = AuthenticatorSecret.generate();
+    private final AesGcmSecretCipher cipher = new AesGcmSecretCipher(withKey(HmacProperties.INSECURE_DEV_KEY));
+    private final HmacSecret secret = HmacSecret.generate();
 
     @Test
     void descifraLoQueCifro() {

@@ -3,11 +3,16 @@ package com.otpservice.otp.domain.service;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
 import java.time.Instant;
 
 // RFC 4226 y RFC 6238 con HMAC-SHA1, el que usan las apps autenticadoras.
 public final class HmacOtpAlgorithm {
+
+    public static final int MIN_DIGITS = 6;
+    public static final int MAX_DIGITS = 8;
 
     private static final String HMAC_SHA1 = "HmacSHA1";
     private static final int[] POWERS_OF_TEN = {1, 10, 100, 1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000};
@@ -16,8 +21,9 @@ public final class HmacOtpAlgorithm {
     }
 
     public static String hotp(byte[] secret, long counter, int digits) {
-        if (digits < 6 || digits > 8) {
-            throw new IllegalArgumentException("HOTP y TOTP usan entre 6 y 8 dígitos");
+        if (digits < MIN_DIGITS || digits > MAX_DIGITS) {
+            throw new IllegalArgumentException(
+                    "HOTP y TOTP usan entre " + MIN_DIGITS + " y " + MAX_DIGITS + " dígitos");
         }
         byte[] hash = hmacSha1(secret, ByteBuffer.allocate(Long.BYTES).putLong(counter).array());
 
@@ -47,5 +53,11 @@ public final class HmacOtpAlgorithm {
         } catch (GeneralSecurityException exception) {
             throw new IllegalStateException("No se pudo calcular el HMAC del código", exception);
         }
+    }
+
+    // Comparacion en tiempo constante.
+    static boolean sameCode(String expected, String actual) {
+        return MessageDigest.isEqual(expected.getBytes(StandardCharsets.US_ASCII),
+                actual.getBytes(StandardCharsets.US_ASCII));
     }
 }

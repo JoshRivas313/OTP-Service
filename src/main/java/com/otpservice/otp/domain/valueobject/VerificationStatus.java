@@ -16,17 +16,6 @@ public final class VerificationStatus {
         this.invalidated = invalidated;
     }
 
-    public void incrementAttempts() {
-        attempts++;
-    }
-
-    public void markAsUsed() {
-        used = true;
-    }
-
-    public void invalidate() {
-        invalidated = true;
-    }
 
     public boolean isBlocked(int maxAllowedAttempts) {
         return attempts >= maxAllowedAttempts;

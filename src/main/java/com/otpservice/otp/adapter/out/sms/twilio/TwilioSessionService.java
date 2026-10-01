@@ -31,7 +31,4 @@ public class TwilioSessionService {
         return Optional.ofNullable((TwilioCredentials) session.getAttribute(SESSION_KEY));
     }
 
-    public boolean isConnected(HttpSession session) {
-        return get(session).isPresent();
-    }
 }

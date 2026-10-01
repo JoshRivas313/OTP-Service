@@ -1,5 +1,9 @@
 package com.otpservice.otp.domain.model;
 
+import com.otpservice.otp.domain.exception.OtpAlreadyUsedException;
+import com.otpservice.otp.domain.exception.OtpBlockedException;
+import com.otpservice.otp.domain.exception.OtpExpiredException;
+import com.otpservice.otp.domain.exception.OtpInvalidatedException;
 import com.otpservice.otp.domain.valueobject.Destination;
 import com.otpservice.otp.domain.valueobject.ValidityWindow;
 import com.otpservice.otp.domain.valueobject.VerificationStatus;
@@ -35,6 +39,22 @@ public class Otp {
                 .verificationStatus(new VerificationStatus())
                 .purgeAt(request.purgeAt())
                 .build();
+    }
+
+    // Orden de las comprobaciones: es el que determina que error ve el cliente.
+    public void ensureVerifiable(Instant now, int maxAllowedAttempts) {
+        if (isInvalidated()) {
+            throw new OtpInvalidatedException();
+        }
+        if (isUsed()) {
+            throw new OtpAlreadyUsedException();
+        }
+        if (isExpired(now)) {
+            throw new OtpExpiredException();
+        }
+        if (isBlocked(maxAllowedAttempts)) {
+            throw new OtpBlockedException();
+        }
     }
 
     public boolean isExpired(Instant now) {

@@ -5,7 +5,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 
 @ConfigurationProperties(prefix = "email")
 public record EmailProperties(
-        @DefaultValue("console") String provider,
+        @DefaultValue("console") EmailProvider provider,
         @DefaultValue("Un Solo Uso") String senderName,
         @DefaultValue("") String senderAddress,
         @DefaultValue Brevo brevo

@@ -51,7 +51,7 @@ public class OtpHttpAdapter {
       command,
       (destination, message) -> smsSender.send(request.getCellphone(), message)
     );
-    return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(result));
+    return ResponseEntity.status(HttpStatus.CREATED).body(OtpGenerateResponse.from(result));
   }
 
   @PostMapping("/verify")
@@ -63,9 +63,5 @@ public class OtpHttpAdapter {
     );
     VerifyOtpResult result = verifyUseCase.verify(command);
     return ResponseEntity.ok(OtpVerifyResponse.from(result));
-  }
-
-  private OtpGenerateResponse toResponse(GenerateOtpResult result) {
-    return OtpGenerateResponse.from(result);
   }
 }

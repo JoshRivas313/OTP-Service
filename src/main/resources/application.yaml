@@ -30,15 +30,11 @@ otp:
   rate-limit-per-ip: ${OTP_RATE_LIMIT_PER_IP:20}
   rate-limit-window-seconds: ${OTP_RATE_LIMIT_WINDOW_SECONDS:600}
 
-authenticator:
-  issuer: ${AUTHENTICATOR_ISSUER:Un Solo Uso}
-  # AES-256 en Base64 (openssl rand -base64 32). Si se pierde, las apps vinculadas dejan de servir.
+hmac:
+  # AES-256 en Base64 (openssl rand -base64 32). Si se pierde, los secretos guardados de HOTP y TOTP dejan de servir.
   encryption-key: ${OTP_SECRET_ENCRYPTION_KEY:ZGV2LW9ubHktZW5jcnlwdGlvbi1rZXktY2hhbmdlbWU=}
   totp-tolerance-steps: 1
   hotp-look-ahead: 10
-  max-failed-attempts: 5
-  lock-seconds: 600
-  email-verification-max-age-seconds: 600
 
 springdoc:
   api-docs:

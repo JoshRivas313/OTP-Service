@@ -19,7 +19,7 @@ public class TwilioVerifyService {
 
     public void validateCredentials(TwilioCredentials credentials) {
         try {
-            Service.fetcher(credentials.getVerifyServiceSid()).fetch(buildClient(credentials));
+            Service.fetcher(credentials.getVerifyServiceSid()).fetch(TwilioGateway.client(credentials.getAccountSid(), credentials.getAuthToken()));
         } catch (ApiException exception) {
             throw new TwilioCredentialsInvalidException();
         }
@@ -28,7 +28,7 @@ public class TwilioVerifyService {
     // Una cuenta de prueba solo entrega a sus numeros verificados; una de pago con numeros verificados tambien se limita a ellos.
     public TwilioAccountInfo fetchAccountInfo(TwilioCredentials credentials) {
         try {
-            TwilioRestClient client = buildClient(credentials);
+            TwilioRestClient client = TwilioGateway.client(credentials.getAccountSid(), credentials.getAuthToken());
             boolean trial = Account.fetcher(credentials.getAccountSid()).fetch(client).getType() == Account.Type.TRIAL;
             Set<String> verified = new HashSet<>();
             for (OutgoingCallerId callerId : OutgoingCallerId.reader().read(client)) {
@@ -41,7 +41,4 @@ public class TwilioVerifyService {
         }
     }
 
-    private TwilioRestClient buildClient(TwilioCredentials credentials) {
-        return new TwilioRestClient.Builder(credentials.getAccountSid(), credentials.getAuthToken()).build();
-    }
 }

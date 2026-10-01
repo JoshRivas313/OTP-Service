@@ -4,13 +4,9 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.Set;
-
 @Component
 @RequiredArgsConstructor
 public class DemoModeGuard {
-
-    private static final Set<String> REAL_PROVIDERS = Set.of("twilio", "infobip");
 
     private final OtpProperties otpProperties;
     private final SmsProperties smsProperties;
@@ -18,13 +14,16 @@ public class DemoModeGuard {
 
     @PostConstruct
     void checkNotCombinedWithRealProvider() {
-        if (otpProperties.demoMode() && REAL_PROVIDERS.contains(smsProperties.provider())) {
-            throw new IllegalStateException(
-                    "otp.demo-mode no puede estar activo junto a sms.provider=" + smsProperties.provider());
+        if (!otpProperties.demoMode()) {
+            return;
         }
-        if (otpProperties.demoMode() && !"console".equals(emailProperties.provider())) {
+        if (smsProperties.provider().isReal()) {
             throw new IllegalStateException(
-                    "otp.demo-mode no puede estar activo junto a email.provider=" + emailProperties.provider());
+                    "otp.demo-mode no puede estar activo junto a sms.provider=" + smsProperties.provider().value());
+        }
+        if (emailProperties.provider().isReal()) {
+            throw new IllegalStateException(
+                    "otp.demo-mode no puede estar activo junto a email.provider=" + emailProperties.provider().value());
         }
     }
 }

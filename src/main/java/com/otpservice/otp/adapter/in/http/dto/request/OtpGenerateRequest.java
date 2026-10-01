@@ -1,5 +1,6 @@
 package com.otpservice.otp.adapter.in.http.dto.request;
 
+import com.otpservice.otp.domain.valueobject.OtpCode;
 import com.otpservice.otp.domain.valueobject.OtpProtocol;
 import com.otpservice.otp.domain.valueobject.Cellphone;
 import jakarta.validation.Valid;
@@ -22,11 +23,11 @@ public class OtpGenerateRequest {
 
     private OtpProtocol type;
 
-    @Min(value = 4, message = "Mínimo 4 dígitos")
-    @Max(value = 10, message = "Máximo 10 dígitos")
+    @Min(value = OtpCode.MIN_LENGTH, message = RequestRules.DIGITS_MIN_MESSAGE)
+    @Max(value = OtpCode.MAX_LENGTH, message = RequestRules.DIGITS_MAX_MESSAGE)
     private Integer digits;
 
-    @Positive(message = "La duración debe ser mayor a 0 segundos")
-    @Max(value = 86400, message = "La duración no puede superar un día")
+    @Positive(message = RequestRules.DURATION_POSITIVE_MESSAGE)
+    @Max(value = RequestRules.MAX_DURATION_SECONDS, message = RequestRules.DURATION_MAX_MESSAGE)
     private Integer durationSeconds;
 }

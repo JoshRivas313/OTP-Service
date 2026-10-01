@@ -4,6 +4,8 @@ import java.time.Instant;
 
 public final class ValidityWindow {
 
+    public static final int MAX_DURATION_SECONDS = 86_400;
+
     private final Instant generatedAt;
     private final Instant expiresAt;
 

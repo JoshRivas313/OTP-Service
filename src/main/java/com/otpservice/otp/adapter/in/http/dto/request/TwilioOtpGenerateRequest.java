@@ -1,5 +1,6 @@
 package com.otpservice.otp.adapter.in.http.dto.request;
 
+import com.otpservice.otp.domain.valueobject.OtpCode;
 import com.otpservice.otp.domain.valueobject.OtpProtocol;
 import com.otpservice.otp.domain.valueobject.Cellphone;
 import jakarta.validation.constraints.Max;
@@ -22,15 +23,15 @@ public class TwilioOtpGenerateRequest {
 
     private OtpProtocol type;
 
-    @Min(value = 4, message = "Mínimo 4 dígitos")
-    @Max(value = 10, message = "Máximo 10 dígitos")
+    @Min(value = OtpCode.MIN_LENGTH, message = RequestRules.DIGITS_MIN_MESSAGE)
+    @Max(value = OtpCode.MAX_LENGTH, message = RequestRules.DIGITS_MAX_MESSAGE)
     private Integer digits;
 
-    @Positive(message = "La duración debe ser mayor a 0 segundos")
-    @Max(value = 86400, message = "La duración no puede superar un día")
+    @Positive(message = RequestRules.DURATION_POSITIVE_MESSAGE)
+    @Max(value = RequestRules.MAX_DURATION_SECONDS, message = RequestRules.DURATION_MAX_MESSAGE)
     private Integer durationSeconds;
 
-    @Size(max = 300, message = "El mensaje no puede superar 300 caracteres")
-    @Pattern(regexp = "(?s).*\\{code}.*", message = "El mensaje debe incluir {code}")
+    @Size(max = RequestRules.MAX_MESSAGE_LENGTH, message = RequestRules.MESSAGE_LENGTH_MESSAGE)
+    @Pattern(regexp = RequestRules.MESSAGE_PATTERN, message = RequestRules.MESSAGE_PATTERN_MESSAGE)
     private String message;
 }

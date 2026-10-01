@@ -5,7 +5,11 @@ public class InvalidOtpException extends OtpDomainException {
         this("El código es incorrecto");
     }
 
+    public static InvalidOtpException attempt(int attempts, int maxAttempts) {
+        return new InvalidOtpException("El código es incorrecto (intento %d de %d)".formatted(attempts, maxAttempts));
+    }
+
     public InvalidOtpException(String message) {
-        super("OTP_INVALID", message);
+        super(ErrorCode.OTP_INVALID, message);
     }
 }

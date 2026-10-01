@@ -13,7 +13,6 @@ import com.otpservice.otp.application.dto.GenerateOtpResult;
 import com.otpservice.otp.application.dto.VerifyOtpResult;
 import com.otpservice.otp.application.port.in.GenerateOtpUseCase;
 import com.otpservice.otp.application.port.in.VerifyOtpUseCase;
-import com.otpservice.otp.domain.exception.InvalidOtpException;
 import com.otpservice.otp.domain.valueobject.OtpCode;
 import com.otpservice.otp.domain.valueobject.TwilioCredentials;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -71,7 +70,7 @@ public class TwilioOtpHttpAdapter {
     HttpSession session
   ) {
     requireConnected(session);
-    OtpCode code = toOtpCode(request.getCode());
+    OtpCode code = OtpCode.parse(request.getCode());
     var command = new VerifyOtpUseCase.VerifyOtpCommand(request.getCellphone(), request.getType(), code);
     VerifyOtpResult result = verifyUseCase.verify(command);
     return ResponseEntity.ok(OtpVerifyResponse.from(result));
@@ -80,13 +79,5 @@ public class TwilioOtpHttpAdapter {
   private TwilioCredentials requireConnected(HttpSession session) {
     return sessionService.get(session)
       .orElseThrow(TwilioNotConnectedException::new);
-  }
-
-  private OtpCode toOtpCode(String code) {
-    try {
-      return new OtpCode(code);
-    } catch (IllegalArgumentException exception) {
-      throw new InvalidOtpException();
-    }
   }
 }
