@@ -12,7 +12,7 @@ public class OtpPersistenceMapper {
     public OtpDocument toDocument(Otp otp) {
         return OtpDocument.builder()
                 .id(otp.getId())
-                .cellphone(otp.getCellphone())
+                .destination(otp.getDestination())
                 .codeHash(otp.getCodeHash())
                 .digits(otp.getDigits())
                 .validityWindow(otp.getValidityWindow())
@@ -24,7 +24,7 @@ public class OtpPersistenceMapper {
     public Otp toDomain(OtpDocument document) {
         return Otp.builder()
                 .id(document.getId())
-                .cellphone(document.getCellphone())
+                .destination(document.getDestination())
                 .codeHash(document.getCodeHash())
                 .digits(document.getDigits())
                 .validityWindow(document.getValidityWindow())

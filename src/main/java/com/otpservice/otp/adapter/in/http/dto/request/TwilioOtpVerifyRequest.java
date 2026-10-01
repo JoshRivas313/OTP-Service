@@ -1,5 +1,6 @@
 package com.otpservice.otp.adapter.in.http.dto.request;
 
+import com.otpservice.otp.domain.valueobject.OtpProtocol;
 import com.otpservice.otp.domain.valueobject.Cellphone;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -14,6 +15,8 @@ public class TwilioOtpVerifyRequest {
 
     @NotNull(message = "El celular es obligatorio")
     private Cellphone cellphone;
+
+    private OtpProtocol type;
 
     @NotBlank(message = "El código es obligatorio")
     private String code;

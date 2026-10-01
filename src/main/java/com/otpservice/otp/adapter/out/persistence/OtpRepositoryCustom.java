@@ -7,11 +7,9 @@ import java.util.Optional;
 
 public interface OtpRepositoryCustom {
 
-    long invalidateActive(String cellphone);
+    long invalidateActive(String destination);
 
     Optional<OtpDocument> claimIfMatches(String id, String codeHash, Instant now, int maxAttempts);
-
-    Optional<OtpDocument> findPreviousWithCode(String cellphone, String codeHash, String excludedId);
 
     Optional<OtpDocument> registerFailedAttempt(String id);
 }

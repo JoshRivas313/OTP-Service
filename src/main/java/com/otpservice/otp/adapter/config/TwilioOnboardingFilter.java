@@ -21,7 +21,8 @@ public class TwilioOnboardingFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         boolean isOtpServiceRequest = "/otp-service.html".equals(request.getServletPath());
-        if (isOtpServiceRequest && !twilioSessionService.isConnected(request.getSession(true))) {
+        boolean isEmailChannel = "correo".equals(request.getParameter("canal"));
+        if (isOtpServiceRequest && !isEmailChannel && !twilioSessionService.isConnected(request.getSession(true))) {
             response.sendRedirect("/");
             return;
         }

@@ -1,5 +1,6 @@
 package com.otpservice.otp.adapter.in.http;
 
+import com.otpservice.otp.adapter.config.SendRateLimiter;
 import com.otpservice.otp.adapter.exception.DestinationNotVerifiedException;
 import com.otpservice.otp.adapter.exception.TwilioNotConnectedException;
 import com.otpservice.otp.adapter.in.http.dto.request.TwilioOtpGenerateRequest;
@@ -16,6 +17,7 @@ import com.otpservice.otp.domain.exception.InvalidOtpException;
 import com.otpservice.otp.domain.valueobject.OtpCode;
 import com.otpservice.otp.domain.valueobject.TwilioCredentials;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -36,29 +38,31 @@ public class TwilioOtpHttpAdapter {
   private final TwilioSessionSmsSender sessionSmsSender;
   private final GenerateOtpUseCase generateUseCase;
   private final VerifyOtpUseCase verifyUseCase;
+  private final SendRateLimiter rateLimiter;
 
   @PostMapping
   public ResponseEntity<OtpGenerateResponse> generateOtp(
     @Valid @RequestBody TwilioOtpGenerateRequest request,
-    HttpSession session
+    HttpSession session,
+    HttpServletRequest http
   ) {
     TwilioCredentials credentials = requireConnected(session);
+    rateLimiter.check(request.getCellphone().getValue(), http.getRemoteAddr());
     if (!sessionService.accountInfo(session).allows(request.getCellphone())) {
       throw new DestinationNotVerifiedException();
     }
     var command = new GenerateOtpUseCase.GenerateOtpCommand(
       request.getCellphone(),
+      request.getType(),
       request.getDigits(),
       request.getDurationSeconds(),
       request.getMessage()
     );
     GenerateOtpResult result = generateUseCase.generate(
       command,
-      (destination, message) -> sessionSmsSender.send(credentials, destination, message)
+      (destination, message) -> sessionSmsSender.send(credentials, request.getCellphone(), message)
     );
-    return ResponseEntity.status(HttpStatus.CREATED).body(
-      new OtpGenerateResponse(result.success(), result.message(), result.demoCode())
-    );
+    return ResponseEntity.status(HttpStatus.CREATED).body(OtpGenerateResponse.from(result));
   }
 
   @PostMapping("/verify")
@@ -68,9 +72,9 @@ public class TwilioOtpHttpAdapter {
   ) {
     requireConnected(session);
     OtpCode code = toOtpCode(request.getCode());
-    var command = new VerifyOtpUseCase.VerifyOtpCommand(request.getCellphone(), code);
+    var command = new VerifyOtpUseCase.VerifyOtpCommand(request.getCellphone(), request.getType(), code);
     VerifyOtpResult result = verifyUseCase.verify(command);
-    return ResponseEntity.ok(new OtpVerifyResponse(result.success(), result.message()));
+    return ResponseEntity.ok(OtpVerifyResponse.from(result));
   }
 
   private TwilioCredentials requireConnected(HttpSession session) {

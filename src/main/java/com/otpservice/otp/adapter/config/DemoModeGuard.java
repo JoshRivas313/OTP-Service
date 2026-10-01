@@ -14,12 +14,17 @@ public class DemoModeGuard {
 
     private final OtpProperties otpProperties;
     private final SmsProperties smsProperties;
+    private final EmailProperties emailProperties;
 
     @PostConstruct
     void checkNotCombinedWithRealProvider() {
         if (otpProperties.demoMode() && REAL_PROVIDERS.contains(smsProperties.provider())) {
             throw new IllegalStateException(
                     "otp.demo-mode no puede estar activo junto a sms.provider=" + smsProperties.provider());
+        }
+        if (otpProperties.demoMode() && !"console".equals(emailProperties.provider())) {
+            throw new IllegalStateException(
+                    "otp.demo-mode no puede estar activo junto a email.provider=" + emailProperties.provider());
         }
     }
 }

@@ -11,6 +11,11 @@ server:
 spring:
   application:
     name: otp-service
+  web:
+    resources:
+      cache:
+        cachecontrol:
+          no-cache: true
 
 otp:
   digits: 6
@@ -21,12 +26,33 @@ otp:
   demo-mode: ${OTP_DEMO_MODE:false}
   local-api-enabled: ${OTP_LOCAL_API_ENABLED:true}
   memory-max-entries: ${OTP_MEMORY_MAX_ENTRIES:10000}
+  rate-limit-per-destination: ${OTP_RATE_LIMIT_PER_DESTINATION:5}
+  rate-limit-per-ip: ${OTP_RATE_LIMIT_PER_IP:20}
+  rate-limit-window-seconds: ${OTP_RATE_LIMIT_WINDOW_SECONDS:600}
+
+authenticator:
+  issuer: ${AUTHENTICATOR_ISSUER:Un Solo Uso}
+  # AES-256 en Base64 (openssl rand -base64 32). Si se pierde, las apps vinculadas dejan de servir.
+  encryption-key: ${OTP_SECRET_ENCRYPTION_KEY:ZGV2LW9ubHktZW5jcnlwdGlvbi1rZXktY2hhbmdlbWU=}
+  totp-tolerance-steps: 1
+  hotp-look-ahead: 10
+  max-failed-attempts: 5
+  lock-seconds: 600
+  email-verification-max-age-seconds: 600
 
 springdoc:
   api-docs:
     enabled: ${SWAGGER_ENABLED:true}
   swagger-ui:
     enabled: ${SWAGGER_ENABLED:true}
+
+email:
+  provider: ${EMAIL_PROVIDER:console}
+  sender-address: ${EMAIL_SENDER_ADDRESS:}
+  sender-name: ${EMAIL_SENDER_NAME:Un Solo Uso}
+  brevo:
+    api-key: ${BREVO_API_KEY:}
+    base-url: ${BREVO_BASE_URL:https://api.brevo.com}
 
 sms:
   provider: ${SMS_PROVIDER:console}

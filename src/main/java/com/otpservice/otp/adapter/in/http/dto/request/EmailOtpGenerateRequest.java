@@ -1,0 +1,36 @@
+package com.otpservice.otp.adapter.in.http.dto.request;
+
+import com.otpservice.otp.domain.valueobject.OtpProtocol;
+import com.otpservice.otp.domain.valueobject.EmailAddress;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+@Getter
+@AllArgsConstructor
+@NoArgsConstructor
+public class EmailOtpGenerateRequest {
+
+    @NotNull(message = "El correo es obligatorio")
+    private EmailAddress email;
+
+    private OtpProtocol type;
+
+    @Min(value = 4, message = "Mínimo 4 dígitos")
+    @Max(value = 10, message = "Máximo 10 dígitos")
+    private Integer digits;
+
+    @Positive(message = "La duración debe ser mayor a 0 segundos")
+    @Max(value = 86400, message = "La duración no puede superar un día")
+    private Integer durationSeconds;
+
+    @Size(max = 300, message = "El mensaje no puede superar 300 caracteres")
+    @Pattern(regexp = "(?s).*\\{code}.*", message = "El mensaje debe incluir {code}")
+    private String message;
+}

@@ -1,13 +1,15 @@
 package com.otpservice.otp.adapter.in.http.dto.response;
 
-public record OtpGenerateResponse(boolean success, String message, String demoCode) {
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.otpservice.otp.application.dto.GenerateOtpResult;
+import com.otpservice.otp.domain.valueobject.OtpProtocol;
 
-    public static OtpGenerateResponse sent() {
-        return new OtpGenerateResponse(true, "Código enviado correctamente", null);
-    }
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public record OtpGenerateResponse(boolean success, String message, String demoCode, OtpProtocol type,
+                                  Long expiresInSeconds, Long counter, Long timeStep) {
 
-    public static OtpGenerateResponse sentInDemoMode(String code) {
-        return new OtpGenerateResponse(true,
-                "Código enviado (modo demo, no llega SMS real)", code);
+    public static OtpGenerateResponse from(GenerateOtpResult result) {
+        return new OtpGenerateResponse(result.success(), result.message(), result.demoCode(), result.protocol(),
+                result.expiresInSeconds(), result.counter(), result.timeStep());
     }
 }

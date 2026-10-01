@@ -11,8 +11,8 @@ public class OpenApiConfig {
     @Bean
     public OpenAPI otpServiceOpenApi() {
         return new OpenAPI().info(new Info()
-                .title("OTP Service")
-                .description("Generación y verificación de códigos de un solo uso (OTP) con MongoDB y HMAC-SHA256, y envío por SMS con consola, Twilio o Infobip.")
+                .title("Un Solo Uso")
+                .description("Códigos de un solo uso por SMS, correo o app autenticadora, con tres protocolos: OTP aleatorio, HOTP (RFC 4226) y TOTP (RFC 6238).")
                 .version("v0.0.1"));
     }
 }

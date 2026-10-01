@@ -7,7 +7,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
-public final class Cellphone {
+public final class Cellphone implements Destination {
 
     private static final Pattern PATTERN = Pattern.compile("^(\\+51)?9\\d{8}$");
     private static final String COUNTRY_CODE = "+51";
@@ -21,11 +21,13 @@ public final class Cellphone {
         this.value = normalize(candidate);
     }
 
+    @Override
     @JsonValue
     public String getValue() {
         return value;
     }
 
+    @Override
     public String masked() {
         int hidden = value.length() - 3;
         return "*".repeat(hidden) + value.substring(hidden);

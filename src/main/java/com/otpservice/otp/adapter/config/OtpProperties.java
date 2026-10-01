@@ -15,7 +15,10 @@ public record OtpProperties(
         @DefaultValue("Tu código de verificación es %s. Vence en %d segundos.") String messageTemplate,
         @NotBlank String hashSecret,
         @DefaultValue("false") boolean demoMode,
-        @DefaultValue("10000") int memoryMaxEntries
+        @DefaultValue("10000") int memoryMaxEntries,
+        @DefaultValue("5") int rateLimitPerDestination,
+        @DefaultValue("20") int rateLimitPerIp,
+        @DefaultValue("600") int rateLimitWindowSeconds
 ) {
     public static final String INSECURE_DEV_SECRET = "dev-only-secret-change-me";
 

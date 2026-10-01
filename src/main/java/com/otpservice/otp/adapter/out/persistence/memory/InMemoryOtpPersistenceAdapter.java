@@ -33,10 +33,10 @@ public class InMemoryOtpPersistenceAdapter implements OtpPersistencePort {
   }
 
   @Override
-  public synchronized long invalidateActive(String cellphone) {
+  public synchronized long invalidateActive(String destination) {
     long invalidated = 0;
     for (Entry entry : entries.values()) {
-      if (entry.cellphone.equals(cellphone) && !entry.used && !entry.invalidated) {
+      if (entry.destination.equals(destination) && !entry.used && !entry.invalidated) {
         entry.invalidated = true;
         invalidated++;
       }
@@ -57,11 +57,11 @@ public class InMemoryOtpPersistenceAdapter implements OtpPersistencePort {
   }
 
   @Override
-  public synchronized Optional<Otp> findLatestByCellphone(String cellphone) {
+  public synchronized Optional<Otp> findLatestByDestination(String destination) {
     Instant now = clock.instant();
     Entry latest = null;
     for (Entry entry : entries.values()) {
-      if (!entry.cellphone.equals(cellphone) || !entry.purgeAt.isAfter(now)) {
+      if (!entry.destination.equals(destination) || !entry.purgeAt.isAfter(now)) {
         continue;
       }
       if (latest == null || !entry.validityWindow.getGeneratedAt().isBefore(latest.validityWindow.getGeneratedAt())) {
@@ -110,7 +110,7 @@ public class InMemoryOtpPersistenceAdapter implements OtpPersistencePort {
   private static final class Entry {
 
     private final String id;
-    private final String cellphone;
+    private final String destination;
     private final String codeHash;
     private final int digits;
     private final ValidityWindow validityWindow;
@@ -121,7 +121,7 @@ public class InMemoryOtpPersistenceAdapter implements OtpPersistencePort {
 
     private Entry(String id, Otp otp) {
       this.id = id;
-      this.cellphone = otp.getCellphone();
+      this.destination = otp.getDestination();
       this.codeHash = otp.getCodeHash();
       this.digits = otp.getDigits();
       this.validityWindow = otp.getValidityWindow();
@@ -138,7 +138,7 @@ public class InMemoryOtpPersistenceAdapter implements OtpPersistencePort {
     Otp toOtp() {
       return Otp.builder()
         .id(id)
-        .cellphone(cellphone)
+        .destination(destination)
         .codeHash(codeHash)
         .digits(digits)
         .validityWindow(validityWindow)

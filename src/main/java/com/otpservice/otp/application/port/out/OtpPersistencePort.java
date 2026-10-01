@@ -7,11 +7,11 @@ import java.util.Optional;
 // claimIfMatches y registerFailedAttempt son atomicos a proposito: evitan condiciones de carrera al verificar.
 public interface OtpPersistencePort {
 
-  long invalidateActive(String cellphone);
+  long invalidateActive(String destination);
 
   void save(Otp otp);
 
-  Optional<Otp> findLatestByCellphone(String cellphone);
+  Optional<Otp> findLatestByDestination(String destination);
 
   Optional<Otp> claimIfMatches(String id, String codeHash, Instant now, int maxAttempts);
 

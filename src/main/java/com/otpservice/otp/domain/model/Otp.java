@@ -1,6 +1,6 @@
 package com.otpservice.otp.domain.model;
 
-import com.otpservice.otp.domain.valueobject.Cellphone;
+import com.otpservice.otp.domain.valueobject.Destination;
 import com.otpservice.otp.domain.valueobject.ValidityWindow;
 import com.otpservice.otp.domain.valueobject.VerificationStatus;
 import lombok.AllArgsConstructor;
@@ -15,20 +15,20 @@ import java.time.Instant;
 public class Otp {
 
     private final String id;
-    private final String cellphone;
+    private final String destination;
     private final String codeHash;
     private final int digits;
     private final ValidityWindow validityWindow;
     private final VerificationStatus verificationStatus;
     private final Instant purgeAt;
 
-    public record IssueRequest(Cellphone cellphone, String codeHash, int digits,
+    public record IssueRequest(Destination destination, String codeHash, int digits,
                                 ValidityWindow validityWindow, Instant purgeAt) {
     }
 
     public static Otp issue(IssueRequest request) {
         return Otp.builder()
-                .cellphone(request.cellphone().getValue())
+                .destination(request.destination().getValue())
                 .codeHash(request.codeHash())
                 .digits(request.digits())
                 .validityWindow(request.validityWindow())
@@ -59,6 +59,6 @@ public class Otp {
 
     @Override
     public String toString() {
-        return "Otp[id=%s, cellphone=%s, digits=%d]".formatted(id, cellphone, digits);
+        return "Otp[id=%s, destination=%s, digits=%d]".formatted(id, destination, digits);
     }
 }

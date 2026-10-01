@@ -1,5 +1,6 @@
 package com.otpservice.otp.adapter.in.http.dto.request;
 
+import com.otpservice.otp.domain.valueobject.OtpProtocol;
 import com.otpservice.otp.domain.valueobject.Cellphone;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -18,6 +19,8 @@ public class OtpGenerateRequest {
     @NotNull(message = "El celular es obligatorio")
     @Valid
     private Cellphone cellphone;
+
+    private OtpProtocol type;
 
     @Min(value = 4, message = "Mínimo 4 dígitos")
     @Max(value = 10, message = "Máximo 10 dígitos")

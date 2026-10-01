@@ -18,8 +18,8 @@ public class OtpPersistenceAdapter implements OtpPersistencePort {
   private final OtpPersistenceMapper mapper;
 
   @Override
-  public long invalidateActive(String cellphone) {
-    return repository.invalidateActive(cellphone);
+  public long invalidateActive(String destination) {
+    return repository.invalidateActive(destination);
   }
 
   @Override
@@ -28,8 +28,8 @@ public class OtpPersistenceAdapter implements OtpPersistencePort {
   }
 
   @Override
-  public Optional<Otp> findLatestByCellphone(String cellphone) {
-    return repository.findFirstByCellphoneOrderByValidityWindowGeneratedAtDesc(cellphone)
+  public Optional<Otp> findLatestByDestination(String destination) {
+    return repository.findFirstByDestinationOrderByValidityWindowGeneratedAtDesc(destination)
       .map(mapper::toDomain);
   }
 

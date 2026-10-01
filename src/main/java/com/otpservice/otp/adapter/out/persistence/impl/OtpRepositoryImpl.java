@@ -3,7 +3,6 @@ package com.otpservice.otp.adapter.out.persistence.impl;
 import com.otpservice.otp.adapter.out.persistence.document.OtpDocument;
 import com.otpservice.otp.adapter.out.persistence.OtpRepositoryCustom;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -16,19 +15,18 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class OtpRepositoryImpl implements OtpRepositoryCustom {
 
-    private static final String FIELD_CELLPHONE = "cellphone";
+    private static final String FIELD_DESTINATION = "destination";
     private static final String FIELD_CODE_HASH = "codeHash";
     private static final String FIELD_USED = "verificationStatus.used";
     private static final String FIELD_INVALIDATED = "verificationStatus.invalidated";
     private static final String FIELD_ATTEMPTS = "verificationStatus.attempts";
     private static final String FIELD_EXPIRES_AT = "validityWindow.expiresAt";
-    private static final String FIELD_GENERATED_AT = "validityWindow.generatedAt";
 
     private final MongoTemplate mongoTemplate;
 
     @Override
-    public long invalidateActive(String cellphone) {
-        Query query = Query.query(Criteria.where(FIELD_CELLPHONE).is(cellphone)
+    public long invalidateActive(String destination) {
+        Query query = Query.query(Criteria.where(FIELD_DESTINATION).is(destination)
                 .and(FIELD_USED).is(false)
                 .and(FIELD_INVALIDATED).is(false));
 
@@ -50,17 +48,6 @@ public class OtpRepositoryImpl implements OtpRepositoryCustom {
                 Update.update(FIELD_USED, true),
                 FindAndModifyOptions.options().returnNew(true),
                 OtpDocument.class));
-    }
-
-    @Override
-    public Optional<OtpDocument> findPreviousWithCode(String cellphone, String codeHash, String excludedId) {
-        Query query = Query.query(Criteria.where(FIELD_CELLPHONE).is(cellphone)
-                        .and(FIELD_CODE_HASH).is(codeHash)
-                        .and("_id").ne(excludedId))
-                .with(Sort.by(Sort.Direction.DESC, FIELD_GENERATED_AT))
-                .limit(1);
-
-        return Optional.ofNullable(mongoTemplate.findOne(query, OtpDocument.class));
     }
 
     @Override

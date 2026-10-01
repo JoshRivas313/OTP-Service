@@ -12,7 +12,8 @@ import com.otpservice.otp.domain.model.Otp;
 import com.otpservice.otp.application.port.in.VerifyOtpUseCase;
 import com.otpservice.otp.application.port.out.CodeHasherPort;
 import com.otpservice.otp.application.port.out.OtpPersistencePort;
-import com.otpservice.otp.domain.valueobject.Cellphone;
+import com.otpservice.otp.domain.valueobject.Destination;
+import com.otpservice.otp.domain.valueobject.OtpProtocol;
 import java.time.Clock;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
@@ -26,16 +27,24 @@ public class VerifyOtpUseCaseImpl implements VerifyOtpUseCase {
 
   private final OtpPersistencePort persistencePort;
   private final CodeHasherPort codeHasher;
+  private final DeliveredHmacCodes hmacCodes;
   private final OtpProperties properties;
   private final Clock clock;
 
   @Override
   public VerifyOtpResult verify(VerifyOtpCommand command) {
-    Cellphone cellphone = command.cellphone();
+    Destination destination = command.destination();
+    OtpProtocol protocol = command.protocol();
+    if (protocol.isHmac()) {
+      DeliveredHmacCodes.VerifiedCode verified =
+        hmacCodes.verify(destination, protocol.hmacType(), command.code().getValue());
+      log.info("{} verificado destino={}", protocol, destination.masked());
+      return VerifyOtpResult.verified(protocol, verified.counter(), verified.timeStep());
+    }
     Instant now = clock.instant();
     int maxAttempts = properties.maxAttempts();
 
-    Otp otp = persistencePort.findLatestByCellphone(cellphone.getValue())
+    Otp otp = persistencePort.findLatestByDestination(destination.getValue())
       .orElseThrow(OtpNotFoundException::new);
 
     if (otp.isInvalidated()) {
@@ -53,7 +62,7 @@ public class VerifyOtpUseCaseImpl implements VerifyOtpUseCase {
 
     String codeHash = codeHasher.hash(command.code().getValue());
     if (persistencePort.claimIfMatches(otp.getId(), codeHash, now, maxAttempts).isPresent()) {
-      log.info("OTP verificado cellphone={}", cellphone.masked());
+      log.info("OTP verificado destino={}", destination.masked());
       return VerifyOtpResult.verified();
     }
 

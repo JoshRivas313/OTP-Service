@@ -9,5 +9,5 @@ import java.util.Optional;
 @Repository
 public interface OtpRepository extends MongoRepository<OtpDocument, String>, OtpRepositoryCustom {
 
-    Optional<OtpDocument> findFirstByCellphoneOrderByValidityWindowGeneratedAtDesc(String cellphone);
+    Optional<OtpDocument> findFirstByDestinationOrderByValidityWindowGeneratedAtDesc(String destination);
 }

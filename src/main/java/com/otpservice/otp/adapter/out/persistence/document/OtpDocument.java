@@ -20,14 +20,14 @@ import java.time.Instant;
 @NoArgsConstructor
 @ToString
 @Document(collection = "otps")
-@CompoundIndex(name = "otp_cellphone_generated_idx",
-        def = "{'cellphone': 1, 'validityWindow.generatedAt': -1}")
+@CompoundIndex(name = "otp_destination_generated_idx",
+        def = "{'destination': 1, 'validityWindow.generatedAt': -1}")
 public class OtpDocument {
 
     @Id
     private String id;
 
-    private String cellphone;
+    private String destination;
 
     @ToString.Exclude
     private String codeHash;

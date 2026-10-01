@@ -1,14 +1,20 @@
 package com.otpservice.otp.application.port.in;
 
 import com.otpservice.otp.application.dto.GenerateOtpResult;
-import com.otpservice.otp.application.port.out.SmsSender;
-import com.otpservice.otp.domain.valueobject.Cellphone;
+import com.otpservice.otp.application.port.out.MessageSender;
+import com.otpservice.otp.domain.valueobject.Destination;
+import com.otpservice.otp.domain.valueobject.OtpProtocol;
 
 public interface GenerateOtpUseCase {
 
-  GenerateOtpResult generate(GenerateOtpCommand command);
+  GenerateOtpResult generate(GenerateOtpCommand command, MessageSender sender);
 
-  GenerateOtpResult generate(GenerateOtpCommand command, SmsSender sender);
+  // durationSeconds: vigencia en OTP, ventana en TOTP; HOTP lo ignora.
+  record GenerateOtpCommand(Destination destination, OtpProtocol protocol, Integer digits, Integer durationSeconds,
+                            String customMessage) {
 
-  record GenerateOtpCommand(Cellphone cellphone, Integer digits, Integer durationSeconds, String customMessage) {}
+    public GenerateOtpCommand {
+      protocol = protocol != null ? protocol : OtpProtocol.OTP;
+    }
+  }
 }

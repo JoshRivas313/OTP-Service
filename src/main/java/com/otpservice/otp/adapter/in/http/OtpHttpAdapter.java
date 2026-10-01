@@ -1,15 +1,18 @@
 package com.otpservice.otp.adapter.in.http;
 
+import com.otpservice.otp.adapter.config.SendRateLimiter;
 import com.otpservice.otp.application.dto.GenerateOtpResult;
 import com.otpservice.otp.application.dto.VerifyOtpResult;
 import com.otpservice.otp.application.port.in.GenerateOtpUseCase;
 import com.otpservice.otp.application.port.in.VerifyOtpUseCase;
+import com.otpservice.otp.application.port.out.SmsSender;
 import com.otpservice.otp.adapter.in.http.dto.request.OtpGenerateRequest;
 import com.otpservice.otp.adapter.in.http.dto.request.OtpVerifyRequest;
 import com.otpservice.otp.adapter.in.http.dto.response.OtpGenerateResponse;
 import com.otpservice.otp.adapter.in.http.dto.response.OtpVerifyResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
@@ -28,16 +31,26 @@ public class OtpHttpAdapter {
 
   private final GenerateOtpUseCase generateUseCase;
   private final VerifyOtpUseCase verifyUseCase;
+  private final SmsSender smsSender;
+  private final SendRateLimiter rateLimiter;
 
   @PostMapping
-  public ResponseEntity<OtpGenerateResponse> generateOtp(@Valid @RequestBody OtpGenerateRequest request) {
+  public ResponseEntity<OtpGenerateResponse> generateOtp(
+    @Valid @RequestBody OtpGenerateRequest request,
+    HttpServletRequest http
+  ) {
+    rateLimiter.check(request.getCellphone().getValue(), http.getRemoteAddr());
     var command = new GenerateOtpUseCase.GenerateOtpCommand(
       request.getCellphone(),
+      request.getType(),
       request.getDigits(),
       request.getDurationSeconds(),
       null
     );
-    GenerateOtpResult result = generateUseCase.generate(command);
+    GenerateOtpResult result = generateUseCase.generate(
+      command,
+      (destination, message) -> smsSender.send(request.getCellphone(), message)
+    );
     return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(result));
   }
 
@@ -45,13 +58,14 @@ public class OtpHttpAdapter {
   public ResponseEntity<OtpVerifyResponse> verifyOtp(@Valid @RequestBody OtpVerifyRequest request) {
     var command = new VerifyOtpUseCase.VerifyOtpCommand(
       request.getCellphone(),
+      request.getType(),
       request.getCode()
     );
     VerifyOtpResult result = verifyUseCase.verify(command);
-    return ResponseEntity.ok(new OtpVerifyResponse(result.success(), result.message()));
+    return ResponseEntity.ok(OtpVerifyResponse.from(result));
   }
 
   private OtpGenerateResponse toResponse(GenerateOtpResult result) {
-    return new OtpGenerateResponse(result.success(), result.message(), result.demoCode());
+    return OtpGenerateResponse.from(result);
   }
 }
