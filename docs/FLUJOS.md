@@ -97,18 +97,21 @@ Con HOTP y TOTP no hay hash guardado: el servidor recalcula el código con el se
 
 ```mermaid
 flowchart TD
-    A["POST .../verify con type HOTP o TOTP"] --> B{"¿Hay secreto para destino y tipo?"}
+    A["POST .../verify con type HOTP o TOTP"] --> R{"¿Límite de verificaciones por destino o IP?"}
+    R -- superado --> X0["429 RATE_LIMIT_EXCEEDED"]
+    R -- ok --> B{"¿Hay secreto para destino, tipo y propósito?"}
     B -- no --> X1["404 OTP_NOT_FOUND"]
     B -- sí --> D{"¿Bloqueado?"}
     D -- sí --> X3["423 OTP_BLOCKED"]
     D -- no --> E["Descifrar el secreto (AES-256-GCM)"]
     E --> F{"Tipo"}
     F -- TOTP --> G["Recalcular para las ventanas T-1, T y T+1"]
-    F -- HOTP --> H["Recalcular para los contadores enviados y sin usar"]
+    F -- HOTP --> H["Recalcular los últimos 10 contadores enviados y sin usar"]
     G --> I{"¿Coincide?"}
     H --> I
     I -- "sí, con una ventana o contador ya usado" --> X4["409 OTP_ALREADY_USED"]
     I -- "TOTP de una ventana ya cerrada" --> X6["410 OTP_EXPIRED"]
+    I -- "HOTP emitido pero detrás de 10 más nuevos" --> X7["409 OTP_INVALIDATED"]
     I -- no --> J["Sumar un fallo"]
     J --> K{"¿3 fallos seguidos?"}
     K -- sí --> X3
@@ -118,4 +121,4 @@ flowchart TD
     L -- ok --> OK["200 Código verificado"]
 ```
 
-El bloqueo se levanta al pedir un código nuevo para ese destino.
+El bloqueo dura `OTP_LOCK_SECONDS` (600 s por defecto) y solo afecta a ese destino, tipo y propósito. Pedir un código nuevo **no** lo levanta: mientras dura, enviar también responde `423 OTP_BLOCKED`.

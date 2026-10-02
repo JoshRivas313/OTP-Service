@@ -24,6 +24,7 @@ adapter  ->  application  ->  domain
 src/main/java/com/otpservice/otp/
 ├── domain/                                Reglas de negocio, sin Spring
 │   ├── model/Otp                           Modelo del OTP (isExpired, isBlocked, isUsed...)
+│   ├── model/OtpStatus                     Estado de un código; el orden de declaración es la prioridad
 │   ├── model/HmacCredential                Secreto de HOTP/TOTP con su contador o ventana
 │   ├── valueobject/                        Destination, Cellphone, EmailAddress, OtpCode,
 │   │                                       ValidityWindow, VerificationStatus, TwilioCredentials,
@@ -79,7 +80,8 @@ src/main/java/com/otpservice/otp/
     └── config/                              ClockConfig, OtpProperties, OtpConfig, SmsProperties,
                                              SmsProvider, EmailProperties, EmailProvider,
                                              HmacProperties, HmacConfig, SendRateLimiter,
-                                             DemoModeGuard, OpenApiConfig
+                                             VerifyRateLimiter, SlidingWindowLimiter,
+                                             DemoModeGuard, ProductionSecretsGuard, OpenApiConfig
 ```
 
 Los recursos estáticos (interfaz web) están en `src/main/resources/static/`.
@@ -139,6 +141,9 @@ Cada regla de negocio que puede fallar tiene su propia excepción, y todas extie
 - **El tiempo entra por `java.time.Clock`.** No hay `Instant.now()` en el código.
 - **`domain` no conoce HTTP.** Los casos de uso devuelven `GenerateOtpResult` / `VerifyOtpResult`, no los DTO de la API.
 - **Agregar un proveedor de SMS es agregar una clase.** Implementa `SmsSender`, lleva `@ConditionalOnProperty(name = "sms.provider", havingValue = "...")` y sus propiedades van en `SmsProperties`. Ver [PROVEEDORES_SMS.md](./PROVEEDORES_SMS.md).
+- **El propósito es parte de la identidad del código.** `Purpose` (`LOGIN`, `REGISTER`, `PASSWORD_RECOVERY`, `PAYMENT_CONFIRMATION`) viaja en `GenerateOtpCommand` y `VerifyOtpCommand`. El OTP aleatorio se busca por destino + propósito; las credenciales HOTP/TOTP, por destino + tipo + propósito, y el propósito entra en los datos asociados del cifrado del secreto.
+- **El bloqueo de HOTP/TOTP no se reinicia al emitir.** `HmacCodeProtocol.issue` rechaza con `OtpBlockedException` mientras `lockedUntil` no venza, y la persistencia no toca `failedAttempts` ni `lockedUntil` al emitir. Los fallos vuelven a cero solo al acertar o al bloquearse; el bloqueo dura `otp.lock-seconds`, separado de la retención.
+- **Dos limitadores, una sola implementación.** `SendRateLimiter` y `VerifyRateLimiter` envuelven un `SlidingWindowLimiter` (ventana deslizante por destino y por IP) con sus propios límites. La IP es `getRemoteAddr()`, que fija Tomcat con `RemoteIpValve` confiando solo en proxies conocidos (ver [IP del cliente](../README.md#ip-del-cliente)).
 - **Cada protocolo es una clase (`CodeProtocol`).** `RandomCodeProtocol`, `HotpProtocol` y `TotpProtocol` implementan emitir y verificar; `HmacCodeProtocol` concentra lo que HOTP y TOTP comparten (secreto cifrado, bloqueo por intentos, orden de la verificación). Los casos de uso piden el protocolo a `CodeProtocols` y no preguntan cuál es: agregar uno nuevo es agregar una clase.
 - **La configuración que necesita la aplicación entra como `OtpSettings`**, igual que `HmacSettings`, y la arma `OtpConfig` desde `OtpProperties`. Así `application` no importa nada de `adapter`.
 - **Los proveedores son enums (`SmsProvider`, `EmailProvider`).** Un valor mal escrito en `SMS_PROVIDER` falla al arrancar con los valores válidos, y `isReal()` reemplaza las comparaciones de texto.
@@ -153,5 +158,5 @@ Cada regla de negocio que puede fallar tiene su propia excepción, y todas extie
 
 1. **`domain` usa anotaciones de Jackson** en `Cellphone` y `OtpCode` (`@JsonCreator`, `@JsonValue`) y Lombok en `Otp` (solo en compilación). No hay Spring, MongoDB, Twilio ni HTTP en `domain`, pero no compila como Java puro sin las anotaciones de Jackson.
 2. **El almacenamiento en memoria no sobrevive a un reinicio ni se comparte entre instancias.** Ver [BASE_DE_DATOS.md](./BASE_DE_DATOS.md#almacenamiento-en-memoria).
-3. **Los errores de formato devuelven el cuerpo estándar de Spring.** Un celular o código con formato inválido y un JSON malformado responden `400` con `{"timestamp", "status", "error", "path"}`, no con el formato `{success, code, message}` del resto de la API.
-4. **Sin autenticación** en los endpoints; hay un límite de envíos por destino y por IP, pero no lo reemplaza. Ver [Limitaciones conocidas](../README.md#limitaciones-conocidas).
+3. **Los errores de formato dan un mensaje genérico.** Un JSON malformado o un valor que no se puede leer (celular o correo inválido, `purpose` o `type` desconocido) responde `400 VALIDATION_ERROR` con el formato `{success, code, message}`, pero el mensaje no dice qué campo falló.
+4. **Sin autenticación** en los endpoints; hay límites de envíos y de verificaciones por destino y por IP, pero no la reemplazan. Ver [Limitaciones conocidas](../README.md#limitaciones-conocidas).

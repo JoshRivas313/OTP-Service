@@ -22,13 +22,14 @@ Colección: `otps`. Clase: `OtpDocument` (`adapter/out/persistence/document`). E
 |---|---|---|
 | `_id` | ObjectId | Identificador del documento |
 | `destination` | string | Celular normalizado con prefijo (`+51912345678`) o correo en minúsculas (`visitante@correo.com`) |
+| `purpose` | string | `LOGIN`, `REGISTER`, `PASSWORD_RECOVERY` o `PAYMENT_CONFIRMATION`. El código solo se verifica con este propósito |
 | `codeHash` | string | HMAC-SHA256 del código en hexadecimal (64 caracteres). Nunca se guarda el código |
 | `digits` | int | Cantidad de dígitos del código |
 | `validityWindow.generatedAt` | date | Momento de emisión |
 | `validityWindow.expiresAt` | date | Momento en que expira |
 | `verificationStatus.attempts` | int | Intentos fallidos acumulados |
 | `verificationStatus.used` | boolean | `true` cuando el código ya se verificó |
-| `verificationStatus.invalidated` | boolean | `true` cuando se emitió uno más reciente para el mismo destino |
+| `verificationStatus.invalidated` | boolean | `true` cuando se emitió uno más reciente para el mismo destino y propósito |
 | `purgeAt` | date | `expiresAt` más el tiempo de retención (86400 s por defecto). Lo usa el índice TTL |
 
 Ejemplo ilustrativo:
@@ -37,6 +38,7 @@ Ejemplo ilustrativo:
 {
   "_id": { "$oid": "6ab4a50af570751a6a05454e" },
   "destination": "+51912345678",
+  "purpose": "LOGIN",
   "codeHash": "2bf48820fa7831b689bb65976e231370457fd3347d76c8e010d0aef2aa6018e8",
   "digits": 6,
   "validityWindow": {
@@ -86,7 +88,7 @@ La clase `OtpDocument` declara dos índices:
 
 | Nombre | Campos | Para qué |
 |---|---|---|
-| `otp_destination_generated_idx` | `{ destination: 1, "validityWindow.generatedAt": -1 }` | Buscar el código más reciente de un destino |
+| `otp_destination_purpose_generated_idx` | `{ destination: 1, purpose: 1, "validityWindow.generatedAt": -1 }` | Buscar el código más reciente de un destino para un propósito |
 | `otp_purge_ttl_idx` | `{ purgeAt: 1 }` con `expireAfterSeconds: 0` | Que MongoDB borre solo los documentos cuando llega `purgeAt` |
 
 Con el perfil `mongo`, la aplicación crea los dos índices al arrancar (`spring.data.mongodb.auto-index-creation: true`). Al crear el índice TTL sobre una colección que ya tiene datos, MongoDB borra de inmediato los documentos cuyo `purgeAt` ya pasó, y después ejecuta el borrado aproximadamente cada minuto.
@@ -96,32 +98,41 @@ Si prefieres crearlos a mano, con `mongosh`:
 ```js
 use otp_service
 db.otps.createIndex({ purgeAt: 1 }, { name: "otp_purge_ttl_idx", expireAfterSeconds: 0 })
-db.otps.createIndex({ destination: 1, "validityWindow.generatedAt": -1 }, { name: "otp_destination_generated_idx" })
+db.otps.createIndex({ destination: 1, purpose: 1, "validityWindow.generatedAt": -1 }, { name: "otp_destination_purpose_generated_idx" })
 ```
 
 ---
 
 ## Credenciales HOTP y TOTP
 
-Colección `hmac_credentials`: un secreto por destino y tipo (HOTP o TOTP). El servidor calcula el código con ese secreto y lo envía por SMS o correo.
+Colección `hmac_credentials`: un secreto por destino, tipo (HOTP o TOTP) y propósito. El servidor calcula el código con ese secreto y lo envía por SMS o correo.
 
 | Campo | Tipo | Notas |
 |---|---|---|
 | `_id` | String | |
 | `destination` | String | Celular o correo normalizado |
 | `type` | String | `HOTP` o `TOTP` |
+| `purpose` | String | Propósito de la credencial. También va en los datos asociados (AAD) del cifrado: un secreto copiado a otro propósito no se descifra |
 | `secretCiphertext` | Binary | Secreto cifrado con AES-256-GCM (`OTP_SECRET_ENCRYPTION_KEY`) |
 | `secretNonce` | Binary | 12 bytes, distinto en cada cifrado |
 | `digits` | int | 6 u 8 |
 | `periodSeconds` | int | TOTP: entre 15 y 300. HOTP: 0 |
 | `counter` | long | HOTP: próximo contador que se acepta |
-| `issuedCounter` | long | HOTP: próximo contador que se emite. Los contadores entre `counter` e `issuedCounter` son códigos enviados y aún sin usar |
+| `issuedCounter` | long | HOTP: próximo contador que se emite. Los contadores entre `counter` e `issuedCounter` son códigos enviados y aún sin usar. En TOTP queda en 0: el código depende solo de `T = floor(unix / periodSeconds)` |
 | `lastUsedTimeStep` | long | TOTP: última ventana aceptada (`-1` si ninguna) |
-| `failedAttempts` | int | Fallos seguidos; vuelve a 0 al acertar o al bloquear |
-| `lockedUntil` | Date | Fin del bloqueo, o ausente |
+| `failedAttempts` | int | Fallos seguidos; vuelve a 0 al acertar o al bloquear. Emitir un código no lo reinicia |
+| `lockedUntil` | Date | Fin del bloqueo (`OTP_LOCK_SECONDS` después del tercer fallo), o ausente. Emitir un código no lo borra: mientras dura, enviar también responde `423` |
 | `createdAt` | Date | |
 
-**Índice:** `credential_destination_type_idx`, único sobre `{ destination: 1, type: 1 }`.
+**Índice:** `credential_destination_type_purpose_idx`, único sobre `{ destination: 1, type: 1, purpose: 1 }`.
+
+**Migración desde la versión sin propósito:** una base creada antes tiene el índice único `credential_destination_type_idx` sobre `{ destination: 1, type: 1 }`, que impide crear una segunda credencial del mismo destino y tipo con otro propósito. Hay que borrarlo una vez; la aplicación crea el nuevo al arrancar. Los documentos viejos sin `purpose` quedan sin uso (ninguna consulta los encuentra) y los códigos OTP viejos vencen solos.
+
+```js
+use otp_service
+db.hmac_credentials.dropIndex("credential_destination_type_idx")
+db.otps.dropIndex("otp_destination_generated_idx")
+```
 
 **Operaciones atómicas:** aceptar un código es un `updateFirst` condicionado. En TOTP, `lastUsedTimeStep < ventana`; en HOTP, `counter == esperado`. Si dos peticiones llegan con el mismo código, solo una modifica el documento y la otra recibe `409 OTP_ALREADY_USED`. Los fallos suman con `$inc`.
 

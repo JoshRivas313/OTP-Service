@@ -24,9 +24,13 @@ Referencia de los endpoints. La documentación interactiva se genera con springd
 - **Celular:** solo números peruanos. Se acepta `9XXXXXXXX` o `+519XXXXXXXX` (9 dígitos que empiezan con 9) y se normaliza a `+519XXXXXXXX`.
 - **Código:** entre 4 y 10 dígitos en OTP; entre 6 y 8 en HOTP y TOTP.
 - **Protocolo (`type`):** los endpoints de envío y de verificación aceptan `OTP` (por defecto), `HOTP` o `TOTP`. Al verificar se manda el mismo `type` con el que se envió. Con HOTP y TOTP el servidor no guarda el código: lo recalcula.
+- **Propósito (`purpose`):** `LOGIN` (por defecto), `REGISTER`, `PASSWORD_RECOVERY` o `PAYMENT_CONFIRMATION`. Forma parte de la identidad del código: se verifica con el mismo `purpose` con el que se pidió, y uno pedido para `LOGIN` responde `404 OTP_NOT_FOUND` si se intenta verificar como `PAYMENT_CONFIRMATION`. Cada destino tiene un código (OTP) o una credencial (HOTP/TOTP) independiente por propósito. Un valor desconocido responde `400 VALIDATION_ERROR`.
 - **Respuesta de envío:** además de `success` y `message` trae `type`, `expiresInSeconds` (ausente en HOTP), `counter` (HOTP) o `timeStep` (TOTP). `demoCode` solo aparece con `OTP_DEMO_MODE=true`.
 - **Correo:** dirección válida de hasta 254 caracteres. Se normaliza a minúsculas.
 - **Límite de envíos:** los endpoints que generan códigos aceptan por defecto 5 envíos por destino y 20 por IP cada 10 minutos; el siguiente responde `429 RATE_LIMIT_EXCEEDED`.
+- **Límite de verificaciones:** aparte del anterior, los endpoints `/verify` aceptan por defecto 10 verificaciones por destino y 30 por IP cada 10 minutos, correctas o no; la siguiente responde `429 RATE_LIMIT_EXCEEDED`. Frena la fuerza bruta que reparte intentos entre códigos nuevos o entre destinos.
+- **Bloqueo de HOTP y TOTP:** 3 fallos bloquean la credencial de ese destino y propósito durante `OTP_LOCK_SECONDS` (600 s). Mientras dura, enviar y verificar responden `423 OTP_BLOCKED`; pedir otro código no lo levanta.
+- **IP del cliente:** la fija Tomcat confiando solo en proxies conocidos; ver [IP del cliente](../README.md#ip-del-cliente).
 
 ---
 
@@ -42,6 +46,7 @@ Genera un código y lo envía. Generar un código nuevo invalida los anteriores 
 |---|---|---|
 | `cellphone` | sí | Celular peruano |
 | `type` | no | `OTP`, `HOTP` o `TOTP`. Por defecto `OTP` |
+| `purpose` | no | `LOGIN`, `REGISTER`, `PASSWORD_RECOVERY` o `PAYMENT_CONFIRMATION`. Por defecto `LOGIN` |
 | `digits` | no | Entero de 4 a 10 (6 a 8 en HOTP y TOTP). Por defecto 6 |
 | `durationSeconds` | no | OTP: vigencia, de 1 a 86400. TOTP: ventana, de 15 a 300. HOTP: se ignora. Por defecto 30 |
 
@@ -78,6 +83,7 @@ Un código correcto solo se acepta una vez.
 |---|---|---|
 | `cellphone` | sí | Celular peruano |
 | `type` | no | El protocolo con el que se envió. Por defecto `OTP` |
+| `purpose` | no | El propósito con el que se pidió. Por defecto `LOGIN` |
 | `code` | sí | De 4 a 10 dígitos |
 
 **Request**
@@ -241,7 +247,7 @@ La interfaz web siempre envía `message`: el texto del propósito elegido (por e
 {
   "success": false,
   "code": "TWILIO_NOT_CONNECTED",
-  "message": "Primero conectá tu cuenta de Twilio"
+  "message": "Primero conecta tu cuenta de Twilio"
 }
 ```
 
@@ -297,6 +303,7 @@ Usan el proveedor de correo elegido con `EMAIL_PROVIDER` (`console` por defecto)
 |---|---|---|
 | `email` | sí | Correo electrónico válido |
 | `type` | no | `OTP`, `HOTP` o `TOTP`. Por defecto `OTP` |
+| `purpose` | no | `LOGIN`, `REGISTER`, `PASSWORD_RECOVERY` o `PAYMENT_CONFIRMATION`. Por defecto `LOGIN` |
 | `digits` | no | De 4 a 10 (6 a 8 en HOTP y TOTP). Por defecto 6 |
 | `durationSeconds` | no | OTP: vigencia, de 1 a 86400. TOTP: ventana, de 15 a 300. HOTP: se ignora. Por defecto 30 |
 | `message` | no | Texto del correo. Máximo 300 caracteres y debe contener `{code}`. `{seconds}` se reemplaza por los segundos de vigencia |
@@ -329,7 +336,7 @@ Usan el proveedor de correo elegido con `EMAIL_PROVIDER` (`console` por defecto)
 {
   "success": false,
   "code": "RATE_LIMIT_EXCEEDED",
-  "message": "Demasiados envíos seguidos. Probá de nuevo en unos minutos"
+  "message": "Demasiados envíos seguidos. Prueba de nuevo en unos minutos"
 }
 ```
 
@@ -386,26 +393,44 @@ Responde `200` mientras la aplicación esté levantada. Sirve como Health Check 
 
 `storage` es `memory` o `mongo`. En memoria, un reinicio borra los códigos pendientes y los secretos de HOTP y TOTP.
 
+### GET /api/otp-policy — Reglas de verificación
+
+Devuelve los valores que aplica la verificación. La interfaz los usa para explicar la tolerancia de TOTP y los límites con los mismos números que el servidor.
+
+**Response** `200`
+
+```json
+{
+  "totpToleranceSteps": 1,
+  "hotpLookAhead": 10,
+  "maxAttempts": 3,
+  "lockSeconds": 600
+}
+```
+
+- `totpToleranceSteps`: ventanas vecinas que se aceptan. Con 1, un TOTP vale entre 30 y 60 s según cuándo se generó.
+- `hotpLookAhead`: cuántos HOTP emitidos sin usar se aceptan (los más recientes).
+
 ---
 
 ## Códigos de error
 
 | Código | HTTP | Cuándo |
 |---|---|---|
-| `OTP_NOT_FOUND` | 404 | No hay ningún código para ese celular |
-| `OTP_INVALIDATED` | 409 | Se generó uno más reciente para el mismo celular |
+| `OTP_NOT_FOUND` | 404 | No hay ningún código para ese destino, protocolo y propósito |
+| `OTP_INVALIDATED` | 409 | Se generó uno más reciente para el mismo destino y propósito. En HOTP: el código quedó detrás de 10 más nuevos sin usar (no gasta intento) |
 | `OTP_ALREADY_USED` | 409 | El código ya se verificó antes |
 | `OTP_EXPIRED` | 410 | Pasó la duración del código |
-| `OTP_BLOCKED` | 423 | Se alcanzó el máximo de intentos fallidos |
+| `OTP_BLOCKED` | 423 | Se alcanzó el máximo de intentos fallidos. En HOTP y TOTP dura `OTP_LOCK_SECONDS` y también rechaza pedir otro código |
 | `OTP_INVALID` | 401 | El código es incorrecto |
 | `OTP_INVALID_REQUEST` | 400 | HOTP o TOTP con menos de 6 o más de 8 dígitos, o TOTP con una ventana fuera de 15 a 300 s |
 | `SMS_DELIVERY_FAILED` | 502 | El proveedor de SMS rechazó o no pudo enviar el mensaje. Con Twilio, `message` explica la causa cuando se conoce (número no verificado en una cuenta de prueba, país sin permiso, remitente sin SMS) y el log del servidor registra el código de error de Twilio |
 | `EMAIL_DELIVERY_FAILED` | 502 | El proveedor de correo rechazó o no pudo enviar el mensaje. El log del servidor registra el motivo que devolvió el proveedor |
-| `RATE_LIMIT_EXCEEDED` | 429 | Se superó el límite de envíos para ese destino o esa IP |
+| `RATE_LIMIT_EXCEEDED` | 429 | Se superó el límite de envíos o el de verificaciones para ese destino o esa IP |
 | `TWILIO_CREDENTIALS_INVALID` | 401 | Credenciales de Twilio con formato inválido o rechazadas por Twilio |
 | `TWILIO_NOT_CONNECTED` | 400 | El flujo de Twilio se usó sin conectar una cuenta en la sesión |
 | `DESTINATION_NOT_VERIFIED` | 403 | La cuenta de Twilio conectada solo puede enviar a sus números verificados y el destino no es uno de ellos |
-| `VALIDATION_ERROR` | 400 | Un campo obligatorio falta o está fuera de rango |
+| `VALIDATION_ERROR` | 400 | Un campo obligatorio falta o está fuera de rango, o un valor no existe en su catálogo (por ejemplo un `purpose` desconocido) |
 
 Mensajes de `VALIDATION_ERROR` (formato `campo: mensaje`):
 
@@ -430,28 +455,27 @@ Mensajes de `VALIDATION_ERROR` (formato `campo: mensaje`):
 
 ## Errores de formato
 
-Si el celular o el código no tienen un formato válido, o el JSON está mal formado, la API responde `400` con el cuerpo estándar de Spring y no con el formato `{success, code, message}`:
+Si un campo no se puede leer (celular o correo inválido, `code` con formato inválido, `type` o `purpose` desconocido) o el JSON está mal formado, la API responde `400 VALIDATION_ERROR` con el formato habitual y un mensaje genérico:
 
 **Response `400`**
 
 ```json
 {
-  "timestamp": "2026-09-29T03:23:27.369Z",
-  "status": 400,
-  "error": "Bad Request",
-  "path": "/otps"
+  "success": false,
+  "code": "VALIDATION_ERROR",
+  "message": "Solicitud inválida: revisa los valores enviados"
 }
 ```
 
-Casos comprobados con `POST /otps` y `POST /otps/verify`:
+Casos comprobados con `POST /otps`, `POST /otps/verify` y `POST /api/twilio/otps`:
 
 | Entrada | Resultado |
 |---|---|
-| Celular de 8 dígitos | `400` estándar |
-| 9 dígitos que no empiezan con 9 | `400` estándar |
-| Celular de otro país (`+15551234567`) | `400` estándar |
-| `code` de 3 dígitos en `/otps/verify` | `400` estándar |
-| `message` sin `{code}` o de más de 300 caracteres, en `/api/twilio/otps` | `400` estándar |
-| JSON mal formado | `400` estándar |
-
-Quien consuma la API debe tratar cualquier `400` sin `code` como un error de formato de la petición.
+| Celular de 8 dígitos | `400 VALIDATION_ERROR` |
+| 9 dígitos que no empiezan con 9 | `400 VALIDATION_ERROR` |
+| Celular de otro país (`+15551234567`) | `400 VALIDATION_ERROR` |
+| `type` desconocido | `400 VALIDATION_ERROR` |
+| `purpose` desconocido | `400 VALIDATION_ERROR` |
+| `code` de 3 dígitos en `/otps/verify` | `400 VALIDATION_ERROR` |
+| `message` sin `{code}` en `/api/twilio/otps` | `400 VALIDATION_ERROR` con `message: El mensaje debe incluir {code}` |
+| JSON mal formado | `400 VALIDATION_ERROR` |

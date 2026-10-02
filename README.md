@@ -63,14 +63,18 @@ El proveedor nunca sabe si un código es correcto. Más detalle en [PROVEEDORES_
 - Códigos de 4 a 10 dígitos (6 por defecto), generados con `SecureRandom`
 - Duración configurable por petición, de 1 a 86.400 segundos (30 por defecto)
 - Máximo de intentos por código (3 por defecto): el intento fallido que llega al máximo bloquea el código
-- Generar un código nuevo invalida los anteriores del mismo destino (celular o correo)
+- Cada código va ligado a un propósito (`LOGIN`, `REGISTER`, `PASSWORD_RECOVERY`, `PAYMENT_CONFIRMATION`): uno pedido para iniciar sesión no confirma un pago
+- Generar un código nuevo invalida los anteriores del mismo destino y propósito
 - Cada código se acepta una sola vez
 
 ### Seguridad
 - Nunca se guarda el código, solo su hash HMAC-SHA256 con clave (`OTP_HASH_SECRET`)
 - Verificación atómica (en memoria o en MongoDB): sin condiciones de carrera entre verificaciones simultáneas
 - Validación del celular (formato peruano `+51 9XXXXXXXX`) y del correo electrónico
-- Límite de envíos por destino y por IP (`429 RATE_LIMIT_EXCEEDED`), configurable
+- Límite de envíos y, aparte, límite de verificaciones, ambos por destino y por IP (`429 RATE_LIMIT_EXCEEDED`)
+- La IP del cliente la fija Tomcat (`RemoteIpValve`) confiando solo en proxies conocidos: un `X-Forwarded-For` inventado no crea identidades nuevas
+- HOTP y TOTP se bloquean `OTP_LOCK_SECONDS` tras 3 fallos, y pedir otro código no levanta el bloqueo
+- Con el perfil `prod` la aplicación no arranca sin `OTP_HASH_SECRET` y `OTP_SECRET_ENCRYPTION_KEY` propios, y el log no muestra códigos
 - Las credenciales de Twilio viven solo en la memoria del servidor, ligadas a la sesión HTTP (15 minutos), y no se escriben en ninguna base de datos ni en el log
 - El modo demo no puede combinarse con un proveedor de SMS real (la aplicación no arranca)
 
@@ -116,15 +120,15 @@ El proveedor nunca sabe si un código es correcto. Más detalle en [PROVEEDORES_
 
 ## OTP, HOTP y TOTP
 
-Primero se elige **el canal** (SMS o correo) y después **el protocolo**. Lo que cambia entre protocolos es cómo se obtiene el código, qué guarda el servidor y qué lo invalida:
+El **tipo de OTP** decide cómo se obtiene y se comprueba el código; **el canal** (SMS o correo) solo lo entrega. Lo que cambia entre tipos:
 
-| | OTP | HOTP | TOTP |
+| | OTP aleatorio | HOTP | TOTP |
 |---|---|---|---|
-| Cómo se obtiene el código | Número aleatorio (`SecureRandom`) | `HMAC-SHA1(secreto, contador)` · [RFC 4226](https://www.rfc-editor.org/rfc/rfc4226) | `HMAC-SHA1(secreto, ⌊hora ÷ ventana⌋)` · [RFC 6238](https://www.rfc-editor.org/rfc/rfc6238) |
+| Cómo se obtiene el código | Número aleatorio (`SecureRandom`) | `Truncar(HMAC-SHA1(secreto, contador)) mod 10^dígitos` · [RFC 4226](https://www.rfc-editor.org/rfc/rfc4226) | `HOTP(secreto, T)` con `T = ⌊hora Unix ÷ ventana⌋` · [RFC 6238](https://www.rfc-editor.org/rfc/rfc6238) |
 | Qué guarda el servidor | El hash del código enviado | El secreto cifrado y el contador | El secreto cifrado y la última ventana usada |
-| Cómo verifica | Compara con el hash guardado | Recalcula con los contadores pendientes | Recalcula con la ventana actual ±1 |
-| Qué lo invalida | El tiempo y el uso | Solo el uso | El fin de su ventana y el uso |
-| Pedir otro código | Invalida el anterior | Avanza el contador; los anteriores siguen valiendo hasta que se usa uno posterior | En la misma ventana llega el mismo código |
+| Cómo verifica | Compara con el hash guardado | Recalcula los últimos 10 contadores emitidos sin usar (`hmac.hotp-look-ahead`); nunca uno no emitido | Recalcula la ventana actual ± la tolerancia (`hmac.totp-tolerance-steps`, 1) |
+| Qué lo invalida | El uso, el tiempo y pedir otro | El uso (suyo o de uno posterior) o quedar detrás de 10 más nuevos | El fin de su ventana y la tolerancia (30–60 s), y el uso |
+| Pedir otro código | Invalida el anterior | Avanza el contador; los 10 más recientes siguen valiendo hasta que se usa uno posterior | En la misma ventana llega el mismo código |
 | Canales | SMS y correo | SMS y correo | SMS y correo |
 
 En HOTP y TOTP el servidor hace de dispositivo: calcula el código con el secreto y lo envía por SMS o correo. Es el mismo cálculo que hacen Google Authenticator y otras apps autenticadoras.
@@ -416,10 +420,10 @@ La aplicación lee estas variables del entorno del sistema. **El archivo `.env` 
 
 | Variable | Por defecto | Descripción |
 |---|---|---|
-| `SPRING_PROFILES_ACTIVE` | vacío | `mongo` activa el almacenamiento en MongoDB. Sin él, los códigos se guardan en memoria |
+| `SPRING_PROFILES_ACTIVE` | vacío (`prod` en la imagen Docker) | `mongo` activa el almacenamiento en MongoDB; sin él, los códigos se guardan en memoria. `prod` exige claves propias y apaga los códigos en el log. Se combinan con coma: `prod,mongo` |
 | `MONGODB_URI` | `mongodb://localhost:27017/otp_service` | Conexión a MongoDB. Solo se lee con el perfil `mongo` |
-| `OTP_HASH_SECRET` | `dev-only-secret-change-me` | Clave del HMAC-SHA256. Cámbiala fuera de desarrollo: la aplicación avisa si queda el valor por defecto |
-| `OTP_SECRET_ENCRYPTION_KEY` | clave de desarrollo | Clave AES-256 en Base64 (32 bytes) que cifra los secretos de HOTP y TOTP. Generala con `openssl rand -base64 32`. Si se pierde o se cambia, los secretos guardados dejan de servir y cada destino necesita un código nuevo |
+| `OTP_HASH_SECRET` | `dev-only-secret-change-me` | Clave del HMAC-SHA256. Con el perfil `prod` es obligatoria y no puede ser el valor por defecto: la aplicación no arranca |
+| `OTP_SECRET_ENCRYPTION_KEY` | clave de desarrollo | Clave AES-256 en Base64 (32 bytes) que cifra los secretos de HOTP y TOTP. Generala con `openssl rand -base64 32`. Si se pierde o se cambia, los secretos guardados dejan de servir y cada destino necesita un código nuevo. Con el perfil `prod` es obligatoria y no puede ser la de desarrollo |
 | `OTP_DEMO_MODE` | `false` | Si es `true`, `POST /otps` devuelve el código en `demoCode`. No se puede combinar con `twilio` ni `infobip` |
 | `SMS_PROVIDER` | `console` | `console`, `twilio` o `infobip` |
 | `TWILIO_ACCOUNT_SID` | vacío | Obligatoria si `SMS_PROVIDER=twilio` |
@@ -434,12 +438,34 @@ La aplicación lee estas variables del entorno del sistema. **El archivo `.env` 
 | `EMAIL_SENDER_NAME` | `Un Solo Uso` | Nombre que ve el destinatario como remitente |
 | `OTP_RATE_LIMIT_PER_DESTINATION` | `5` | Envíos permitidos por celular o correo en la ventana. `0` desactiva el límite |
 | `OTP_RATE_LIMIT_PER_IP` | `20` | Envíos permitidos por IP en la ventana. `0` desactiva el límite |
-| `OTP_RATE_LIMIT_WINDOW_SECONDS` | `600` | Duración de la ventana del límite de envíos |
+| `OTP_RATE_LIMIT_WINDOW_SECONDS` | `600` | Duración de la ventana de ambos límites (envíos y verificaciones) |
+| `OTP_VERIFY_RATE_LIMIT_PER_DESTINATION` | `10` | Verificaciones permitidas por celular o correo en la ventana, correctas o no. `0` desactiva el límite |
+| `OTP_VERIFY_RATE_LIMIT_PER_IP` | `30` | Verificaciones permitidas por IP en la ventana. `0` desactiva el límite |
+| `OTP_LOCK_SECONDS` | `600` | Cuánto dura el bloqueo de HOTP y TOTP tras 3 fallos. Es independiente de la retención de datos |
+| `OTP_LOG_CODES` | `true` (`false` con `prod`) | Si los proveedores de consola escriben el código en el log. Fuera de desarrollo solo se escribe `Código enviado a j***@gmail.com` |
+| `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` | redes privadas y localhost | Expresión regular con las IP de los proxies de confianza. Solo de ellos se lee `X-Forwarded-For`. Ver [IP del cliente](#ip-del-cliente) |
 | `PORT` | `8080` | Puerto HTTP. Las plataformas como Render lo definen solas |
 | `SESSION_COOKIE_SECURE` | `false` | Si es `true`, la cookie de sesión solo viaja por HTTPS. Actívalo al publicar |
 | `OTP_LOCAL_API_ENABLED` | `true` | Si es `false`, se deshabilitan `POST /otps` y `POST /otps/verify`; quedan solo los endpoints de Twilio por sesión |
 | `SWAGGER_ENABLED` | `true` | Si es `false`, se deshabilitan Swagger UI y `/v3/api-docs`. La imagen Docker lo trae en `false`; `docker-compose.yml` lo activa |
 | `OTP_MEMORY_MAX_ENTRIES` | `10000` | Tope de códigos guardados en memoria; al llegar se descartan los más antiguos |
+
+### IP del cliente
+
+Los dos limitadores (`SendRateLimiter` y `VerifyRateLimiter`) cuentan por `HttpServletRequest.getRemoteAddr()`. Ese valor no sale de leer la cabecera a mano: lo fija Tomcat con `RemoteIpValve` (`server.forward-headers-strategy: native`).
+
+```
+CLIENTE ──► PROXY (Render) ──► SPRING BOOT (Tomcat)
+            agrega la IP real    RemoteIpValve: si la conexión viene de un proxy de confianza,
+            al final de          recorre X-Forwarded-For de derecha a izquierda y se queda con la
+            X-Forwarded-For      primera IP que no es un proxy ──► getRemoteAddr() ──► limitadores
+```
+
+- Si la conexión **no** viene de un proxy de confianza, `X-Forwarded-For` se ignora y cuenta la IP de la conexión.
+- Si viene de un proxy de confianza, lo que el cliente escribió a la izquierda de la cabecera se descarta: cuenta la IP que agregó el proxy.
+- Los proxies de confianza se definen con `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES`. Por defecto son las redes privadas (10.x, 192.168.x, 172.16–31.x) y localhost.
+
+La estrategia anterior (`framework`) tomaba el primer valor de la cabecera, que elige el cliente: con una IP falsa por petición el límite por IP no frenaba nada. `ClientIpHttpTest` prueba los dos casos y deja la estrategia anterior como control.
 
 ```bash
 # Linux, macOS o Git Bash
@@ -834,8 +860,10 @@ sequenceDiagram
 - **El SMS de la interfaz web exige conectar una cuenta de Twilio.** El canal de correo no necesita ninguna cuenta.
 - **Con el almacenamiento en memoria, un reinicio borra los códigos pendientes y las sesiones de Twilio.** Además, la memoria no se comparte entre instancias: para varias réplicas hay que usar el perfil `mongo`.
 - **En memoria hay un tope de códigos** (`OTP_MEMORY_MAX_ENTRIES`). Al llegar, se descartan los más antiguos, incluso si aún estaban vigentes.
-- **La API no tiene autenticación.** Sí hay un límite de envíos por destino y por IP, pero no reemplaza a la autenticación: no publiques `SMS_PROVIDER=twilio` ni `infobip` en internet, porque cualquiera podría generar SMS a cargo de esa cuenta. Para una instancia pública usa `OTP_LOCAL_API_ENABLED=false`. En el canal de correo, el límite y el tope diario de Brevo acotan el abuso.
-- **Los errores de formato devuelven el cuerpo estándar de Spring.** Un celular o un código mal formados responden `400` sin `code` ni `message`. 
+- **La API no tiene autenticación.** Sí hay límites de envíos y de verificaciones por destino y por IP, pero no reemplazan a la autenticación: no publiques `SMS_PROVIDER=twilio` ni `infobip` en internet, porque cualquiera podría generar SMS a cargo de esa cuenta. Para una instancia pública usa `OTP_LOCAL_API_ENABLED=false`. En el canal de correo, el límite y el tope diario de Brevo acotan el abuso.
+- **Los errores de formato no dicen qué campo falló.** Un celular, un código, un `type` o un `purpose` mal formados responden `400 VALIDATION_ERROR` con un mensaje genérico.
+- **El OTP aleatorio da 3 intentos nuevos con cada código nuevo.** A diferencia de HOTP y TOTP, no hay bloqueo por destino: lo acotan el límite de envíos (5 por destino cada 10 min) y el de verificaciones (10 por destino cada 10 min).
+- **Los límites viven en la memoria de cada instancia.** Con varias réplicas, cada una cuenta por su lado.
 - **Solo se envía a los números verificados de la cuenta de Twilio conectada.** Al conectar, el servicio consulta a Twilio qué números tiene verificados la cuenta (siempre en las cuentas de prueba) y solo permite enviar a esos; otro destino responde `403 DESTINATION_NOT_VERIFIED`. Una cuenta de pago sin números verificados puede enviar a cualquier celular peruano.
 
 ---
