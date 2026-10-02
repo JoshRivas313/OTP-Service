@@ -1,5 +1,6 @@
 // Canal SMS: celular peruano, conexión de la cuenta de Twilio del visitante y llamada a /api/twilio/otps.
 const cellphoneInput = document.getElementById('gen-cellphone');
+let twilioConnected = false;
 
 function validatePeruvianMobile(national) {
   return /^9\d{8}$/.test(national);
@@ -15,7 +16,7 @@ cellphoneInput.addEventListener('input', () => {
 });
 cellphoneInput.addEventListener('blur', () => {
   if (cellphoneInput.value && !validatePeruvianMobile(cellphoneInput.value)) {
-    showFieldError('gen-cellphone', 'Ingresá 9 dígitos que empiecen con 9');
+    showFieldError('gen-cellphone', 'Ingresa 9 dígitos que empiecen con 9');
   }
 });
 
@@ -27,22 +28,26 @@ function showVerifiedHint(status) {
   }
   hint.textContent = status.verifiedNumbers.length
     ? 'Tu cuenta de Twilio solo puede enviar a los números que verificaste: ' + status.verifiedNumbers.join(', ') + '.'
-    : 'Tu cuenta de Twilio no tiene números verificados. Verificá tu celular en la consola de Twilio para poder enviar.';
+    : 'Tu cuenta de Twilio no tiene números verificados. Verifica tu celular en la consola de Twilio para poder enviar.';
   hint.hidden = false;
 }
 
-// Sin Twilio conectado, la página de SMS muestra primero el formulario de conexión.
+// El paso 1 se ve siempre; el formulario de Twilio aparece solo al enviar sin una cuenta conectada.
 function showTwilioConnect(show) {
   document.getElementById('sms-connect').hidden = !show;
   document.getElementById('otp-step-1').style.display = show ? 'none' : '';
-  document.getElementById('twilio-status-bar').style.display = show ? 'none' : 'flex';
 }
 
-async function checkTwilioBanner() {
+function cancelTwilioConnect() {
+  showTwilioConnect(false);
+  document.getElementById('gen-btn').focus();
+}
+
+async function refreshTwilioStatus() {
   try {
-    const statusResponse = await fetch('/api/twilio/status');
-    const status = await statusResponse.json();
-    showTwilioConnect(!status.connected);
+    const status = await (await fetch('/api/twilio/status')).json();
+    twilioConnected = status.connected;
+    document.getElementById('twilio-status-bar').style.display = status.connected ? 'flex' : 'none';
     if (status.connected) {
       document.getElementById('twilio-connected-badge').style.display = 'flex';
       document.getElementById('twilio-disconnect-btn').style.display = 'inline';
@@ -50,7 +55,7 @@ async function checkTwilioBanner() {
       showVerifiedHint(status);
     }
   } catch (error) {
-    showTwilioConnect(true);
+    twilioConnected = false;
   }
 }
 
@@ -76,8 +81,10 @@ async function connectTwilio() {
     const data = await response.json();
     if (response.ok) {
       document.getElementById('tw-auth-token').value = '';
-      await checkTwilioBanner();
-      document.getElementById('gen-cellphone').focus();
+      await refreshTwilioStatus();
+      showTwilioConnect(false);
+      showResult('gen-result', true, 'Twilio conectado. Ya puedes enviar el código.');
+      document.getElementById('gen-btn').focus();
       return;
     }
     showResult('tw-connect-result', false,
@@ -93,7 +100,10 @@ async function connectTwilio() {
 
 async function changeTwilioConfig() {
   await fetch('/api/twilio/disconnect', { method: 'POST' });
-  resetOtpFlow();
+  twilioConnected = false;
+  document.getElementById('twilio-status-bar').style.display = 'none';
+  document.getElementById('gen-verified-hint').hidden = true;
+  resetOtpFlow(true);
   showTwilioConnect(true);
   document.getElementById('tw-account-sid').focus();
 }
@@ -108,11 +118,21 @@ window.OTP_CHANNEL = {
       return null;
     }
     if (!validatePeruvianMobile(national)) {
-      showFieldError('gen-cellphone', 'Ingresá 9 dígitos que empiecen con 9');
+      showFieldError('gen-cellphone', 'Ingresa 9 dígitos que empiecen con 9');
       return null;
     }
     clearFieldError('gen-cellphone');
     return { value: '+51' + national, masked: maskPhone(national) };
+  },
+
+  // Sin Twilio no se puede enviar: se pide la cuenta y se conserva lo que el usuario ya eligió.
+  readyToSend() {
+    if (twilioConnected) {
+      return true;
+    }
+    showTwilioConnect(true);
+    document.getElementById('tw-account-sid').focus();
+    return false;
   },
 
   resetTarget(keepNumber) {
@@ -121,7 +141,6 @@ window.OTP_CHANNEL = {
   },
 
   start() {
-    document.getElementById('otp-step-1').style.display = 'none';
-    checkTwilioBanner();
+    refreshTwilioStatus();
   }
 };

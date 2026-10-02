@@ -54,10 +54,10 @@ customToggle.addEventListener('change', () => {
 });
 document.querySelectorAll('input[name="purpose"]').forEach(radio => radio.addEventListener('change', refreshMessagePreview));
 document.getElementById('gen-expiration').addEventListener('change', () => {
-  document.getElementById('expiration-help').textContent =
-    TYPES[selectedType()].expirationHelp(parseInt(document.getElementById('gen-expiration').value, 10));
+  renderTimeHelp();
   refreshMessagePreview();
 });
+document.getElementById('gen-digits').addEventListener('change', renderTimeHelp);
 document.querySelectorAll('input[name="otp-type"]').forEach(radio => radio.addEventListener('change', applyType));
 document.getElementById('dyk-next').addEventListener('click', () => showFact(true));
 document.getElementById('resend-btn').addEventListener('click', resendCode);
@@ -68,26 +68,30 @@ messageInput.addEventListener('input', () => {
   if (help) help.remove();
 });
 
-function setProgressStep(number, state) {
-  const step = document.getElementById('progress-step-' + number);
-  const dot = step.querySelector('.otp-progress-dot');
-  step.classList.remove('active', 'done');
-  dot.classList.remove('active', 'done');
-  if (state) {
-    step.classList.add(state);
-    dot.classList.add(state);
-  }
-  const line = document.getElementById('progress-line-' + number);
-  if (line) {
-    line.classList.toggle('done', state === 'done');
-  }
+// Los pasos anteriores quedan hechos y el actual se enciende; al verificar, el 3 queda hecho y encendido.
+function showStepsAt(current, finished = false) {
+  [1, 2, 3].forEach(number => {
+    const step = document.getElementById('progress-step-' + number);
+    const dot = step.querySelector('.otp-progress-dot');
+    const done = number < current || (finished && number === current);
+    const isCurrent = number === current;
+    step.classList.toggle('done', done);
+    dot.classList.toggle('done', done);
+    step.classList.toggle('current', isCurrent);
+    dot.classList.toggle('current', isCurrent);
+    if (isCurrent) {
+      step.setAttribute('aria-current', 'step');
+    } else {
+      step.removeAttribute('aria-current');
+    }
+  });
 }
 
 function resetProgress() {
-  setProgressStep(1, null);
-  setProgressStep(2, null);
-  setProgressStep(3, null);
+  showStepsAt(1);
 }
+
+resetProgress();
 
 let lastDigits = 6;
 let timerInterval = null;
@@ -98,35 +102,39 @@ let lastPurpose = 'login';
 let lastMaskedTarget = '';
 let otpExpired = false;
 
-// El propósito solo cambia el texto de la demo: el backend valida el código igual en todos los casos.
+// api es el valor que exige el backend: un código pedido para un propósito no sirve para otro.
 const PURPOSES = {
   login: {
+    api: 'LOGIN',
     sms: 'Tu código para iniciar sesión es {code}. Vence en {seconds} segundos.',
     action: 'Inicio de sesión',
-    verifyHint: 'Confirmá que sos vos para iniciar sesión.',
+    verifyHint: 'Confirma que eres tú para iniciar sesión.',
     title: 'Acceso concedido',
-    desc: 'Comprobamos que el código llegó a vos. En una app real, acá entrarías a tu cuenta.'
+    desc: 'Comprobamos que el código te llegó a ti. En una app real, aquí entrarías a tu cuenta.'
   },
   signup: {
+    api: 'REGISTER',
     sms: 'Tu código para crear tu cuenta es {code}. Vence en {seconds} segundos.',
     action: 'Registro',
-    verifyHint: 'Verificamos que sos vos para crear tu cuenta.',
+    verifyHint: 'Verificamos que eres tú para crear tu cuenta.',
     title: 'Verificación completa',
-    desc: 'El código era válido y solo lo tenías vos. En una app real, acá seguirías con el registro.'
+    desc: 'El código era válido y solo lo tenías tú. En una app real, aquí seguirías con el registro.'
   },
   reset: {
+    api: 'PASSWORD_RECOVERY',
     sms: 'Tu código para recuperar tu acceso es {code}. Vence en {seconds} segundos.',
     action: 'Recuperación de acceso',
-    verifyHint: 'Confirmá tu identidad para recuperar el acceso.',
+    verifyHint: 'Confirma tu identidad para recuperar el acceso.',
     title: 'Identidad confirmada',
-    desc: 'En una app real, acá podrías elegir una contraseña nueva.'
+    desc: 'En una app real, aquí podrías elegir una contraseña nueva.'
   },
   payment: {
+    api: 'PAYMENT_CONFIRMATION',
     sms: 'Tu código para confirmar tu pago es {code}. Vence en {seconds} segundos.',
     action: 'Confirmación de pago',
-    verifyHint: 'Confirmá la operación con el código que te enviamos.',
+    verifyHint: 'Confirma la operación con el código que te enviamos.',
     title: 'Operación autorizada',
-    desc: 'Comprobamos que sos vos quien la aprueba. En una app real, acá se ejecutaría el pago.'
+    desc: 'Comprobamos que eres tú quien la aprueba. En una app real, aquí se ejecutaría el pago.'
   }
 };
 
@@ -137,9 +145,12 @@ const TYPES = {
     expirationLabel: 'Expira en',
     expirations: [[30, '30 segundos'], [60, '60 segundos'], [120, '2 minutos'], [300, '5 minutos']],
     digits: [4, 10],
-    receipt: 'OTP · aleatorio',
-    expirationHelp: () => 'Cuenta desde el momento en que lo pedís.',
-    clockNote: 'Cuenta desde que lo pediste. Si pedís otro, este deja de servir.',
+    receipt: 'OTP aleatorio',
+    expirationHelp: () => 'Cuenta desde el momento en que lo pides: el reloj arranca con tu pedido.',
+    example: (seconds, now) => 'Si lo pides ahora, vence a las ' + clockTime(now + seconds * 1000)
+      + ' (justo ' + seconds + ' s).',
+    digitsHelp: 'De 4 a 10 dígitos: el OTP aleatorio no sigue ningún RFC.',
+    clockNote: 'Cuenta desde que lo pediste. Si pides otro, este deja de servir.',
     how: 'Comparó con el hash que guardó al enviarlo',
     facts: [
       'Un código de 6 dígitos tiene un millón de combinaciones: por eso se bloquea al tercer intento fallido.',
@@ -148,35 +159,49 @@ const TYPES = {
     ]
   },
   HOTP: {
-    formula: 'código = HMAC(secreto, contador) · RFC 4226',
+    formula: 'código = Truncar(HMAC-SHA1(secreto, contador)) mod 10^dígitos · RFC 4226',
     desc: 'No caduca por tiempo: sirve hasta que lo uses. El servidor no guarda el código, solo el secreto y el contador.',
     expirationLabel: null,
     expirations: [],
     digits: [6, 8],
-    receipt: 'HOTP · por contador',
-    expirationHelp: () => 'HOTP no tiene reloj: el código vale hasta que lo uses.',
-    clockNote: 'Sin reloj: vale hasta que lo uses. Si pedís otro, este sigue sirviendo hasta que uses uno posterior.',
-    how: 'Recalculó HMAC(secreto, contador); no guardó el código',
+    receipt: 'HOTP · secreto + contador',
+    expirationHelp: () => 'HOTP no tiene reloj: el código vale hasta que lo uses o uses uno posterior.',
+    example: () => 'Si lo pides ahora, no vence: espera hasta que lo uses.',
+    digitsHelp: 'De 6 a 8 dígitos, como pide el RFC 4226.',
+    clockNote: 'Sin reloj: vale hasta que lo uses. Si pides otro, este sigue sirviendo hasta que uses uno posterior.',
+    how: 'Recalculó Truncar(HMAC-SHA1(secreto, contador)); no guardó el código',
     facts: [
       'HOTP nació para llaveros sin reloj: el código no vence, solo se gasta al usarlo.',
-      'Si pedís tres códigos, los tres sirven… hasta que usás uno: los anteriores quedan anulados. Probalo.',
-      'El servidor no guarda este código: cuando lo escribís, lo vuelve a calcular con el secreto y el contador.'
+      'Si pides tres códigos, los tres sirven… hasta que usas uno: los anteriores quedan anulados. Pruébalo.',
+      'El servidor no guarda este código: cuando lo escribes, lo vuelve a calcular con el secreto y el contador.'
     ]
   },
   TOTP: {
-    formula: 'código = HMAC(secreto, ⌊hora ÷ ventana⌋) · RFC 6238',
-    desc: 'Vale hasta que termina su ventana de tiempo, más una de tolerancia. Se recalcula con la hora; no se guarda.',
+    formula: 'código = HOTP(secreto, T) · T = ⌊hora Unix ÷ ventana⌋ · RFC 6238',
+    desc: 'Vale hasta que terminan su ventana de tiempo y la tolerancia. Se recalcula con la hora; no se guarda.',
     expirationLabel: 'Ventana de tiempo',
     expirations: [[30, '30 segundos (estándar)'], [60, '60 segundos']],
     digits: [6, 8],
-    receipt: 'TOTP · por tiempo',
-    expirationHelp: (period) => 'No es la vigencia exacta: el código vale hasta que cierra su ventana, más una de tolerancia (entre '
-      + period + ' y ' + period * 2 + ' s).',
-    clockNote: 'Si pedís otro dentro de la misma ventana, llega el mismo número.',
-    how: 'Recalculó HMAC(secreto, ventana actual ±1); no guardó el código',
+    receipt: 'TOTP · secreto + hora',
+    expirationHelp: (period) => 'El código cambia cada ' + period + ' s según la hora, no desde que lo pides. '
+      + 'Vale hasta que cierran su ventana y la tolerancia.',
+    // Misma regla que TotpVerifier: se acepta mientras la ventana actual no supere T + la tolerancia del servidor.
+    example: (period, now) => {
+      const step = Math.floor(now / 1000 / period);
+      if (!policy) {
+        return 'Si lo pides ahora (ventana T = ' + step + '), su ventana cierra a las '
+          + clockTime((step + 1) * period * 1000) + '.';
+      }
+      const closes = (step + 1 + policy.totpToleranceSteps) * period * 1000;
+      return 'Si lo pides ahora (ventana T = ' + step + '), vale hasta las ' + clockTime(closes)
+        + ': te quedan ' + Math.ceil((closes - now) / 1000) + ' s, no siempre ' + period + '.';
+    },
+    digitsHelp: 'De 6 a 8 dígitos, como pide el RFC 6238.',
+    clockNote: 'Si pides otro dentro de la misma ventana, llega el mismo número.',
+    how: 'Recalculó HOTP(secreto, T) para la ventana actual y su tolerancia; no guardó el código',
     facts: [
       'Google Authenticator y el 2FA de GitHub usan TOTP: el mismo cálculo que hace este servidor.',
-      'Si pedís dos códigos dentro de la misma ventana de 30 s, llega el mismo número. Probalo.',
+      'Si pides dos códigos dentro de la misma ventana de 30 s, llega el mismo número. Pruébalo.',
       'Un código TOTP vencido no gasta intentos: el servidor sabe que era correcto, pero llegó tarde.'
     ]
   }
@@ -199,10 +224,37 @@ function showFact(advance) {
   document.getElementById('dyk-text').textContent = facts[factIndex];
 }
 
+// Reglas vigentes del servidor (tolerancia de TOTP, etc.). Sin ellas no se promete ninguna tolerancia.
+let policy = null;
+fetch('/api/otp-policy')
+  .then(response => (response.ok ? response.json() : null))
+  .then(loaded => {
+    policy = loaded;
+    renderTimeHelp();
+  })
+  .catch(() => {});
+
+function clockTime(millis) {
+  return new Date(millis).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+}
+
+// La regla del tiempo, un ejemplo con la hora real y el rango de dígitos del tipo de OTP elegido.
+function renderTimeHelp() {
+  const type = TYPES[selectedType()];
+  const seconds = parseInt(document.getElementById('gen-expiration').value, 10);
+  document.getElementById('expiration-help').textContent = type.expirationHelp(seconds) + ' ' + type.digitsHelp;
+  document.getElementById('expiration-example').textContent = type.example(seconds, Date.now());
+}
+
+setInterval(() => {
+  if (!document.getElementById('expiration-example').closest('[hidden]')) renderTimeHelp();
+}, 1000);
+
 function applyType() {
   const type = TYPES[selectedType()];
   document.getElementById('type-formula').textContent = type.formula;
   document.getElementById('type-desc').textContent = type.desc;
+  document.getElementById('totp-channel-note').hidden = selectedType() !== 'TOTP';
 
   const field = document.getElementById('field-expiration');
   const select = document.getElementById('gen-expiration');
@@ -225,7 +277,7 @@ function applyType() {
   const current = parseInt(digits.value, 10);
   if (current < min || current > max) digits.value = '6';
 
-  document.getElementById('expiration-help').textContent = type.expirationHelp(parseInt(select.value, 10));
+  renderTimeHelp();
   showFact(false);
   refreshMessagePreview();
 }
@@ -258,11 +310,6 @@ function buildCodeBoxes(count) {
 function attachCodeBoxListeners() {
   const boxes = document.querySelectorAll('.code-box');
   boxes.forEach((box, index) => {
-    box.addEventListener('input', () => {
-      if (Array.from(boxes).some(b => b.value)) {
-        setProgressStep(2, 'active');
-      }
-    });
     box.addEventListener('input', (e) => {
       e.target.value = e.target.value.replace(/\D/g, '');
       e.target.classList.toggle('filled', e.target.value !== '');
@@ -487,7 +534,11 @@ async function generateOtp() {
     showMessageError('El mensaje debe incluir {code}');
     return;
   }
-  const payload = { [API.key]: target.value, type, digits, durationSeconds, message };
+  if (OTP_CHANNEL.readyToSend && !OTP_CHANNEL.readyToSend()) {
+    return;
+  }
+  const purpose = PURPOSES[selectedPurposeKey()].api;
+  const payload = { [API.key]: target.value, type, purpose, digits, durationSeconds, message };
 
   const ok = await submit('gen-btn', 'gen-result', API.generate, payload);
   if (ok) {
@@ -496,8 +547,7 @@ async function generateOtp() {
     lastDestination = target.value;
     lastType = type;
     lastPurpose = selectedPurposeKey();
-    resetProgress();
-    setProgressStep(1, 'done');
+    showStepsAt(2);
 
     document.getElementById('gen-success').style.display = 'flex';
     document.getElementById('gen-phone-display').textContent = target.masked;
@@ -546,7 +596,7 @@ function showIssuedCode(data, issuedAt) {
   }
 }
 
-// Pedir otro con el mismo protocolo muestra en vivo la diferencia entre los tres.
+// Pedir otro con el mismo tipo de OTP muestra en vivo la diferencia entre los tres.
 async function resendCode() {
   if (!lastPayload) return;
   const previous = lastGenerateData;
@@ -565,7 +615,7 @@ function resendExplanation(previous, current, previousCode, currentCode) {
     const sameWindow = previous && previous.timeStep === current.timeStep;
     if (sameWindow) {
       return 'Llegó el mismo número' + (currentCode && currentCode === previousCode ? ' (' + currentCode + ')' : '')
-        + ': seguís en la ventana T = ' + current.timeStep + '. TOTP no sortea el código, lo calcula con la hora.';
+        + ': sigues en la ventana T = ' + current.timeStep + '. TOTP no sortea el código, lo calcula con la hora.';
     }
     return 'La ventana ya cambió (T = ' + current.timeStep + '), por eso llegó un número distinto.';
   }
@@ -590,12 +640,11 @@ async function verifyOtp() {
     return;
   }
 
-  const ok = await submit('ver-btn', 'ver-result', API.verify, { [API.key]: lastDestination, type: lastType, code });
+  const ok = await submit('ver-btn', 'ver-result', API.verify, { [API.key]: lastDestination, type: lastType, purpose: lastPayload.purpose, code });
   if (ok) {
     clearInterval(timerInterval);
     document.querySelectorAll('.code-box').forEach(box => box.disabled = true);
-    setProgressStep(2, 'done');
-    setProgressStep(3, 'done');
+    showStepsAt(3, true);
     renderVerifiedResult();
     setTimeout(() => {
       showOtpStep(3);

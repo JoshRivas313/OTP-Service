@@ -12,7 +12,7 @@ function maskEmail(email) {
 emailInput.addEventListener('input', () => clearFieldError('gen-email'));
 emailInput.addEventListener('blur', () => {
   if (emailInput.value && !validateEmail(emailInput.value.trim().toLowerCase())) {
-    showFieldError('gen-email', 'Ingresá un correo válido');
+    showFieldError('gen-email', 'Ingresa un correo válido');
   }
 });
 
@@ -26,7 +26,7 @@ window.OTP_CHANNEL = {
       return null;
     }
     if (!validateEmail(email)) {
-      showFieldError('gen-email', 'Ingresá un correo válido');
+      showFieldError('gen-email', 'Ingresa un correo válido');
       return null;
     }
     clearFieldError('gen-email');

@@ -116,8 +116,45 @@ function showPrevious(protocol, html) {
 
 const otp = { code: null, issuedAt: 0 };
 const hotpState = { counter: 0, code: null };
-const totpState = { step: null, code: null };
+const totpState = { step: null, code: null, history: [] };
 let flashUntil = 0;
+
+// --- Política del servidor -------------------------------------------------------
+// La tolerancia de TOTP y los demás límites salen de /api/otp-policy: los textos usan los mismos valores que la
+// verificación. Mientras no llegan (o si fallan), no se afirma nada sobre la tolerancia.
+
+let policy = null;
+
+function groupDigits(value) {
+  return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f');
+}
+
+function describePolicy() {
+  const k = policy.totpToleranceSteps;
+  const neighbours = k === 0 ? 'ninguna' : (k === 1 ? 'T−1 y T+1' : 'T−' + k + ' a T+' + k);
+  const values = {
+    hotpLookAhead: String(policy.hotpLookAhead),
+    maxAttempts: String(policy.maxAttempts),
+    lockMinutes: String(Math.round(policy.lockSeconds / 60)),
+    totpTolerance: neighbours,
+    totpLifetime: k * TOTP_PERIOD + '–' + (k + 1) * TOTP_PERIOD + ' s'
+  };
+  document.querySelectorAll('[data-policy]').forEach((node) => {
+    const value = values[node.dataset.policy];
+    if (value !== undefined) node.textContent = value;
+  });
+}
+
+async function loadPolicy() {
+  try {
+    const response = await fetch('/api/otp-policy');
+    if (!response.ok) return;
+    policy = await response.json();
+    describePolicy();
+  } catch (e) {
+    policy = null;
+  }
+}
 
 async function newOtp() {
   const previous = otp.code;
@@ -135,9 +172,14 @@ async function nextHotp(advance) {
   hotpState.code = await hotp(hotpState.counter);
   rows.HOTP.field('counter').textContent = String(hotpState.counter);
   if (advance && previous) {
-    showPrevious('HOTP', 'Anterior <span class="mono">' + previous + '</span> <span class="tag">Sigue valiendo hasta que uses uno posterior</span>');
+    // El anterior sigue dentro de la ventana de pendientes salvo que esa ventana sea de un solo código.
+    const stillValid = !policy || policy.hotpLookAhead > 1;
+    showPrevious('HOTP', 'Anterior <span class="mono' + (stillValid ? '' : ' struck') + '">' + previous + '</span> '
+      + (stillValid
+        ? '<span class="tag">Sigue valiendo hasta que uses uno posterior</span>'
+        : '<span class="tag tag-void">Reemplazado</span>'));
   }
-  setStatus('HOTP', 'Válido hasta usarse', 'active');
+  setStatus('HOTP', 'No vence por tiempo', 'active');
   await showCode(rows.HOTP.flaps, hotpState.code);
 }
 
@@ -145,15 +187,44 @@ async function refreshTotp(force) {
   const step = Math.floor(Date.now() / 1000 / TOTP_PERIOD);
   if (!force && step === totpState.step) return false;
   const changed = totpState.step !== null && step !== totpState.step;
-  const previous = totpState.code;
+  if (changed && totpState.code) {
+    totpState.history.unshift({ step: totpState.step, code: totpState.code });
+    totpState.history = totpState.history.slice(0, historySize());
+  }
   totpState.step = step;
   totpState.code = await hotp(step);
-  rows.TOTP.field('step').textContent = String(step);
-  if (changed && previous) {
-    showPrevious('TOTP', 'Ventana anterior <span class="mono struck">' + previous + '</span> <span class="tag tag-void">Cerrada</span>');
-  }
+  rows.TOTP.field('step').textContent = groupDigits(step);
+  renderPreviousWindow(Date.now());
   await showCode(rows.TOTP.flaps, totpState.code);
   return true;
+}
+
+// Se muestran las ventanas que la tolerancia todavía acepta y la primera que ya no. Una ventana s se acepta mientras
+// la actual no supere s + tolerancia, igual que TotpVerifier; sin la política no se afirma nada sobre la tolerancia.
+function historySize() {
+  return policy ? policy.totpToleranceSteps + 1 : 1;
+}
+
+function previousWindowLine(entry, now) {
+  const label = 'Ventana T−' + (totpState.step - entry.step) + ': ';
+  if (!policy) {
+    return label + '<span class="mono">' + entry.code + '</span>';
+  }
+  const acceptedUntil = (entry.step + policy.totpToleranceSteps + 1) * TOTP_PERIOD * 1000;
+  const left = Math.ceil((acceptedUntil - now) / 1000);
+  if (left > 0) {
+    return label + '<span class="mono">' + entry.code + '</span> <span class="mini-status">'
+      + '<span class="lamp lamp-on" aria-hidden="true"></span>Tolerancia · ' + left + ' s</span>';
+  }
+  return label + '<span class="mono struck">' + entry.code + '</span> <span class="mini-status">'
+    + '<span class="lamp" aria-hidden="true"></span>Vencida</span>';
+}
+
+function renderPreviousWindow(now) {
+  if (!totpState.history.length) return;
+  showPrevious('TOTP', totpState.history
+    .map((entry) => '<span class="previous-line">' + previousWindowLine(entry, now) + '</span>')
+    .join(''));
 }
 
 // Pedir otro dentro de la misma ventana: las aletas giran y vuelven a caer en el mismo número.
@@ -175,7 +246,8 @@ function tick() {
   const left = TOTP_PERIOD - (seconds % TOTP_PERIOD);
   rows.TOTP.field('left').textContent = String(Math.ceil(left));
   rows.TOTP.field('bar').style.transform = 'scaleX(' + (left / TOTP_PERIOD) + ')';
-  if (now > flashUntil) setStatus('TOTP', 'En ventana', 'active');
+  if (now > flashUntil) setStatus('TOTP', 'Ventana actual', 'active');
+  renderPreviousWindow(now);
   refreshTotp(false);
 
   if (otp.code) {
@@ -193,13 +265,13 @@ const spell = (code) => code.split('').join(' ');
 
 function announce(protocol) {
   if (protocol === 'OTP') {
-    live.textContent = 'OTP: nuevo código ' + spell(otp.code) + '. El anterior quedó anulado.';
+    live.textContent = 'OTP aleatorio: nuevo código ' + spell(otp.code) + '. El anterior quedó anulado.';
   } else if (protocol === 'HOTP') {
     live.textContent = 'HOTP: contador ' + hotpState.counter + ', código ' + spell(hotpState.code)
       + '. El anterior sigue valiendo hasta que uses uno posterior.';
   } else {
     live.textContent = 'TOTP: ' + spell(totpState.code)
-      + (Date.now() < flashUntil ? '. Mismo código, porque seguís en la misma ventana.' : '.');
+      + (Date.now() < flashUntil ? '. Mismo código, porque sigues en la misma ventana.' : '.');
   }
 }
 
@@ -223,6 +295,7 @@ async function start() {
       'Tu navegador no permite calcular los códigos de demostración en esta página.';
     return;
   }
+  await loadPolicy();
   await Promise.all([newOtp(), nextHotp(false), refreshTotp(true)]);
   tick();
   setInterval(tick, 250);

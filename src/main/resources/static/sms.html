@@ -26,7 +26,7 @@
     <div class="page-intro">
       <a class="back-link" href="/"><svg width="18" height="12" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" aria-hidden="true"><path d="M21 7H3M9 1L3 7l6 6"/></svg>Elegir otro canal</a>
       <h1>Código por SMS</h1>
-      <p class="page-lead">Elegí el protocolo, pedí el código y verificalo. OTP se sortea, HOTP cuenta y TOTP mira el reloj.</p>
+      <p class="page-lead">Elige el tipo de OTP, pide el código y verifícalo. El OTP aleatorio se sortea, HOTP cuenta y TOTP mira el reloj.</p>
     </div>
 
     <div id="twilio-status-bar" class="twilio-status-bar" style="display:none;" role="status" aria-live="polite">
@@ -71,11 +71,12 @@
           <!-- SMS: conectar la cuenta de Twilio del visitante -->
           <div id="sms-connect" hidden>
             <div class="step-header">
-              <h2>Conectá tu Twilio</h2>
+              <h2>Conecta tu Twilio para enviar</h2>
               <p>
                 El SMS sale de tu cuenta y usa su saldo.
-                ¿No tenés una? <a href="https://console.twilio.com/" target="_blank" rel="noopener noreferrer">Creala gratis</a>.
+                ¿No tienes una? <a href="https://console.twilio.com/" target="_blank" rel="noopener noreferrer">Créala gratis</a>.
               </p>
+              <p>Lo que elegiste (tipo de OTP, celular y mensaje) se mantiene: al conectar, vuelves para enviarlo.</p>
             </div>
             <div class="sms-fields">
               <label class="field">
@@ -99,6 +100,7 @@
               <span class="spinner" aria-hidden="true"></span>
               <span class="btn-label">Conectar con Twilio</span>
             </button>
+            <button type="button" class="btn-ghost" onclick="cancelTwilioConnect()">Volver</button>
             <div id="tw-connect-result" class="result" role="status" aria-live="polite"></div>
             <p class="field-help sms-note">
               Las credenciales quedan 15 minutos en la memoria del servidor, sin base de datos.
@@ -108,33 +110,34 @@
           </div>
 
           <!-- PASO 1: Generar Código -->
-          <div class="otp-step" id="otp-step-1" data-step="1" style="display:none;">
+          <div class="otp-step" id="otp-step-1" data-step="1">
             <div class="step-header">
               <h2>Generar código</h2>
-              <p>Solicitá un código de verificación por SMS</p>
+              <p>Solicita un código de verificación por SMS</p>
             </div>
 
             <div class="form-section">
               <div class="field">
-                <span class="field-legend" id="type-legend">Protocolo</span>
+                <span class="field-legend" id="type-legend">Tipo de OTP</span>
                 <div class="purpose-grid type-grid" role="radiogroup" aria-labelledby="type-legend" aria-describedby="type-help">
                   <label class="purpose-option">
                     <input type="radio" name="otp-type" value="OTP" checked>
-                    <span class="purpose-body"><span class="purpose-name">OTP</span><span class="purpose-sub">Aleatorio</span></span>
+                    <span class="purpose-body"><span class="purpose-name">OTP <span class="name-qualifier">aleatorio</span></span><span class="purpose-sub">Nace del azar</span></span>
                   </label>
                   <label class="purpose-option">
                     <input type="radio" name="otp-type" value="HOTP">
-                    <span class="purpose-body"><span class="purpose-name">HOTP</span><span class="purpose-sub">Por contador</span></span>
+                    <span class="purpose-body"><span class="purpose-name">HOTP</span><span class="purpose-sub">Secreto + contador</span></span>
                   </label>
                   <label class="purpose-option">
                     <input type="radio" name="otp-type" value="TOTP">
-                    <span class="purpose-body"><span class="purpose-name">TOTP</span><span class="purpose-sub">Por tiempo</span></span>
+                    <span class="purpose-body"><span class="purpose-name">TOTP</span><span class="purpose-sub">Secreto + hora</span></span>
                   </label>
                 </div>
                 <div id="type-help" class="type-help" aria-live="polite">
                   <code id="type-formula"></code>
                   <span id="type-desc"></span>
                 </div>
+                <p id="totp-channel-note" class="field-help totp-note" hidden>En esta demo enviamos el TOTP por correo o SMS para compararlo con los otros tipos. Normalmente TOTP se utiliza con una app autenticadora.</p>
               </div>
 
               <div class="field">
@@ -191,7 +194,10 @@
                   </select>
                 </div>
               </div>
-              <p id="expiration-help" class="field-help field-row-help"></p>
+              <div class="field-row-help time-help">
+                <p id="expiration-help" class="field-help"></p>
+                <p id="expiration-example" class="time-example"></p>
+              </div>
 
               <div class="field">
                 <label class="check-row" for="gen-custom-toggle">
@@ -200,12 +206,12 @@
                 </label>
                 <div id="gen-message-box" class="message-box" hidden>
                   <textarea id="gen-message" rows="3" maxlength="300" aria-label="Mensaje del SMS"></textarea>
-                  <p class="field-help">Usá <code>{code}</code> donde va el código (obligatorio) y <code>{seconds}</code> para los segundos de vigencia.</p>
+                  <p class="field-help">Usa <code>{code}</code> donde va el código (obligatorio) y <code>{seconds}</code> para los segundos de vigencia.</p>
                 </div>
                 <p id="gen-message-default" class="field-help">Se enviará: <span id="gen-message-preview"></span></p>
               </div>
 
-              <p class="field-help">El código llega por SMS real a través de tu cuenta de Twilio conectada. Una cuenta de prueba de Twilio solo entrega a números que hayas verificado en su consola.</p>
+              <p class="field-help">El código llega por SMS real desde tu cuenta de Twilio: te la pedimos al enviar. Una cuenta de prueba solo entrega a números que hayas verificado en su consola.</p>
             </div>
 
             <button id="gen-btn" onclick="generateOtp()" class="btn-primary">
@@ -223,7 +229,7 @@
           <div class="otp-step" id="otp-step-2" data-step="2" style="display:none;">
             <div class="step-header">
               <h2>Verificar código</h2>
-              <p id="ver-purpose-desc">Ingresá el código que recibiste por SMS</p>
+              <p id="ver-purpose-desc">Ingresa el código que recibiste por SMS</p>
             </div>
 
             <div class="form-section">
@@ -298,7 +304,7 @@
 
             <dl class="receipt" aria-label="Resumen de la verificación">
               <div class="receipt-row"><dt>Acción</dt><dd id="rc-purpose">—</dd></div>
-              <div class="receipt-row"><dt>Protocolo</dt><dd id="rc-type">—</dd></div>
+              <div class="receipt-row"><dt>Tipo de OTP</dt><dd id="rc-type">—</dd></div>
               <div class="receipt-row"><dt>Cómo se comprobó</dt><dd id="rc-how">—</dd></div>
               <div class="receipt-row"><dt>Número verificado</dt><dd id="rc-phone" class="mono">—</dd></div>
               <div class="receipt-row"><dt>Verificado a las</dt><dd id="rc-time" class="mono">—</dd></div>
@@ -316,8 +322,14 @@
   </main>
 
   <footer class="station-foot">
-    <span data-brand>Un Solo Uso</span>
-    <span>Spring Boot · RFC 4226 · RFC 6238</span>
+    <div class="foot-brand">
+      <span data-brand>Un Solo Uso</span>
+      <span>Spring Boot · RFC 4226 · RFC 6238</span>
+    </div>
+    <nav class="foot-links" aria-label="Código y autor">
+      <a href="https://github.com/JoshRivas313/OTP-Service" target="_blank" rel="noopener noreferrer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M13.5 4l-3 16"/></svg>Código en GitHub</a>
+      <a href="https://www.linkedin.com/in/jose-hurtado-rivas-8150b0231/" target="_blank" rel="noopener noreferrer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true"><rect x="3" y="3" width="18" height="18"/><path d="M8 10.5V17M8 7v.5M12 17v-6.5M12 13.5a3 3 0 0 1 6 0V17"/></svg>Jose Hurtado Rivas</a>
+    </nav>
   </footer>
 
 <script src="/js/brand.js"></script>

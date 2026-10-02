@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Un Solo Uso</title>
-<meta name="description" content="OTP, HOTP y TOTP en un mismo tablero: mirá en vivo cómo cambia cada código de un solo uso y probalo por correo o SMS.">
+<meta name="description" content="OTP aleatorio, HOTP y TOTP en un mismo tablero: mira en vivo cómo cambia cada código de un solo uso y pruébalo por correo o SMS.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='3' fill='%230e0e0d'/%3E%3Crect x='5' y='5' width='14' height='14' rx='1.5' fill='%23232321'/%3E%3Cpath d='M5 12h14' stroke='%230e0e0d' stroke-width='1.2'/%3E%3Cpath d='M12 7.5v9' stroke='%236db33f' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,7 +18,7 @@
   <header class="station">
     <div class="station-inner">
       <a class="station-brand" href="/" data-brand>Un Solo Uso</a>
-      <p class="station-clock" aria-label="Hora local">
+      <p class="station-clock">
         <span class="station-clock-label">Hora local</span>
         <time id="clock" class="station-clock-time">--:--:--</time>
       </p>
@@ -28,77 +28,82 @@
   <main class="stage">
     <section class="intro" aria-labelledby="intro-title">
       <h1 id="intro-title">Tres códigos.<br>Tres reglas.</h1>
+      <p class="intro-lead">Mira cómo funciona: cada código cambia en vivo según su regla. Pulsa <span class="intro-key">Pedir otro</span> en cada fila y compara qué pasa.</p>
     </section>
 
     <section id="tablero" class="board" aria-label="Tablero de códigos de un solo uso">
-      <table class="board-table">
-        <caption class="visually-hidden">Los tres protocolos, con su código actual, cuándo cambia, qué guarda el servidor y su estado</caption>
-        <thead>
-          <tr>
-            <th scope="col">Protocolo</th>
-            <th scope="col">Código</th>
-            <th scope="col">Cambia</th>
-            <th scope="col">Guarda el servidor</th>
-            <th scope="col">Estado</th>
+      <table class="board-table" role="table">
+        <caption class="visually-hidden">Los tres tipos de OTP, con su código actual, cuándo cambia, qué guarda el servidor y su estado</caption>
+        <thead role="rowgroup">
+          <tr role="row">
+            <th scope="col" role="columnheader">Tipo de OTP</th>
+            <th scope="col" role="columnheader">Código</th>
+            <th scope="col" role="columnheader">Cambia</th>
+            <th scope="col" role="columnheader">Guarda el servidor</th>
+            <th scope="col" role="columnheader">Estado</th>
           </tr>
         </thead>
-        <tbody>
-          <tr class="board-row" data-protocol="OTP">
-            <th scope="row" class="cell-proto">
-              <span class="proto-name">OTP</span>
-              <span class="proto-sub">Aleatorio</span>
+        <tbody role="rowgroup">
+          <tr class="board-row" data-protocol="OTP" role="row">
+            <th scope="row" class="cell-proto" role="rowheader">
+              <span class="proto-name">OTP <span class="name-qualifier">aleatorio</span></span>
+              <span class="proto-sub">Nace del azar</span>
             </th>
-            <td class="cell-code" data-label="Código">
+            <td class="cell-code" data-label="Código" role="cell">
               <div class="code-line">
                 <span class="flaps" data-flaps="6" role="img" aria-label="Código"></span>
-                <button type="button" class="key" data-action="otro" aria-label="Pedir otro código OTP">Otro</button>
+                <button type="button" class="key" data-action="otro" aria-label="Pedir otro código OTP aleatorio">Pedir otro</button>
               </div>
               <p class="previous" hidden></p>
             </td>
-            <td class="cell-change" data-label="Cambia">Al pedir otro</td>
-            <td class="cell-stores" data-label="Guarda el servidor">El hash del código</td>
-            <td class="cell-status" data-label="Estado">
+            <td class="cell-change" data-label="Cambia" role="cell">Cada pedido genera uno nuevo</td>
+            <td class="cell-stores" data-label="Guarda el servidor" role="cell">El hash del código</td>
+            <td class="cell-status" data-label="Estado" role="cell">
               <span class="status"><span class="lamp" aria-hidden="true"></span><span class="status-text">—</span></span>
             </td>
           </tr>
-          <tr class="board-row" data-protocol="HOTP">
-            <th scope="row" class="cell-proto">
+          <tr class="board-row" data-protocol="HOTP" role="row">
+            <th scope="row" class="cell-proto" role="rowheader">
               <span class="proto-name">HOTP</span>
-              <span class="proto-sub">Por contador</span>
+              <span class="proto-sub">Secreto + contador</span>
             </th>
-            <td class="cell-code" data-label="Código">
+            <td class="cell-code" data-label="Código" role="cell">
               <div class="code-line">
                 <span class="flaps" data-flaps="6" role="img" aria-label="Código"></span>
-                <button type="button" class="key" data-action="otro" aria-label="Pedir otro código HOTP">Otro</button>
+                <button type="button" class="key" data-action="otro" aria-label="Pedir otro código HOTP">Pedir otro</button>
               </div>
               <p class="previous" hidden></p>
             </td>
-            <td class="cell-change" data-label="Cambia">Al pedir otro · <span class="mono">contador <span data-field="counter">0</span></span></td>
-            <td class="cell-stores" data-label="Guarda el servidor">El secreto y el contador</td>
-            <td class="cell-status" data-label="Estado">
+            <td class="cell-change" data-label="Cambia" role="cell">
+              Cuando avanza el contador
+              <span class="mono change-detail">contador: <span data-field="counter">0</span></span>
+            </td>
+            <td class="cell-stores" data-label="Guarda el servidor" role="cell">El secreto y el contador</td>
+            <td class="cell-status" data-label="Estado" role="cell">
               <span class="status"><span class="lamp" aria-hidden="true"></span><span class="status-text">—</span></span>
             </td>
           </tr>
-          <tr class="board-row" data-protocol="TOTP">
-            <th scope="row" class="cell-proto">
+          <tr class="board-row" data-protocol="TOTP" role="row">
+            <th scope="row" class="cell-proto" role="rowheader">
               <span class="proto-name">TOTP</span>
-              <span class="proto-sub">Por tiempo</span>
+              <span class="proto-sub">Secreto + hora</span>
             </th>
-            <td class="cell-code" data-label="Código">
+            <td class="cell-code" data-label="Código" role="cell">
               <div class="code-line">
                 <span class="flaps" data-flaps="6" role="img" aria-label="Código"></span>
-                <button type="button" class="key" data-action="otro" aria-label="Pedir otro código TOTP">Otro</button>
+                <button type="button" class="key" data-action="otro" aria-label="Pedir otro código TOTP">Pedir otro</button>
               </div>
               <p class="previous" hidden></p>
             </td>
-            <td class="cell-change" data-label="Cambia">
-              Cada 30 s
-              <span class="mono window-step">T = <span data-field="step">—</span></span>
+            <td class="cell-change" data-label="Cambia" role="cell">
+              Cuando cambia la ventana
+              <span class="change-detail">cada 30 s</span>
+              <span class="mono window-step">Ventana T = <span data-field="step">—</span></span>
               <span class="window-left">cambia en <span class="mono" data-field="left">--</span> s</span>
               <span class="window-track" aria-hidden="true"><span class="window-bar" data-field="bar"></span></span>
             </td>
-            <td class="cell-stores" data-label="Guarda el servidor">El secreto y la última ventana usada</td>
-            <td class="cell-status" data-label="Estado">
+            <td class="cell-stores" data-label="Guarda el servidor" role="cell">El secreto y la última ventana usada</td>
+            <td class="cell-status" data-label="Estado" role="cell">
               <span class="status"><span class="lamp" aria-hidden="true"></span><span class="status-text">—</span></span>
             </td>
           </tr>
@@ -106,28 +111,34 @@
       </table>
       <p id="board-live" class="visually-hidden" aria-live="polite"></p>
       <p class="board-note">
-        Demostración calculada en tu navegador con el secreto de prueba de los RFC 4226 y 6238
-        (<span class="mono">12345678901234567890</span>). Los códigos reales los genera el servidor.
+        Esta simulación se calcula en tu navegador. HOTP y TOTP usan el secreto público de prueba de los RFC
+        (<span class="mono">12345678901234567890</span>). Al probar de verdad, el servidor genera y verifica los códigos reales.
       </p>
     </section>
 
     <section id="puertas" class="gates" aria-labelledby="gates-title">
-      <h2 id="gates-title" class="gates-title">Probalo de verdad</h2>
+      <h2 id="gates-title" class="gates-title">Pruébalo de verdad</h2>
+      <p class="gates-flow" aria-label="El tipo de OTP define el código; el canal solo lo entrega">
+        <span class="flow-step"><span class="flow-label">Tipo de OTP</span>OTP aleatorio · HOTP · TOTP</span>
+        <span class="flow-arrow" aria-hidden="true">→</span>
+        <span class="flow-step"><span class="flow-label">Código</span>el servidor lo genera</span>
+        <span class="flow-arrow" aria-hidden="true">→</span>
+        <span class="flow-step"><span class="flow-label">Canal</span>correo o SMS</span>
+      </p>
       <div class="gates-row">
-        <a class="gate gate-primary" href="/correo.html">
-          <span class="gate-number" aria-hidden="true">1</span>
+        <a class="gate" href="/correo.html">
           <span class="gate-body">
             <span class="gate-name">Correo</span>
-            <span class="gate-sub">Sin cuenta: elegís el protocolo y pedís un código con tu correo.</span>
+            <span class="gate-sub">Recíbelo por correo. Eliges OTP aleatorio, HOTP o TOTP en el siguiente paso.</span>
           </span>
           <span class="gate-arrow"><svg class="arrow" width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" aria-hidden="true"><path d="M1 7h18M13 1l6 6-6 6"/></svg></span>
         </a>
         <a class="gate" href="/sms.html">
-          <span class="gate-number" aria-hidden="true">2</span>
           <span class="gate-body">
             <span class="gate-name">SMS</span>
-            <span class="gate-sub">Con tu propia cuenta de Twilio.</span>
+            <span class="gate-sub">Recíbelo por SMS. Mismos tres tipos. Usa tu cuenta de Twilio.</span>
           </span>
+          <span class="gate-arrow"><svg class="arrow" width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" aria-hidden="true"><path d="M1 7h18M13 1l6 6-6 6"/></svg></span>
         </a>
       </div>
 
@@ -141,45 +152,45 @@
     <section id="ficha" class="spec" aria-labelledby="spec-title">
       <h2 id="spec-title">Qué pasa detrás de cada fila</h2>
       <div class="spec-scroll">
-        <table class="spec-table">
-          <thead>
-            <tr>
-              <th scope="col"><span class="visually-hidden">Pregunta</span></th>
-              <th scope="col">OTP</th>
-              <th scope="col">HOTP</th>
-              <th scope="col">TOTP</th>
+        <table class="spec-table" role="table">
+          <thead role="rowgroup">
+            <tr role="row">
+              <th scope="col" role="columnheader"><span class="visually-hidden">Pregunta</span></th>
+              <th scope="col" role="columnheader">OTP aleatorio</th>
+              <th scope="col" role="columnheader">HOTP</th>
+              <th scope="col" role="columnheader">TOTP</th>
             </tr>
           </thead>
-          <tbody>
-            <tr>
-              <th scope="row">Qué es</th>
-              <td>Un código al azar que te mandan</td>
-              <td>Un código que sale de una cuenta que va subiendo</td>
-              <td>Un código que cambia solo cada 30 segundos</td>
+          <tbody role="rowgroup">
+            <tr role="row">
+              <th scope="row" role="rowheader">Qué es</th>
+              <td role="cell" data-label="OTP aleatorio">Un código al azar que sirve una sola vez</td>
+              <td role="cell" data-label="HOTP">Un código que sale de un contador que sube con cada pedido</td>
+              <td role="cell" data-label="TOTP">Un código que cambia por sí mismo cada 30 segundos, según la hora</td>
             </tr>
-            <tr>
-              <th scope="row">De dónde sale</th>
-              <td>Lo inventa el servidor</td>
-              <td>De un secreto compartido y de cuántos códigos pediste</td>
-              <td>De un secreto compartido y de la hora</td>
+            <tr role="row">
+              <th scope="row" role="rowheader">De dónde sale</th>
+              <td role="cell" data-label="OTP aleatorio">Lo sortea el servidor</td>
+              <td role="cell" data-label="HOTP">De un secreto que guarda el servidor y del contador</td>
+              <td role="cell" data-label="TOTP">De un secreto que guarda el servidor y de la hora</td>
             </tr>
-            <tr>
-              <th scope="row">Qué guarda el servidor</th>
-              <td>Solo una &laquo;huella&raquo; del código, nunca el código</td>
-              <td>El secreto, guardado bajo llave, y por dónde va la cuenta</td>
-              <td>El secreto, guardado bajo llave, y el último código usado</td>
+            <tr role="row">
+              <th scope="row" role="rowheader">Qué guarda el servidor</th>
+              <td role="cell" data-label="OTP aleatorio">Solo una &laquo;huella&raquo; del código, nunca el código</td>
+              <td role="cell" data-label="HOTP">El secreto, guardado bajo llave, y por dónde va el contador</td>
+              <td role="cell" data-label="TOTP">El secreto, guardado bajo llave, y la última ventana usada</td>
             </tr>
-            <tr>
-              <th scope="row">Cómo comprueba el tuyo</th>
-              <td>Compara tu código con la huella</td>
-              <td>Calcula los próximos códigos y mira si el tuyo coincide</td>
-              <td>Calcula el código de este momento, y el vecino por si tu reloj se atrasó</td>
+            <tr role="row">
+              <th scope="row" role="rowheader">Cómo comprueba el tuyo</th>
+              <td role="cell" data-label="OTP aleatorio">Calcula la huella de lo que escribiste y la compara con la guardada</td>
+              <td role="cell" data-label="HOTP">Recalcula los códigos que te envió y aún no usaste, y mira si el tuyo coincide</td>
+              <td role="cell" data-label="TOTP">Recalcula el código de la ventana actual y de las que permite la tolerancia, por si el tuyo tardó en llegar</td>
             </tr>
-            <tr>
-              <th scope="row">Cuándo deja de servir</th>
-              <td>Cuando pasa el tiempo o pedís otro</td>
-              <td>Cuando lo usás, o usás uno más nuevo</td>
-              <td>Cuando terminan sus 30 segundos, o cuando lo usás</td>
+            <tr role="row">
+              <th scope="row" role="rowheader">Cuándo deja de servir</th>
+              <td role="cell" data-label="OTP aleatorio">Cuando lo usas, cuando vence o cuando pides otro</td>
+              <td role="cell" data-label="HOTP">Cuando lo usas o usas uno más nuevo, o cuando ya hay <span data-policy="hotpLookAhead">10</span> más nuevos sin usar</td>
+              <td role="cell" data-label="TOTP">Cuando termina su ventana y la tolerancia (aprox. <span data-policy="totpLifetime">30–60 s</span> según cuándo se generó), o cuando ya fue utilizado</td>
             </tr>
           </tbody>
         </table>
@@ -193,48 +204,48 @@
           </svg>
         </summary>
         <div class="spec-scroll">
-          <table class="spec-table">
-            <thead>
-              <tr>
-                <th scope="col"><span class="visually-hidden">Aspecto</span></th>
-                <th scope="col">OTP</th>
-                <th scope="col">HOTP</th>
-                <th scope="col">TOTP</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <th scope="row">Estándar</th>
-                <td>—</td>
-                <td class="mono">RFC 4226</td>
-                <td class="mono">RFC 6238</td>
-              </tr>
-              <tr>
-                <th scope="row">Cómo se obtiene</th>
-                <td class="mono">SecureRandom</td>
-                <td class="mono">HMAC-SHA1(secreto, contador)</td>
-                <td class="mono">HMAC-SHA1(secreto, &lfloor;t &divide; 30&rfloor;)</td>
-              </tr>
-              <tr>
-                <th scope="row">Qué guarda el servidor</th>
-                <td>El hash HMAC-SHA256 del código</td>
-                <td>El secreto cifrado y el contador</td>
-                <td>El secreto cifrado y la última ventana usada</td>
-              </tr>
-              <tr>
-                <th scope="row">Cómo verifica</th>
-                <td>Compara con el hash guardado</td>
-                <td>Recalcula los contadores pendientes</td>
-                <td>Recalcula la ventana actual &plusmn;1</td>
-              </tr>
-              <tr>
-                <th scope="row">Qué lo anula</th>
-                <td>El tiempo o pedir otro</td>
-                <td>Solo usarlo, o usar uno posterior</td>
-                <td>El cierre de su ventana o usarlo</td>
-              </tr>
-            </tbody>
-          </table>
+          <table class="spec-table spec-table-tech" role="table">
+          <thead role="rowgroup">
+            <tr role="row">
+              <th scope="col" role="columnheader"><span class="visually-hidden">Aspecto</span></th>
+              <th scope="col" role="columnheader">OTP aleatorio</th>
+              <th scope="col" role="columnheader">HOTP</th>
+              <th scope="col" role="columnheader">TOTP</th>
+            </tr>
+          </thead>
+          <tbody role="rowgroup">
+            <tr role="row">
+              <th scope="row" role="rowheader">Algoritmo</th>
+              <td role="cell" data-label="OTP aleatorio">Ninguno estándar: azar con SecureRandom</td>
+              <td role="cell" data-label="HOTP" class="mono">HOTP · RFC 4226</td>
+              <td role="cell" data-label="TOTP" class="mono">TOTP · RFC 6238</td>
+            </tr>
+            <tr role="row">
+              <th scope="row" role="rowheader">Cómo se obtiene</th>
+              <td role="cell" data-label="OTP aleatorio" class="mono">SecureRandom → 4 a 10 dígitos</td>
+              <td role="cell" data-label="HOTP" class="mono"><span class="formula"><span>HMAC-SHA1(K, C)</span><span aria-hidden="true">↓</span><span>truncado dinámico</span><span aria-hidden="true">↓</span><span>mod 10<sup>dígitos</sup></span></span><span class="formula-sum">= Truncar(HMAC-SHA1(secreto, contador)) mod 10<sup>6</sup></span></td>
+              <td role="cell" data-label="TOTP" class="mono"><span class="formula"><span>T = ⌊UnixTime ÷ 30⌋</span><span>TOTP(K, T) = HOTP(K, T)</span></span><span class="formula-sum">El contador de eventos de HOTP se reemplaza por un contador de tiempo</span></td>
+            </tr>
+            <tr role="row">
+              <th scope="row" role="rowheader">Qué guarda el servidor</th>
+              <td role="cell" data-label="OTP aleatorio">El hash HMAC-SHA256 del código, con una clave del servidor</td>
+              <td role="cell" data-label="HOTP">El secreto cifrado (AES-256-GCM) y el contador</td>
+              <td role="cell" data-label="TOTP">El secreto cifrado (AES-256-GCM) y la última ventana usada (T)</td>
+            </tr>
+            <tr role="row">
+              <th scope="row" role="rowheader">Cómo verifica</th>
+              <td role="cell" data-label="OTP aleatorio">Calcula el hash de lo recibido y lo compara con el guardado</td>
+              <td role="cell" data-label="HOTP">Recalcula los últimos <span data-policy="hotpLookAhead">10</span> contadores emitidos sin usar (look-ahead); nunca uno que no se emitió</td>
+              <td role="cell" data-label="TOTP">Recalcula T y las ventanas de tolerancia (<span class="mono" data-policy="totpTolerance">T−1 y T+1</span>)</td>
+            </tr>
+            <tr role="row">
+              <th scope="row" role="rowheader">Qué lo anula</th>
+              <td role="cell" data-label="OTP aleatorio">Usarlo, vencer o pedir otro. <span data-policy="maxAttempts">3</span> fallos lo bloquean</td>
+              <td role="cell" data-label="HOTP">Usarlo o usar uno posterior, o quedar detrás de <span data-policy="hotpLookAhead">10</span> más nuevos. <span data-policy="maxAttempts">3</span> fallos bloquean <span data-policy="lockMinutes">10</span> min</td>
+              <td role="cell" data-label="TOTP">El cierre de su ventana y la tolerancia, o usarlo a él o a uno posterior. <span data-policy="maxAttempts">3</span> fallos bloquean <span data-policy="lockMinutes">10</span> min</td>
+            </tr>
+          </tbody>
+        </table>
         </div>
       </details>
     </section>
@@ -242,22 +253,39 @@
     <section id="hecho" class="built" aria-labelledby="built-title">
       <h2 id="built-title">Cómo está hecho</h2>
       <ul class="built-list">
-        <li>Java 21 y Spring Boot 4</li>
-        <li>Arquitectura hexagonal</li>
-        <li>Tests automáticos, con los vectores de los RFC</li>
-        <li>Secretos cifrados con AES-256-GCM</li>
-        <li>MongoDB opcional</li>
+        <li class="built-item">
+          <svg class="built-icon" width="40" height="40" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true"><path d="M6 13h16v7a6 6 0 0 1-6 6h-4a6 6 0 0 1-6-6z"/><path d="M22 15h2.5a3 3 0 0 1 0 6H22"/><path d="M11 4c-1.5 1.8 1.5 3.2 0 5M16 4c-1.5 1.8 1.5 3.2 0 5"/><path d="M5 29h18"/></svg>
+          <strong>Java 21 y Spring Boot 4</strong>
+          <span>El backend que genera, envía y verifica cada código.</span>
+        </li>
+        <li class="built-item">
+          <svg class="built-icon" width="40" height="40" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true"><path d="M16 3l11.3 6.5v13L16 29 4.7 22.5v-13z"/><path d="M16 10.5l4.8 2.75v5.5L16 21.5l-4.8-2.75v-5.5z"/><path d="M16 3v7.5M27.3 22.5l-6.5-3.75M4.7 22.5l6.5-3.75"/></svg>
+          <strong>Arquitectura hexagonal</strong>
+          <span>El núcleo no depende del SMS, del correo ni de la base de datos.</span>
+        </li>
+        <li class="built-item">
+          <svg class="built-icon" width="40" height="40" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true"><rect x="6" y="14" width="20" height="14"/><path d="M10.5 14V9.5a5.5 5.5 0 0 1 11 0V14"/><path d="M16 19v4"/></svg>
+          <strong>Secretos cifrados con AES-256-GCM</strong>
+          <span>Los secretos de HOTP y TOTP nunca se guardan en claro.</span>
+        </li>
+        <li class="built-item">
+          <svg class="built-icon" width="40" height="40" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true"><ellipse cx="16" cy="7" rx="10" ry="3.5"/><path d="M6 7v18c0 1.9 4.5 3.5 10 3.5s10-1.6 10-3.5V7"/><path d="M6 13c0 1.9 4.5 3.5 10 3.5s10-1.6 10-3.5M6 19c0 1.9 4.5 3.5 10 3.5s10-1.6 10-3.5"/></svg>
+          <strong>MongoDB opcional</strong>
+          <span>Sin base de datos, todo vive en memoria y arranca con un comando.</span>
+        </li>
       </ul>
-      <p class="built-links">
-        <a href="https://github.com/JoshRivas313/OTP-Service" target="_blank" rel="noopener noreferrer">Código en GitHub <svg class="arrow" width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" aria-hidden="true"><path d="M1 7h18M13 1l6 6-6 6"/></svg></a>
-        <a href="https://www.linkedin.com/in/jose-hurtado-rivas-8150b0231/" target="_blank" rel="noopener noreferrer">Jose Hurtado Rivas en LinkedIn <svg class="arrow" width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" aria-hidden="true"><path d="M1 7h18M13 1l6 6-6 6"/></svg></a>
-      </p>
     </section>
   </main>
 
   <footer class="station-foot">
-    <span data-brand>Un Solo Uso</span>
-    <span>Códigos de un solo uso por SMS o correo</span>
+    <div class="foot-brand">
+      <span data-brand>Un Solo Uso</span>
+      <span>Códigos de un solo uso por SMS o correo</span>
+    </div>
+    <nav class="foot-links" aria-label="Código y autor">
+      <a href="https://github.com/JoshRivas313/OTP-Service" target="_blank" rel="noopener noreferrer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M13.5 4l-3 16"/></svg>Código en GitHub</a>
+      <a href="https://www.linkedin.com/in/jose-hurtado-rivas-8150b0231/" target="_blank" rel="noopener noreferrer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true"><rect x="3" y="3" width="18" height="18"/><path d="M8 10.5V17M8 7v.5M12 17v-6.5M12 13.5a3 3 0 0 1 6 0V17"/></svg>Jose Hurtado Rivas</a>
+    </nav>
   </footer>
 
 <script src="/js/brand.js"></script>
