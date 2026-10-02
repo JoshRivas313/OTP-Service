@@ -4,6 +4,7 @@ import com.otpservice.otp.adapter.config.OtpProperties;
 import com.otpservice.otp.application.port.out.CredentialPersistencePort;
 import com.otpservice.otp.domain.model.HmacCredential;
 import com.otpservice.otp.domain.valueobject.HmacType;
+import com.otpservice.otp.domain.valueobject.Purpose;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -29,23 +30,21 @@ public class InMemoryCredentialAdapter implements CredentialPersistencePort {
 
   @Override
   public synchronized HmacCredential createIfAbsent(HmacCredential credential) {
-    HmacCredential existing = byKey.get(key(credential.getDestination(), credential.getType()));
+    HmacCredential existing = byKey.get(key(credential.getDestination(), credential.getType(), credential.getPurpose()));
     return existing != null ? existing : store(credential.toBuilder().id(UUID.randomUUID().toString()).build());
   }
 
   @Override
-  public synchronized Optional<HmacCredential> find(String destination, HmacType type) {
-    return Optional.ofNullable(byKey.get(key(destination, type)));
+  public synchronized Optional<HmacCredential> find(String destination, HmacType type, Purpose purpose) {
+    return Optional.ofNullable(byKey.get(key(destination, type, purpose)));
   }
 
   @Override
-  public synchronized HmacCredential issue(String id, int digits, int periodSeconds) {
+  public synchronized HmacCredential issue(String id, int digits, int periodSeconds, boolean advanceCounter) {
     return update(id, current -> current.toBuilder()
-      .issuedCounter(current.getIssuedCounter() + 1)
+      .issuedCounter(advanceCounter ? current.getIssuedCounter() + 1 : current.getIssuedCounter())
       .digits(digits)
       .periodSeconds(periodSeconds)
-      .failedAttempts(0)
-      .lockedUntil(null)
       .build())
       .orElseThrow();
   }
@@ -80,7 +79,7 @@ public class InMemoryCredentialAdapter implements CredentialPersistencePort {
       oldest.next();
       oldest.remove();
     }
-    byKey.put(key(credential.getDestination(), credential.getType()), credential);
+    byKey.put(key(credential.getDestination(), credential.getType(), credential.getPurpose()), credential);
     return credential;
   }
 
@@ -102,7 +101,7 @@ public class InMemoryCredentialAdapter implements CredentialPersistencePort {
     return Optional.empty();
   }
 
-  private static String key(String destination, HmacType type) {
-    return destination + "|" + type;
+  private static String key(String destination, HmacType type, Purpose purpose) {
+    return destination + "|" + type + "|" + purpose;
   }
 }

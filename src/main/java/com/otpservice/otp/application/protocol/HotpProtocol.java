@@ -35,6 +35,11 @@ public class HotpProtocol extends HmacCodeProtocol {
     }
 
     @Override
+    protected boolean advancesCounter() {
+        return true;
+    }
+
+    @Override
     protected HmacType type() {
         return HmacType.HOTP;
     }
@@ -53,7 +58,7 @@ public class HotpProtocol extends HmacCodeProtocol {
 
     @Override
     protected CodeMatch match(HmacCredential credential, byte[] secret, String code, Instant now) {
-        return HotpVerifier.verify(secret, code, credential.getCounter(), pendingWindow(credential),
+        return HotpVerifier.verify(secret, code, credential.getCounter(), credential.getIssuedCounter(),
                 settings.hotpLookAhead(), credential.getDigits());
     }
 
@@ -65,9 +70,5 @@ public class HotpProtocol extends HmacCodeProtocol {
     @Override
     protected VerifiedCode verifiedFor(long matched) {
         return new VerifiedCode(matched, null);
-    }
-
-    private long pendingWindow(HmacCredential credential) {
-        return Math.min(credential.pendingCodes(), settings.hotpLookAhead()) - 1;
     }
 }

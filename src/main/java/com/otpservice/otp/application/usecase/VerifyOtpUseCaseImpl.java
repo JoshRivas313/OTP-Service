@@ -22,9 +22,9 @@ public class VerifyOtpUseCaseImpl implements VerifyOtpUseCase {
     Destination destination = command.destination();
     OtpProtocol protocol = command.protocol();
 
-    VerifiedCode verified = protocols.get(protocol).verify(destination, command.code().getValue());
+    VerifiedCode verified = protocols.get(protocol).verify(destination, command.purpose(), command.code().getValue());
 
-    log.info("{} verificado destino={}", protocol, destination.masked());
+    log.info("{} verificado destino={} proposito={}", protocol, destination.masked(), command.purpose());
     return VerifyOtpResult.verified(protocol, verified.counter(), verified.timeStep());
   }
 }

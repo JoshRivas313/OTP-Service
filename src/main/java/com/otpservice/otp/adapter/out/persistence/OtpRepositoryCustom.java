@@ -1,13 +1,14 @@
 package com.otpservice.otp.adapter.out.persistence;
 
 import com.otpservice.otp.adapter.out.persistence.document.OtpDocument;
+import com.otpservice.otp.domain.valueobject.Purpose;
 
 import java.time.Instant;
 import java.util.Optional;
 
 public interface OtpRepositoryCustom {
 
-    long invalidateActive(String destination);
+    long invalidateActive(String destination, Purpose purpose);
 
     Optional<OtpDocument> claimIfMatches(String id, String codeHash, Instant now, int maxAttempts);
 

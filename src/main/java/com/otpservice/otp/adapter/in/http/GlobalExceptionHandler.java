@@ -5,6 +5,7 @@ import com.otpservice.otp.domain.exception.ErrorCode;
 import com.otpservice.otp.domain.exception.OtpDomainException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -26,6 +27,13 @@ public class GlobalExceptionHandler {
                 .orElse("Solicitud inválida");
         return ResponseEntity.status(statusFor(ErrorCode.VALIDATION_ERROR))
                 .body(ErrorResponse.of(ErrorCode.VALIDATION_ERROR, message));
+    }
+
+    // Cuerpo ilegible o con un valor fuera de catalogo (por ejemplo un purpose que no existe).
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadable(HttpMessageNotReadableException exception) {
+        return ResponseEntity.status(statusFor(ErrorCode.VALIDATION_ERROR))
+                .body(ErrorResponse.of(ErrorCode.VALIDATION_ERROR, "Solicitud inválida: revisa los valores enviados"));
     }
 
     // Sin "default": si se agrega un ErrorCode y no se mapea aqui, el compilador lo senala.

@@ -1,10 +1,7 @@
 package com.otpservice.otp.domain.model;
 
-import com.otpservice.otp.domain.exception.OtpAlreadyUsedException;
-import com.otpservice.otp.domain.exception.OtpBlockedException;
-import com.otpservice.otp.domain.exception.OtpExpiredException;
-import com.otpservice.otp.domain.exception.OtpInvalidatedException;
 import com.otpservice.otp.domain.valueobject.Destination;
+import com.otpservice.otp.domain.valueobject.Purpose;
 import com.otpservice.otp.domain.valueobject.ValidityWindow;
 import com.otpservice.otp.domain.valueobject.VerificationStatus;
 import lombok.AllArgsConstructor;
@@ -20,19 +17,21 @@ public class Otp {
 
     private final String id;
     private final String destination;
+    private final Purpose purpose;
     private final String codeHash;
     private final int digits;
     private final ValidityWindow validityWindow;
     private final VerificationStatus verificationStatus;
     private final Instant purgeAt;
 
-    public record IssueRequest(Destination destination, String codeHash, int digits,
+    public record IssueRequest(Destination destination, Purpose purpose, String codeHash, int digits,
                                 ValidityWindow validityWindow, Instant purgeAt) {
     }
 
     public static Otp issue(IssueRequest request) {
         return Otp.builder()
                 .destination(request.destination().getValue())
+                .purpose(request.purpose())
                 .codeHash(request.codeHash())
                 .digits(request.digits())
                 .validityWindow(request.validityWindow())
@@ -41,19 +40,14 @@ public class Otp {
                 .build();
     }
 
-    // Orden de las comprobaciones: es el que determina que error ve el cliente.
+    public OtpStatus status(Instant now, int maxAllowedAttempts) {
+        return OtpStatus.of(this, now, maxAllowedAttempts);
+    }
+
     public void ensureVerifiable(Instant now, int maxAllowedAttempts) {
-        if (isInvalidated()) {
-            throw new OtpInvalidatedException();
-        }
-        if (isUsed()) {
-            throw new OtpAlreadyUsedException();
-        }
-        if (isExpired(now)) {
-            throw new OtpExpiredException();
-        }
-        if (isBlocked(maxAllowedAttempts)) {
-            throw new OtpBlockedException();
+        OtpStatus status = status(now, maxAllowedAttempts);
+        if (!status.isVerifiable()) {
+            throw status.rejection();
         }
     }
 

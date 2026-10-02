@@ -19,12 +19,17 @@ public record OtpProperties(
         @DefaultValue("10000") int memoryMaxEntries,
         @DefaultValue("5") int rateLimitPerDestination,
         @DefaultValue("20") int rateLimitPerIp,
-        @DefaultValue("600") int rateLimitWindowSeconds
+        @DefaultValue("600") int rateLimitWindowSeconds,
+        @DefaultValue("600") int lockSeconds,
+        @DefaultValue("10") int verifyRateLimitPerDestination,
+        @DefaultValue("30") int verifyRateLimitPerIp,
+        @DefaultValue("true") boolean logCodes
 ) {
     public static final String INSECURE_DEV_SECRET = "dev-only-secret-change-me";
 
     public OtpSettings settings() {
-        return new OtpSettings(digits, durationSeconds, maxAttempts, retentionSeconds, messageTemplate, demoMode);
+        return new OtpSettings(digits, durationSeconds, maxAttempts, retentionSeconds, lockSeconds, messageTemplate,
+                demoMode);
     }
 
     public boolean usingInsecureDevSecret() {

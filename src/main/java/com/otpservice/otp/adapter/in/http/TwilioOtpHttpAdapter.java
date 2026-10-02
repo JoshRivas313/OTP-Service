@@ -1,6 +1,7 @@
 package com.otpservice.otp.adapter.in.http;
 
 import com.otpservice.otp.adapter.config.SendRateLimiter;
+import com.otpservice.otp.adapter.config.VerifyRateLimiter;
 import com.otpservice.otp.adapter.exception.DestinationNotVerifiedException;
 import com.otpservice.otp.adapter.exception.TwilioNotConnectedException;
 import com.otpservice.otp.adapter.in.http.dto.request.TwilioOtpGenerateRequest;
@@ -38,6 +39,7 @@ public class TwilioOtpHttpAdapter {
   private final GenerateOtpUseCase generateUseCase;
   private final VerifyOtpUseCase verifyUseCase;
   private final SendRateLimiter rateLimiter;
+  private final VerifyRateLimiter verifyRateLimiter;
 
   @PostMapping
   public ResponseEntity<OtpGenerateResponse> generateOtp(
@@ -53,6 +55,7 @@ public class TwilioOtpHttpAdapter {
     var command = new GenerateOtpUseCase.GenerateOtpCommand(
       request.getCellphone(),
       request.getType(),
+      request.getPurpose(),
       request.getDigits(),
       request.getDurationSeconds(),
       request.getMessage()
@@ -67,11 +70,14 @@ public class TwilioOtpHttpAdapter {
   @PostMapping("/verify")
   public ResponseEntity<OtpVerifyResponse> verifyOtp(
     @Valid @RequestBody TwilioOtpVerifyRequest request,
-    HttpSession session
+    HttpSession session,
+    HttpServletRequest http
   ) {
     requireConnected(session);
+    verifyRateLimiter.check(request.getCellphone().getValue(), http.getRemoteAddr());
     OtpCode code = OtpCode.parse(request.getCode());
-    var command = new VerifyOtpUseCase.VerifyOtpCommand(request.getCellphone(), request.getType(), code);
+    var command = new VerifyOtpUseCase.VerifyOtpCommand(
+      request.getCellphone(), request.getType(), request.getPurpose(), code);
     VerifyOtpResult result = verifyUseCase.verify(command);
     return ResponseEntity.ok(OtpVerifyResponse.from(result));
   }

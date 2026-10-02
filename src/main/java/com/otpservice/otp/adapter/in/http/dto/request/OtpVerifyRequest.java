@@ -1,6 +1,7 @@
 package com.otpservice.otp.adapter.in.http.dto.request;
 
 import com.otpservice.otp.domain.valueobject.OtpProtocol;
+import com.otpservice.otp.domain.valueobject.Purpose;
 import com.otpservice.otp.domain.valueobject.Cellphone;
 import com.otpservice.otp.domain.valueobject.OtpCode;
 import jakarta.validation.constraints.NotNull;
@@ -17,6 +18,8 @@ public class OtpVerifyRequest {
     private Cellphone cellphone;
 
     private OtpProtocol type;
+
+    private Purpose purpose;
 
     @NotNull(message = "El código es obligatorio")
     private OtpCode code;

@@ -8,7 +8,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class DemoModeGuardTest {
 
     private static DemoModeGuard guard(boolean demoMode, SmsProvider sms, EmailProvider email) {
-        OtpProperties otp = new OtpProperties(6, 30, 3, 86400, "plantilla", "secreto", demoMode, 10000, 0, 0, 600);
+        OtpProperties otp = new OtpProperties(6, 30, 3, 86400, "plantilla", "secreto", demoMode, 10000, 0, 0, 600,
+                600, 0, 0, true);
         SmsProperties smsProperties = new SmsProperties(sms,
                 new SmsProperties.Twilio("", "", ""), new SmsProperties.Infobip("", "", ""));
         EmailProperties emailProperties = new EmailProperties(email, "Un Solo Uso", "",

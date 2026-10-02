@@ -2,6 +2,7 @@ package com.otpservice.otp.adapter.in.http.dto.request;
 
 import com.otpservice.otp.domain.valueobject.OtpCode;
 import com.otpservice.otp.domain.valueobject.OtpProtocol;
+import com.otpservice.otp.domain.valueobject.Purpose;
 import com.otpservice.otp.domain.valueobject.Cellphone;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -22,6 +23,8 @@ public class TwilioOtpGenerateRequest {
     private Cellphone cellphone;
 
     private OtpProtocol type;
+
+    private Purpose purpose;
 
     @Min(value = OtpCode.MIN_LENGTH, message = RequestRules.DIGITS_MIN_MESSAGE)
     @Max(value = OtpCode.MAX_LENGTH, message = RequestRules.DIGITS_MAX_MESSAGE)

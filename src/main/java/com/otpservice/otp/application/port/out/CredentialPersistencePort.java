@@ -2,6 +2,7 @@ package com.otpservice.otp.application.port.out;
 
 import com.otpservice.otp.domain.model.HmacCredential;
 import com.otpservice.otp.domain.valueobject.HmacType;
+import com.otpservice.otp.domain.valueobject.Purpose;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -11,9 +12,10 @@ public interface CredentialPersistencePort {
 
   HmacCredential createIfAbsent(HmacCredential credential);
 
-  Optional<HmacCredential> find(String destination, HmacType type);
+  Optional<HmacCredential> find(String destination, HmacType type, Purpose purpose);
 
-  HmacCredential issue(String id, int digits, int periodSeconds);
+  // No toca los intentos ni el bloqueo. advanceCounter: solo HOTP avanza el contador al emitir.
+  HmacCredential issue(String id, int digits, int periodSeconds, boolean advanceCounter);
 
   boolean claimTimeStep(String id, long timeStep);
 

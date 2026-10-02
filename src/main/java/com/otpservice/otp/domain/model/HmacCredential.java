@@ -2,6 +2,7 @@ package com.otpservice.otp.domain.model;
 
 import com.otpservice.otp.domain.valueobject.EncryptedSecret;
 import com.otpservice.otp.domain.valueobject.HmacType;
+import com.otpservice.otp.domain.valueobject.Purpose;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -19,6 +20,7 @@ public class HmacCredential {
     private final String id;
     private final String destination;
     private final HmacType type;
+    private final Purpose purpose;
     private final EncryptedSecret secret;
     private final int digits;
     private final int periodSeconds;
@@ -29,11 +31,12 @@ public class HmacCredential {
     private final Instant lockedUntil;
     private final Instant createdAt;
 
-    public static HmacCredential create(String destination, HmacType type, EncryptedSecret secret,
+    public static HmacCredential create(String destination, HmacType type, Purpose purpose, EncryptedSecret secret,
                                         int digits, int periodSeconds, Instant now) {
         return HmacCredential.builder()
                 .destination(destination)
                 .type(type)
+                .purpose(purpose)
                 .secret(secret)
                 .digits(digits)
                 .periodSeconds(type.effectivePeriod(periodSeconds))
@@ -45,16 +48,13 @@ public class HmacCredential {
                 .build();
     }
 
-    public static String secretContext(String destination, HmacType type) {
-        return destination + "|" + type.name();
+    // Datos asociados del cifrado del secreto: un secreto copiado a otro destino, tipo o proposito no se descifra.
+    public static String secretContext(String destination, HmacType type, Purpose purpose) {
+        return destination + "|" + type.name() + "|" + purpose.name();
     }
 
     public String secretContext() {
-        return secretContext(destination, type);
-    }
-
-    public long pendingCodes() {
-        return Math.max(0, issuedCounter - counter);
+        return secretContext(destination, type, purpose);
     }
 
     public boolean isLocked(Instant now) {

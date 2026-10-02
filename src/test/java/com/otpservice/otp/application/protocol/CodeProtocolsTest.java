@@ -2,6 +2,7 @@ package com.otpservice.otp.application.protocol;
 
 import com.otpservice.otp.domain.valueobject.Destination;
 import com.otpservice.otp.domain.valueobject.OtpProtocol;
+import com.otpservice.otp.domain.valueobject.Purpose;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -24,12 +25,12 @@ class CodeProtocolsTest {
             }
 
             @Override
-            public IssuedCode issue(Destination destination, int digits, int durationSeconds) {
+            public IssuedCode issue(Destination destination, Purpose purpose, int digits, int durationSeconds) {
                 return new IssuedCode("123456", null, null, null);
             }
 
             @Override
-            public VerifiedCode verify(Destination destination, String code) {
+            public VerifiedCode verify(Destination destination, Purpose purpose, String code) {
                 return VerifiedCode.random();
             }
         };

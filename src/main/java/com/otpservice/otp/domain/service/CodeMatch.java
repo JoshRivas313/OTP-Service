@@ -2,7 +2,8 @@ package com.otpservice.otp.domain.service;
 
 public record CodeMatch(Outcome outcome, long value) {
 
-    public enum Outcome { MATCH, REUSED, EXPIRED, NO_MATCH }
+    // SUPERSEDED: HOTP emitido y sin usar que quedo fuera de la ventana por tener codigos mas nuevos detras.
+    public enum Outcome { MATCH, REUSED, EXPIRED, SUPERSEDED, NO_MATCH }
 
     public static CodeMatch match(long value) {
         return new CodeMatch(Outcome.MATCH, value);
@@ -14,6 +15,10 @@ public record CodeMatch(Outcome outcome, long value) {
 
     public static CodeMatch expired() {
         return new CodeMatch(Outcome.EXPIRED, -1);
+    }
+
+    public static CodeMatch superseded() {
+        return new CodeMatch(Outcome.SUPERSEDED, -1);
     }
 
     public static CodeMatch noMatch() {

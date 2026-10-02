@@ -10,7 +10,7 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "hmac")
 public record HmacProperties(
         @DefaultValue("1") @Min(0) int totpToleranceSteps,
-        @DefaultValue("10") @Min(0) int hotpLookAhead,
+        @DefaultValue("10") @Min(1) int hotpLookAhead,
         @NotBlank String encryptionKey
 ) {
     public static final String INSECURE_DEV_KEY = "ZGV2LW9ubHktZW5jcnlwdGlvbi1rZXktY2hhbmdlbWU=";

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -80,5 +81,36 @@ class OtpTest {
         Otp otp = otp(new VerificationStatus(MAX_ATTEMPTS, false, false), NOW.plusSeconds(30));
         assertThatThrownBy(() -> otp.ensureVerifiable(NOW.plusSeconds(60), MAX_ATTEMPTS))
                 .isInstanceOf(OtpExpiredException.class);
+    }
+
+    @Test
+    void statusReportsEachStateOfACode() {
+        assertThat(active().status(NOW, MAX_ATTEMPTS)).isEqualTo(OtpStatus.ACTIVE);
+        assertThat(otp(new VerificationStatus(0, false, true), NOW.plusSeconds(30)).status(NOW, MAX_ATTEMPTS))
+                .isEqualTo(OtpStatus.INVALIDATED);
+        assertThat(otp(new VerificationStatus(0, true, false), NOW.plusSeconds(30)).status(NOW, MAX_ATTEMPTS))
+                .isEqualTo(OtpStatus.USED);
+        assertThat(active().status(NOW.plusSeconds(31), MAX_ATTEMPTS)).isEqualTo(OtpStatus.EXPIRED);
+        assertThat(otp(new VerificationStatus(MAX_ATTEMPTS, false, false), NOW.plusSeconds(30)).status(NOW, MAX_ATTEMPTS))
+                .isEqualTo(OtpStatus.BLOCKED);
+    }
+
+    @Test
+    void onlyAnActiveCodeIsVerifiable() {
+        assertThat(OtpStatus.ACTIVE.isVerifiable()).isTrue();
+        assertThat(OtpStatus.values())
+                .filteredOn(status -> status != OtpStatus.ACTIVE)
+                .noneMatch(OtpStatus::isVerifiable);
+    }
+
+    @Test
+    void anActiveStatusHasNoRejection() {
+        assertThatThrownBy(OtpStatus.ACTIVE::rejection).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void priorityFollowsTheDeclarationOrder() {
+        assertThat(OtpStatus.values()).containsExactly(
+                OtpStatus.INVALIDATED, OtpStatus.USED, OtpStatus.EXPIRED, OtpStatus.BLOCKED, OtpStatus.ACTIVE);
     }
 }

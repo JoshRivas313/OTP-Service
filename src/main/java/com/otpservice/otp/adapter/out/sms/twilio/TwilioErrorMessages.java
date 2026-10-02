@@ -17,12 +17,12 @@ public final class TwilioErrorMessages {
             return "No se pudo enviar el SMS";
         }
         return switch (code) {
-            case 21608 -> "Tu cuenta de Twilio es de prueba y ese número no está verificado. Verificalo en la consola de Twilio";
+            case 21608 -> "Tu cuenta de Twilio es de prueba y ese número no está verificado. Verifícalo en la consola de Twilio";
             case 21211, 21614 -> "Twilio no reconoce ese número como un celular válido";
-            case 21408 -> "Tu cuenta de Twilio no tiene permiso para enviar SMS a Perú. Activalo en Geo Permissions";
-            case 21606, 21212, 21659 -> "El número de Twilio configurado no puede enviar SMS. Revisá que sea tuyo y tenga SMS habilitado";
+            case 21408 -> "Tu cuenta de Twilio no tiene permiso para enviar SMS a Perú. Actívalo en Geo Permissions";
+            case 21606, 21212, 21659 -> "El número de Twilio configurado no puede enviar SMS. Revisa que sea tuyo y tenga SMS habilitado";
             case 21610 -> "Ese número pidió no recibir mensajes de tu número de Twilio";
-            case 20003 -> "Twilio rechazó las credenciales de la sesión. Volvé a conectar tu cuenta";
+            case 20003 -> "Twilio rechazó las credenciales de la sesión. Vuelve a conectar tu cuenta";
             default -> "No se pudo enviar el SMS (código de Twilio " + code + ")";
         };
     }

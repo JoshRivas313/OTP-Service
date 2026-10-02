@@ -1,6 +1,7 @@
 package com.otpservice.otp.adapter.in.http.dto.request;
 
 import com.otpservice.otp.domain.valueobject.OtpProtocol;
+import com.otpservice.otp.domain.valueobject.Purpose;
 import com.otpservice.otp.domain.valueobject.EmailAddress;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -17,6 +18,8 @@ public class EmailOtpVerifyRequest {
     private EmailAddress email;
 
     private OtpProtocol type;
+
+    private Purpose purpose;
 
     @NotBlank(message = "El código es obligatorio")
     private String code;

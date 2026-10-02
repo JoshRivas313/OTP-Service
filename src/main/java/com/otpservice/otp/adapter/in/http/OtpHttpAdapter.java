@@ -1,6 +1,7 @@
 package com.otpservice.otp.adapter.in.http;
 
 import com.otpservice.otp.adapter.config.SendRateLimiter;
+import com.otpservice.otp.adapter.config.VerifyRateLimiter;
 import com.otpservice.otp.application.dto.GenerateOtpResult;
 import com.otpservice.otp.application.dto.VerifyOtpResult;
 import com.otpservice.otp.application.port.in.GenerateOtpUseCase;
@@ -33,6 +34,7 @@ public class OtpHttpAdapter {
   private final VerifyOtpUseCase verifyUseCase;
   private final SmsSender smsSender;
   private final SendRateLimiter rateLimiter;
+  private final VerifyRateLimiter verifyRateLimiter;
 
   @PostMapping
   public ResponseEntity<OtpGenerateResponse> generateOtp(
@@ -43,6 +45,7 @@ public class OtpHttpAdapter {
     var command = new GenerateOtpUseCase.GenerateOtpCommand(
       request.getCellphone(),
       request.getType(),
+      request.getPurpose(),
       request.getDigits(),
       request.getDurationSeconds(),
       null
@@ -55,10 +58,15 @@ public class OtpHttpAdapter {
   }
 
   @PostMapping("/verify")
-  public ResponseEntity<OtpVerifyResponse> verifyOtp(@Valid @RequestBody OtpVerifyRequest request) {
+  public ResponseEntity<OtpVerifyResponse> verifyOtp(
+    @Valid @RequestBody OtpVerifyRequest request,
+    HttpServletRequest http
+  ) {
+    verifyRateLimiter.check(request.getCellphone().getValue(), http.getRemoteAddr());
     var command = new VerifyOtpUseCase.VerifyOtpCommand(
       request.getCellphone(),
       request.getType(),
+      request.getPurpose(),
       request.getCode()
     );
     VerifyOtpResult result = verifyUseCase.verify(command);

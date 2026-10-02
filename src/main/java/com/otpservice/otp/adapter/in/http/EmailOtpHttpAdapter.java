@@ -1,6 +1,7 @@
 package com.otpservice.otp.adapter.in.http;
 
 import com.otpservice.otp.adapter.config.SendRateLimiter;
+import com.otpservice.otp.adapter.config.VerifyRateLimiter;
 import com.otpservice.otp.adapter.in.http.dto.request.EmailOtpGenerateRequest;
 import com.otpservice.otp.adapter.in.http.dto.request.EmailOtpVerifyRequest;
 import com.otpservice.otp.adapter.in.http.dto.response.OtpGenerateResponse;
@@ -32,6 +33,7 @@ public class EmailOtpHttpAdapter {
   private final VerifyOtpUseCase verifyUseCase;
   private final EmailSender emailSender;
   private final SendRateLimiter rateLimiter;
+  private final VerifyRateLimiter verifyRateLimiter;
 
   @PostMapping
   public ResponseEntity<OtpGenerateResponse> generateOtp(
@@ -42,6 +44,7 @@ public class EmailOtpHttpAdapter {
     var command = new GenerateOtpUseCase.GenerateOtpCommand(
       request.getEmail(),
       request.getType(),
+      request.getPurpose(),
       request.getDigits(),
       request.getDurationSeconds(),
       request.getMessage()
@@ -55,10 +58,12 @@ public class EmailOtpHttpAdapter {
 
   @PostMapping("/verify")
   public ResponseEntity<OtpVerifyResponse> verifyOtp(
-    @Valid @RequestBody EmailOtpVerifyRequest request
+    @Valid @RequestBody EmailOtpVerifyRequest request,
+    HttpServletRequest http
   ) {
+    verifyRateLimiter.check(request.getEmail().getValue(), http.getRemoteAddr());
     var command = new VerifyOtpUseCase.VerifyOtpCommand(
-      request.getEmail(), request.getType(), OtpCode.parse(request.getCode()));
+      request.getEmail(), request.getType(), request.getPurpose(), OtpCode.parse(request.getCode()));
     VerifyOtpResult result = verifyUseCase.verify(command);
     return ResponseEntity.ok(OtpVerifyResponse.from(result));
   }

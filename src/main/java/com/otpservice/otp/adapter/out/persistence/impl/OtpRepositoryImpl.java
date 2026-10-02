@@ -2,6 +2,7 @@ package com.otpservice.otp.adapter.out.persistence.impl;
 
 import com.otpservice.otp.adapter.out.persistence.document.OtpDocument;
 import com.otpservice.otp.adapter.out.persistence.OtpRepositoryCustom;
+import com.otpservice.otp.domain.valueobject.Purpose;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -16,6 +17,7 @@ import java.util.Optional;
 public class OtpRepositoryImpl implements OtpRepositoryCustom {
 
     private static final String FIELD_DESTINATION = "destination";
+    private static final String FIELD_PURPOSE = "purpose";
     private static final String FIELD_CODE_HASH = "codeHash";
     private static final String FIELD_USED = "verificationStatus.used";
     private static final String FIELD_INVALIDATED = "verificationStatus.invalidated";
@@ -25,8 +27,9 @@ public class OtpRepositoryImpl implements OtpRepositoryCustom {
     private final MongoTemplate mongoTemplate;
 
     @Override
-    public long invalidateActive(String destination) {
+    public long invalidateActive(String destination, Purpose purpose) {
         Query query = Query.query(Criteria.where(FIELD_DESTINATION).is(destination)
+                .and(FIELD_PURPOSE).is(purpose)
                 .and(FIELD_USED).is(false)
                 .and(FIELD_INVALIDATED).is(false));
 

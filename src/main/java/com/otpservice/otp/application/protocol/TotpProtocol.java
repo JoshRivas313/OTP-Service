@@ -41,6 +41,11 @@ public class TotpProtocol extends HmacCodeProtocol {
     }
 
     @Override
+    protected boolean advancesCounter() {
+        return false;
+    }
+
+    @Override
     protected HmacType type() {
         return HmacType.TOTP;
     }

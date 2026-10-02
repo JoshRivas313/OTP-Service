@@ -3,6 +3,7 @@ package com.otpservice.otp.adapter.out.persistence.memory;
 import com.otpservice.otp.adapter.config.OtpProperties;
 import com.otpservice.otp.application.port.out.OtpPersistencePort;
 import com.otpservice.otp.domain.model.Otp;
+import com.otpservice.otp.domain.valueobject.Purpose;
 import com.otpservice.otp.domain.valueobject.ValidityWindow;
 import com.otpservice.otp.domain.valueobject.VerificationStatus;
 import org.springframework.context.annotation.Profile;
@@ -33,10 +34,10 @@ public class InMemoryOtpPersistenceAdapter implements OtpPersistencePort {
   }
 
   @Override
-  public synchronized long invalidateActive(String destination) {
+  public synchronized long invalidateActive(String destination, Purpose purpose) {
     long invalidated = 0;
     for (Entry entry : entries.values()) {
-      if (entry.destination.equals(destination) && !entry.used && !entry.invalidated) {
+      if (entry.matches(destination, purpose) && !entry.used && !entry.invalidated) {
         entry.invalidated = true;
         invalidated++;
       }
@@ -57,11 +58,11 @@ public class InMemoryOtpPersistenceAdapter implements OtpPersistencePort {
   }
 
   @Override
-  public synchronized Optional<Otp> findLatestByDestination(String destination) {
+  public synchronized Optional<Otp> findLatest(String destination, Purpose purpose) {
     Instant now = clock.instant();
     Entry latest = null;
     for (Entry entry : entries.values()) {
-      if (!entry.destination.equals(destination) || !entry.purgeAt.isAfter(now)) {
+      if (!entry.matches(destination, purpose) || !entry.purgeAt.isAfter(now)) {
         continue;
       }
       if (latest == null || !entry.validityWindow.getGeneratedAt().isBefore(latest.validityWindow.getGeneratedAt())) {
@@ -111,6 +112,7 @@ public class InMemoryOtpPersistenceAdapter implements OtpPersistencePort {
 
     private final String id;
     private final String destination;
+    private final Purpose purpose;
     private final String codeHash;
     private final int digits;
     private final ValidityWindow validityWindow;
@@ -122,6 +124,7 @@ public class InMemoryOtpPersistenceAdapter implements OtpPersistencePort {
     private Entry(String id, Otp otp) {
       this.id = id;
       this.destination = otp.getDestination();
+      this.purpose = otp.getPurpose();
       this.codeHash = otp.getCodeHash();
       this.digits = otp.getDigits();
       this.validityWindow = otp.getValidityWindow();
@@ -129,6 +132,10 @@ public class InMemoryOtpPersistenceAdapter implements OtpPersistencePort {
       this.attempts = otp.getAttempts();
       this.used = otp.isUsed();
       this.invalidated = otp.isInvalidated();
+    }
+
+    boolean matches(String destination, Purpose purpose) {
+      return this.destination.equals(destination) && this.purpose == purpose;
     }
 
     static Entry of(String id, Otp otp) {
@@ -139,6 +146,7 @@ public class InMemoryOtpPersistenceAdapter implements OtpPersistencePort {
       return Otp.builder()
         .id(id)
         .destination(destination)
+        .purpose(purpose)
         .codeHash(codeHash)
         .digits(digits)
         .validityWindow(validityWindow)

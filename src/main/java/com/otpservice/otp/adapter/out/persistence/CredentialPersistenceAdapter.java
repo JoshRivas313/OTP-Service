@@ -5,6 +5,7 @@ import com.otpservice.otp.application.port.out.CredentialPersistencePort;
 import com.otpservice.otp.domain.model.HmacCredential;
 import com.otpservice.otp.domain.valueobject.EncryptedSecret;
 import com.otpservice.otp.domain.valueobject.HmacType;
+import com.otpservice.otp.domain.valueobject.Purpose;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
@@ -25,6 +26,7 @@ public class CredentialPersistenceAdapter implements CredentialPersistencePort {
   private static final String FIELD_ID = "_id";
   private static final String FIELD_DESTINATION = "destination";
   private static final String FIELD_TYPE = "type";
+  private static final String FIELD_PURPOSE = "purpose";
   private static final String FIELD_DIGITS = "digits";
   private static final String FIELD_PERIOD_SECONDS = "periodSeconds";
   private static final String FIELD_COUNTER = "counter";
@@ -52,27 +54,29 @@ public class CredentialPersistenceAdapter implements CredentialPersistencePort {
       .setOnInsert(FIELD_FAILED_ATTEMPTS, doc.getFailedAttempts())
       .setOnInsert(FIELD_CREATED_AT, doc.getCreatedAt());
     return toDomain(mongoTemplate.findAndModify(
-      byKey(credential.getDestination(), credential.getType()),
+      byKey(credential.getDestination(), credential.getType(), credential.getPurpose()),
       update,
       FindAndModifyOptions.options().upsert(true).returnNew(true),
       HmacCredentialDocument.class));
   }
 
   @Override
-  public Optional<HmacCredential> find(String destination, HmacType type) {
-    return Optional.ofNullable(mongoTemplate.findOne(byKey(destination, type), HmacCredentialDocument.class))
+  public Optional<HmacCredential> find(String destination, HmacType type, Purpose purpose) {
+    return Optional.ofNullable(mongoTemplate.findOne(byKey(destination, type, purpose), HmacCredentialDocument.class))
       .map(CredentialPersistenceAdapter::toDomain);
   }
 
   @Override
-  public HmacCredential issue(String id, int digits, int periodSeconds) {
+  public HmacCredential issue(String id, int digits, int periodSeconds, boolean advanceCounter) {
+    Update update = new Update()
+      .set(FIELD_DIGITS, digits)
+      .set(FIELD_PERIOD_SECONDS, periodSeconds);
+    if (advanceCounter) {
+      update.inc(FIELD_ISSUED_COUNTER, 1L);
+    }
     return toDomain(mongoTemplate.findAndModify(
       Query.query(Criteria.where(FIELD_ID).is(id)),
-      new Update().inc(FIELD_ISSUED_COUNTER, 1L)
-        .set(FIELD_DIGITS, digits)
-        .set(FIELD_PERIOD_SECONDS, periodSeconds)
-        .set(FIELD_FAILED_ATTEMPTS, 0)
-        .unset(FIELD_LOCKED_UNTIL),
+      update,
       FindAndModifyOptions.options().returnNew(true),
       HmacCredentialDocument.class));
   }
@@ -112,13 +116,13 @@ public class CredentialPersistenceAdapter implements CredentialPersistencePort {
     return mongoTemplate.updateFirst(query, update, HmacCredentialDocument.class).getModifiedCount() == 1;
   }
 
-  private static Query byKey(String destination, HmacType type) {
-    return Query.query(Criteria.where(FIELD_DESTINATION).is(destination).and(FIELD_TYPE).is(type));
+  private static Query byKey(String destination, HmacType type, Purpose purpose) {
+    return Query.query(Criteria.where(FIELD_DESTINATION).is(destination).and(FIELD_TYPE).is(type).and(FIELD_PURPOSE).is(purpose));
   }
 
   private static HmacCredentialDocument toDocument(HmacCredential c) {
     return new HmacCredentialDocument(
-      c.getId(), c.getDestination(), c.getType(),
+      c.getId(), c.getDestination(), c.getType(), c.getPurpose(),
       c.getSecret().ciphertext(), c.getSecret().nonce(),
       c.getDigits(), c.getPeriodSeconds(), c.getCounter(), c.getIssuedCounter(), c.getLastUsedTimeStep(),
       c.getFailedAttempts(), c.getLockedUntil(), c.getCreatedAt());
@@ -129,6 +133,7 @@ public class CredentialPersistenceAdapter implements CredentialPersistencePort {
       .id(d.getId())
       .destination(d.getDestination())
       .type(d.getType())
+      .purpose(d.getPurpose())
       .secret(new EncryptedSecret(d.getSecretCiphertext(), d.getSecretNonce()))
       .digits(d.getDigits())
       .periodSeconds(d.getPeriodSeconds())

@@ -1,5 +1,6 @@
 package com.otpservice.otp.adapter.out.persistence.document;
 
+import com.otpservice.otp.domain.valueobject.Purpose;
 import com.otpservice.otp.domain.valueobject.ValidityWindow;
 import com.otpservice.otp.domain.valueobject.VerificationStatus;
 import lombok.AllArgsConstructor;
@@ -20,14 +21,16 @@ import java.time.Instant;
 @NoArgsConstructor
 @ToString
 @Document(collection = "otps")
-@CompoundIndex(name = "otp_destination_generated_idx",
-        def = "{'destination': 1, 'validityWindow.generatedAt': -1}")
+@CompoundIndex(name = "otp_destination_purpose_generated_idx",
+        def = "{'destination': 1, 'purpose': 1, 'validityWindow.generatedAt': -1}")
 public class OtpDocument {
 
     @Id
     private String id;
 
     private String destination;
+
+    private Purpose purpose;
 
     @ToString.Exclude
     private String codeHash;

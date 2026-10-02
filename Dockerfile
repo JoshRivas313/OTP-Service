@@ -17,6 +17,7 @@ COPY --from=builder /build/target/otp-service-*.jar app.jar
 USER otp
 
 ENV SWAGGER_ENABLED=false
+ENV SPRING_PROFILES_ACTIVE=prod
 
 EXPOSE 8080
 

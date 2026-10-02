@@ -25,7 +25,7 @@ public class GenerateOtpUseCaseImpl implements GenerateOtpUseCase {
     int digits = command.digits() != null ? command.digits() : settings.digits();
     int durationSeconds = command.durationSeconds() != null ? command.durationSeconds() : settings.durationSeconds();
 
-    IssuedCode issued = protocol.issue(destination, digits, durationSeconds);
+    IssuedCode issued = protocol.issue(destination, command.purpose(), digits, durationSeconds);
 
     sender.send(destination,
       OtpMessage.build(command.customMessage(), protocol.expires(), issued, settings.messageTemplate()));

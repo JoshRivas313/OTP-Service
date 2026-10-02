@@ -20,7 +20,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(properties = {
         "otp.demo-mode=true",
         "otp.rate-limit-per-destination=0",
-        "otp.rate-limit-per-ip=0"
+        "otp.rate-limit-per-ip=0",
+        "otp.verify-rate-limit-per-destination=0",
+        "otp.verify-rate-limit-per-ip=0"
 })
 @AutoConfigureMockMvc
 class ChannelProtocolsHttpTest {
@@ -86,5 +88,38 @@ class ChannelProtocolsHttpTest {
         post("/api/email/otps", "{\"email\":\"" + email() + "\",\"type\":\"HOTP\",\"digits\":4}")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("OTP_INVALID_REQUEST"));
+    }
+
+    @Test
+    void elPropositoViajaEnLaApiYSeExigeAlVerificar() throws Exception {
+        String email = email();
+        String sent = post("/api/email/otps", "{\"email\":\"" + email + "\",\"type\":\"OTP\",\"purpose\":\"LOGIN\"}")
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String code = JsonPath.read(sent, "$.demoCode");
+
+        post("/api/email/otps/verify", "{\"email\":\"" + email + "\",\"purpose\":\"PAYMENT_CONFIRMATION\",\"code\":\"" + code + "\"}")
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("OTP_NOT_FOUND"));
+        post("/api/email/otps/verify", "{\"email\":\"" + email + "\",\"purpose\":\"login\",\"code\":\"" + code + "\"}")
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void unPropositoDesconocidoEsUnaPeticionInvalida() throws Exception {
+        post("/api/email/otps", "{\"email\":\"" + email() + "\",\"purpose\":\"TRANSFERIR_TODO\"}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    // La interfaz explica la tolerancia y los limites con estos mismos valores.
+    @Test
+    void laPoliticaExpuestaEsLaQueAplicaLaVerificacion() throws Exception {
+        mvc.perform(MockMvcRequestBuilders.get("/api/otp-policy"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totpToleranceSteps").value(1))
+                .andExpect(jsonPath("$.hotpLookAhead").value(10))
+                .andExpect(jsonPath("$.maxAttempts").value(3))
+                .andExpect(jsonPath("$.lockSeconds").value(600));
     }
 }

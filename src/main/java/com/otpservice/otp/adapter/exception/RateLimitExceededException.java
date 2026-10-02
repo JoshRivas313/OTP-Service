@@ -4,7 +4,16 @@ import com.otpservice.otp.domain.exception.ErrorCode;
 import com.otpservice.otp.domain.exception.OtpDomainException;
 
 public class RateLimitExceededException extends OtpDomainException {
-    public RateLimitExceededException() {
-        super(ErrorCode.RATE_LIMIT_EXCEEDED, "Demasiados envíos seguidos. Probá de nuevo en unos minutos");
+
+    private RateLimitExceededException(String message) {
+        super(ErrorCode.RATE_LIMIT_EXCEEDED, message);
+    }
+
+    public static RateLimitExceededException sending() {
+        return new RateLimitExceededException("Demasiados envíos seguidos. Prueba de nuevo en unos minutos");
+    }
+
+    public static RateLimitExceededException verifying() {
+        return new RateLimitExceededException("Demasiados intentos de verificación. Prueba de nuevo en unos minutos");
     }
 }
