@@ -27,7 +27,9 @@ Referencia de los endpoints. La documentación interactiva se genera con springd
 - **Propósito (`purpose`):** `LOGIN` (por defecto), `REGISTER`, `PASSWORD_RECOVERY` o `PAYMENT_CONFIRMATION`. Forma parte de la identidad del código: se verifica con el mismo `purpose` con el que se pidió, y uno pedido para `LOGIN` responde `404 OTP_NOT_FOUND` si se intenta verificar como `PAYMENT_CONFIRMATION`. Cada destino tiene un código (OTP) o una credencial (HOTP/TOTP) independiente por propósito. Un valor desconocido responde `400 VALIDATION_ERROR`.
 - **Respuesta de envío:** además de `success` y `message` trae `type`, `expiresInSeconds` (ausente en HOTP), `counter` (HOTP) o `timeStep` (TOTP). `demoCode` solo aparece con `OTP_DEMO_MODE=true`.
 - **Correo:** dirección válida de hasta 254 caracteres. Se normaliza a minúsculas.
-- **Límite de envíos:** los endpoints que generan códigos aceptan por defecto 5 envíos por destino y 20 por IP cada 10 minutos; el siguiente responde `429 RATE_LIMIT_EXCEEDED`.
+- **Límite de envíos:** los endpoints que generan códigos aceptan por defecto 5 envíos por destino y 20 por IP cada 10 minutos; el siguiente responde `429 RATE_LIMIT_EXCEEDED`. Un envío que el proveedor (Brevo, Twilio, Infobip) no pudo entregar devuelve su plaza: no cuenta contra ninguno de los límites.
+- **Límite de conexiones de Twilio:** `POST /api/twilio/connect` acepta por defecto 10 intentos por IP cada 10 minutos (`OTP_CONNECT_RATE_LIMIT_PER_IP`); el siguiente responde `429 RATE_LIMIT_EXCEEDED`.
+- **Tope diario de envíos:** si se define `OTP_DAILY_SEND_LIMIT`, el servicio no envía más de ese número de códigos en 24 horas, sumando todos los destinos. Al llegar responde `503 DAILY_QUOTA_EXCEEDED` con un mensaje para el usuario. Protege la cuota del proveedor (Brevo gratis: 300 al día).
 - **Límite de verificaciones:** aparte del anterior, los endpoints `/verify` aceptan por defecto 10 verificaciones por destino y 30 por IP cada 10 minutos, correctas o no; la siguiente responde `429 RATE_LIMIT_EXCEEDED`. Frena la fuerza bruta que reparte intentos entre códigos nuevos o entre destinos.
 - **Bloqueo de HOTP y TOTP:** 3 fallos bloquean la credencial de ese destino y propósito durante `OTP_LOCK_SECONDS` (600 s). Mientras dura, enviar y verificar responden `423 OTP_BLOCKED`; pedir otro código no lo levanta.
 - **IP del cliente:** la fija Tomcat confiando solo en proxies conocidos; ver [IP del cliente](../README.md#ip-del-cliente).
@@ -120,7 +122,7 @@ Otros errores posibles: `OTP_NOT_FOUND`, `OTP_INVALIDATED`, `OTP_ALREADY_USED`, 
 
 ## OTP con Twilio por sesión
 
-Estos endpoints envían el SMS con **la cuenta de Twilio que el propio usuario conectó**, no con las credenciales del servidor. Las credenciales viven en la sesión HTTP (cookie `JSESSIONID`) durante 15 minutos de inactividad y no se guardan en la base de datos.
+Estos endpoints envían el SMS con **la cuenta de Twilio que el propio usuario conectó**, no con las credenciales del servidor. Las credenciales viven en la sesión HTTP (cookie `JSESSIONID`) durante 15 minutos de inactividad y no se guardan en la base de datos. **La sesión se crea solo al conectar**, con un identificador nuevo: consultar `GET /api/twilio/status` o `POST /api/twilio/disconnect` sin sesión no crea ninguna.
 
 ### POST /api/twilio/connect — Conectar cuenta Twilio
 
@@ -211,9 +213,9 @@ Igual que `POST /otps` (mismos campos), pero envía el SMS con las credenciales 
 
 | Campo | Obligatorio | Regla |
 |---|---|---|
-| `message` | no | Texto del SMS. Máximo 300 caracteres y debe contener `{code}`, que se reemplaza por el código. `{seconds}` se reemplaza por los segundos de vigencia. Si se omite, se envía el mensaje predeterminado: "Tu código de verificación es 123456. Vence en 60 segundos." |
+| `message` | no | Texto del SMS. Solo se acepta si el servidor lo permite (modo demo o `OTP_CUSTOM_MESSAGE_ENABLED=true`); si no, responde `400 OTP_INVALID_REQUEST`. Máximo 300 caracteres y debe contener `{code}`, que se reemplaza por el código; `{seconds}`, por los segundos de vigencia. Si se omite, el servidor escribe el mensaje según el propósito: "Tu código para iniciar sesión es 123456. Vence en 60 segundos." |
 
-La interfaz web siempre envía `message`: el texto del propósito elegido (por ejemplo "Tu código para iniciar sesión es {code}. Vence en {seconds} segundos.") o el que escriba el usuario.
+La interfaz web solo envía `message` cuando el servidor lo permite (lo sabe por `GET /api/otp-policy`) y la persona marcó "Escribir mi propio mensaje". En cualquier otro caso el texto lo escribe el servidor según el propósito: "para iniciar sesión", "para crear tu cuenta", "para recuperar tu acceso" o "para confirmar tu pago".
 
 **Destino.** Si la cuenta conectada es de prueba, o tiene números verificados en Twilio, solo se puede enviar a esos números: cualquier otro responde `403 DESTINATION_NOT_VERIFIED` sin llamar a Twilio. Una cuenta de pago sin números verificados puede enviar a cualquier celular peruano.
 
@@ -306,7 +308,7 @@ Usan el proveedor de correo elegido con `EMAIL_PROVIDER` (`console` por defecto)
 | `purpose` | no | `LOGIN`, `REGISTER`, `PASSWORD_RECOVERY` o `PAYMENT_CONFIRMATION`. Por defecto `LOGIN` |
 | `digits` | no | De 4 a 10 (6 a 8 en HOTP y TOTP). Por defecto 6 |
 | `durationSeconds` | no | OTP: vigencia, de 1 a 86400. TOTP: ventana, de 15 a 300. HOTP: se ignora. Por defecto 30 |
-| `message` | no | Texto del correo. Máximo 300 caracteres y debe contener `{code}`. `{seconds}` se reemplaza por los segundos de vigencia |
+| `message` | no | Texto del correo. Solo se acepta si el servidor lo permite (modo demo o `OTP_CUSTOM_MESSAGE_ENABLED=true`); si no, responde `400 OTP_INVALID_REQUEST`. Máximo 300 caracteres y debe contener `{code}`; `{seconds}` se reemplaza por los segundos de vigencia |
 
 **Request**
 
@@ -404,12 +406,14 @@ Devuelve los valores que aplica la verificación. La interfaz los usa para expli
   "totpToleranceSteps": 1,
   "hotpLookAhead": 10,
   "maxAttempts": 3,
-  "lockSeconds": 600
+  "lockSeconds": 600,
+  "customMessageEnabled": false
 }
 ```
 
 - `totpToleranceSteps`: ventanas vecinas que se aceptan. Con 1, un TOTP vale entre 30 y 60 s según cuándo se generó.
 - `hotpLookAhead`: cuántos HOTP emitidos sin usar se aceptan (los más recientes).
+- `customMessageEnabled`: si quien pide el código puede escribir el texto del mensaje. Apagado por defecto; en modo demo es `true` porque nada se envía.
 
 ---
 
@@ -423,14 +427,20 @@ Devuelve los valores que aplica la verificación. La interfaz los usa para expli
 | `OTP_EXPIRED` | 410 | Pasó la duración del código |
 | `OTP_BLOCKED` | 423 | Se alcanzó el máximo de intentos fallidos. En HOTP y TOTP dura `OTP_LOCK_SECONDS` y también rechaza pedir otro código |
 | `OTP_INVALID` | 401 | El código es incorrecto |
-| `OTP_INVALID_REQUEST` | 400 | HOTP o TOTP con menos de 6 o más de 8 dígitos, o TOTP con una ventana fuera de 15 a 300 s |
+| `OTP_INVALID_REQUEST` | 400 | HOTP o TOTP con menos de 6 o más de 8 dígitos, TOTP con una ventana fuera de 15 a 300 s, o un `message` personalizado en un servidor que no lo permite |
 | `SMS_DELIVERY_FAILED` | 502 | El proveedor de SMS rechazó o no pudo enviar el mensaje. Con Twilio, `message` explica la causa cuando se conoce (número no verificado en una cuenta de prueba, país sin permiso, remitente sin SMS) y el log del servidor registra el código de error de Twilio |
 | `EMAIL_DELIVERY_FAILED` | 502 | El proveedor de correo rechazó o no pudo enviar el mensaje. El log del servidor registra el motivo que devolvió el proveedor |
-| `RATE_LIMIT_EXCEEDED` | 429 | Se superó el límite de envíos o el de verificaciones para ese destino o esa IP |
+| `RATE_LIMIT_EXCEEDED` | 429 | Se superó el límite de envíos, de verificaciones o de conexiones de Twilio para ese destino o esa IP |
+| `DAILY_QUOTA_EXCEEDED` | 503 | El servicio agotó su tope global de envíos del día (`OTP_DAILY_SEND_LIMIT`). No es culpa de quien pide; vuelve a intentarlo más tarde |
 | `TWILIO_CREDENTIALS_INVALID` | 401 | Credenciales de Twilio con formato inválido o rechazadas por Twilio |
 | `TWILIO_NOT_CONNECTED` | 400 | El flujo de Twilio se usó sin conectar una cuenta en la sesión |
 | `DESTINATION_NOT_VERIFIED` | 403 | La cuenta de Twilio conectada solo puede enviar a sus números verificados y el destino no es uno de ellos |
 | `VALIDATION_ERROR` | 400 | Un campo obligatorio falta o está fuera de rango, o un valor no existe en su catálogo (por ejemplo un `purpose` desconocido) |
+| `RESOURCE_NOT_FOUND` | 404 | La ruta no existe |
+| `METHOD_NOT_ALLOWED` | 405 | La ruta existe pero no admite ese método HTTP (la respuesta trae la cabecera `Allow`) |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | El cuerpo no es `application/json` |
+| `PAYLOAD_TOO_LARGE` | 413 | El cuerpo de la petición pasa de 16 KB. Ninguna petición legítima de esta API se acerca |
+| `INTERNAL_ERROR` | 500 | Falló algo inesperado. El detalle va al log del servidor, nunca a la respuesta |
 
 Mensajes de `VALIDATION_ERROR` (formato `campo: mensaje`):
 
@@ -455,7 +465,9 @@ Mensajes de `VALIDATION_ERROR` (formato `campo: mensaje`):
 
 ## Errores de formato
 
-Si un campo no se puede leer (celular o correo inválido, `code` con formato inválido, `type` o `purpose` desconocido) o el JSON está mal formado, la API responde `400 VALIDATION_ERROR` con el formato habitual y un mensaje genérico:
+Todos los errores de la API, incluidos los del framework (ruta inexistente, método o formato no soportado, cuerpo ilegible), salen con la misma forma `{success, code, message}`, sin trazas ni mensajes internos.
+
+Si un campo no se puede leer (celular o correo inválido, `type` o `purpose` desconocido) o el JSON está mal formado, la API responde `400 VALIDATION_ERROR` con el formato habitual y un mensaje genérico:
 
 **Response `400`**
 
@@ -476,6 +488,6 @@ Casos comprobados con `POST /otps`, `POST /otps/verify` y `POST /api/twilio/otps
 | Celular de otro país (`+15551234567`) | `400 VALIDATION_ERROR` |
 | `type` desconocido | `400 VALIDATION_ERROR` |
 | `purpose` desconocido | `400 VALIDATION_ERROR` |
-| `code` de 3 dígitos en `/otps/verify` | `400 VALIDATION_ERROR` |
+| `code` de 3 dígitos en cualquier `/verify` | `401 OTP_INVALID`: un formato inválido es un código incorrecto |
 | `message` sin `{code}` en `/api/twilio/otps` | `400 VALIDATION_ERROR` con `message: El mensaje debe incluir {code}` |
 | JSON mal formado | `400 VALIDATION_ERROR` |

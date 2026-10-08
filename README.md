@@ -5,6 +5,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/JoshRivas313/OTP-Service/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/JoshRivas313/OTP-Service/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Java 21" src="https://img.shields.io/badge/Java-21-007396?logo=openjdk&logoColor=white">
   <img alt="Spring Boot 4.1.1" src="https://img.shields.io/badge/Spring%20Boot-4.1.1-6DB33F?logo=springboot&logoColor=white">
   <img alt="MongoDB opcional" src="https://img.shields.io/badge/MongoDB-opcional-47A248?logo=mongodb&logoColor=white">
@@ -74,7 +75,13 @@ El proveedor nunca sabe si un código es correcto. Más detalle en [PROVEEDORES_
 - Límite de envíos y, aparte, límite de verificaciones, ambos por destino y por IP (`429 RATE_LIMIT_EXCEEDED`)
 - La IP del cliente la fija Tomcat (`RemoteIpValve`) confiando solo en proxies conocidos: un `X-Forwarded-For` inventado no crea identidades nuevas
 - HOTP y TOTP se bloquean `OTP_LOCK_SECONDS` tras 3 fallos, y pedir otro código no levanta el bloqueo
-- Con el perfil `prod` la aplicación no arranca sin `OTP_HASH_SECRET` y `OTP_SECRET_ENCRYPTION_KEY` propios, y el log no muestra códigos
+- Sin `OTP_HASH_SECRET` y `OTP_SECRET_ENCRYPTION_KEY` propios la aplicación no arranca: las claves de ejemplo viven solo en el perfil `dev`, que no puede combinarse con `prod`. El log no muestra códigos fuera de desarrollo
+- El texto del mensaje lo decide el servidor según el propósito. Escribir uno propio está apagado (`OTP_CUSTOM_MESSAGE_ENABLED`), salvo en modo demo y en desarrollo, para que nadie use el servicio para enviar texto libre a terceros
+- Tope global de envíos por día (`OTP_DAILY_SEND_LIMIT`), para no agotar la cuota del proveedor de correo o SMS
+- Todos los errores, también los del framework, salen como `{success, code, message}` y sin detalles internos
+- Cabeceras de seguridad en toda respuesta (política de contenido que solo permite scripts propios, anti-clickjacking, `nosniff`, HSTS bajo HTTPS) y tope de 16 KB al cuerpo de las peticiones
+- Las credenciales de HOTP/TOTP de un destino sin actividad se borran solas a los 30 días (índice TTL en Mongo)
+- Los secretos no salen en `toString` ni en el log, y los correos y celulares se enmascaran incluso dentro de los mensajes de error de los proveedores
 - Las credenciales de Twilio viven solo en la memoria del servidor, ligadas a la sesión HTTP (15 minutos), y no se escriben en ninguna base de datos ni en el log
 - El modo demo no puede combinarse con un proveedor de SMS real (la aplicación no arranca)
 
@@ -360,33 +367,39 @@ Envío de mensajes:
 ```bash
 git clone https://github.com/JoshRivas313/OTP-Service.git
 cd OTP-Service
-./mvnw spring-boot:run
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
-En Windows: `mvnw.cmd spring-boot:run`.
+En Windows: `mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=dev"`.
+
+El perfil `dev` trae claves de ejemplo públicas, escribe los códigos en el log y permite el mensaje personalizado: es solo para probar en local. **Sin ese perfil la aplicación exige `OTP_HASH_SECRET` y `OTP_SECRET_ENCRYPTION_KEY` propios** y no arranca sin ellos (el mensaje de error lo explica).
 
 Sin más configuración la aplicación guarda los códigos en memoria, no necesita ninguna base de datos y usa el proveedor `console`. Al reiniciarla se pierden los códigos pendientes.
 
-Para guardarlos en MongoDB, levanta una instancia y activa el perfil `mongo`:
+Para guardarlos en MongoDB, levanta una instancia y activa también el perfil `mongo`:
 
 ```bash
-docker run -d -p 27017:27017 --name otp-mongo mongo:latest
-SPRING_PROFILES_ACTIVE=mongo ./mvnw spring-boot:run
+docker run -d -p 127.0.0.1:27017:27017 --name otp-mongo mongo:7
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev,mongo
 ```
 
 Con el perfil `mongo` la aplicación crea sola los índices, incluido el de purga por TTL.
 
 ### Opción B. Docker Compose
 
+Los secretos no están en el repositorio: Docker Compose los lee de un archivo `.env` (ignorado por git). Créalo una vez con claves propias:
+
 ```bash
+printf "MONGO_PASSWORD=%s\nOTP_HASH_SECRET=%s\nOTP_SECRET_ENCRYPTION_KEY=%s\n" \
+  "$(openssl rand -hex 16)" "$(openssl rand -hex 32)" "$(openssl rand -base64 32)" > .env
 docker compose up --build
 ```
 
-Levanta MongoDB y la aplicación con el perfil `mongo` y el proveedor `console`. Las credenciales de MongoDB y la clave de `docker-compose.yml` son solo para desarrollo local.
+Levanta MongoDB (solo accesible desde tu máquina) y la aplicación con el perfil `mongo` y el proveedor `console`. Si ya habías levantado una versión anterior, el volumen conserva la contraseña vieja de MongoDB: bórralo con `docker compose down -v` (solo borra datos de desarrollo).
 
 ### Probar
 
-- Interfaz web: `http://localhost:8080` (pide conectar una cuenta de Twilio, ver [Limitaciones Conocidas](#limitaciones-conocidas))
+- Interfaz web: `http://localhost:8080` (el correo funciona sin cuenta; el SMS pide conectar una cuenta de Twilio, ver [Limitaciones Conocidas](#limitaciones-conocidas))
 - Swagger UI: `http://localhost:8080/swagger-ui.html` (con la imagen Docker está deshabilitado salvo que definas `SWAGGER_ENABLED=true`; Docker Compose ya lo activa)
 - Estado del servicio: `GET http://localhost:8080/health`
 
@@ -401,7 +414,7 @@ curl -X POST http://localhost:8080/otps \
 En el log:
 
 ```
-[DEV][SMS] para=*********678 mensaje="Tu código de verificación es 482913. Vence en 60 segundos."
+[DEV][SMS] para=*********678 mensaje="Tu código para iniciar sesión es 482913. Vence en 60 segundos."
 ```
 
 Con Docker Compose: `docker compose logs -f app`. Luego, con ese código:
@@ -420,10 +433,10 @@ La aplicación lee estas variables del entorno del sistema. **El archivo `.env` 
 
 | Variable | Por defecto | Descripción |
 |---|---|---|
-| `SPRING_PROFILES_ACTIVE` | vacío (`prod` en la imagen Docker) | `mongo` activa el almacenamiento en MongoDB; sin él, los códigos se guardan en memoria. `prod` exige claves propias y apaga los códigos en el log. Se combinan con coma: `prod,mongo` |
+| `SPRING_PROFILES_ACTIVE` | vacío (`prod` en la imagen Docker) | `dev`: claves de ejemplo públicas, códigos en el log y mensaje personalizado; solo para local y no se combina con `prod`. `mongo`: almacenamiento en MongoDB (sin él, en memoria). `prod`: marca un servidor real. Se combinan con coma: `dev,mongo` |
 | `MONGODB_URI` | `mongodb://localhost:27017/otp_service` | Conexión a MongoDB. Solo se lee con el perfil `mongo` |
-| `OTP_HASH_SECRET` | `dev-only-secret-change-me` | Clave del HMAC-SHA256. Con el perfil `prod` es obligatoria y no puede ser el valor por defecto: la aplicación no arranca |
-| `OTP_SECRET_ENCRYPTION_KEY` | clave de desarrollo | Clave AES-256 en Base64 (32 bytes) que cifra los secretos de HOTP y TOTP. Generala con `openssl rand -base64 32`. Si se pierde o se cambia, los secretos guardados dejan de servir y cada destino necesita un código nuevo. Con el perfil `prod` es obligatoria y no puede ser la de desarrollo |
+| `OTP_HASH_SECRET` | **obligatoria** | Clave del HMAC-SHA256 (`openssl rand -hex 32`). Sin ella la aplicación no arranca; solo el perfil `dev` trae una de ejemplo |
+| `OTP_SECRET_ENCRYPTION_KEY` | **obligatoria** | Clave AES-256 en Base64 (32 bytes) que cifra los secretos de HOTP y TOTP. Generala con `openssl rand -base64 32`. Si se pierde o se cambia, los secretos guardados dejan de servir y cada destino necesita un código nuevo. Sin ella la aplicación no arranca; solo el perfil `dev` trae una de ejemplo |
 | `OTP_DEMO_MODE` | `false` | Si es `true`, `POST /otps` devuelve el código en `demoCode`. No se puede combinar con `twilio` ni `infobip` |
 | `SMS_PROVIDER` | `console` | `console`, `twilio` o `infobip` |
 | `TWILIO_ACCOUNT_SID` | vacío | Obligatoria si `SMS_PROVIDER=twilio` |
@@ -442,7 +455,11 @@ La aplicación lee estas variables del entorno del sistema. **El archivo `.env` 
 | `OTP_VERIFY_RATE_LIMIT_PER_DESTINATION` | `10` | Verificaciones permitidas por celular o correo en la ventana, correctas o no. `0` desactiva el límite |
 | `OTP_VERIFY_RATE_LIMIT_PER_IP` | `30` | Verificaciones permitidas por IP en la ventana. `0` desactiva el límite |
 | `OTP_LOCK_SECONDS` | `600` | Cuánto dura el bloqueo de HOTP y TOTP tras 3 fallos. Es independiente de la retención de datos |
-| `OTP_LOG_CODES` | `true` (`false` con `prod`) | Si los proveedores de consola escriben el código en el log. Fuera de desarrollo solo se escribe `Código enviado a j***@gmail.com` |
+| `OTP_LOG_CODES` | `false` (`true` con `dev`) | Si los proveedores de consola escriben el código en el log. Apagado, solo se escribe `Código enviado a j***@gmail.com` |
+| `OTP_CUSTOM_MESSAGE_ENABLED` | `false` (`true` con `dev`) | Si quien pide el código puede escribir el texto del mensaje. Apagado, el servidor lo escribe según el propósito. En modo demo siempre se permite porque nada se envía |
+| `OTP_CONNECT_RATE_LIMIT_PER_IP` | `10` | Conexiones de Twilio permitidas por IP en la ventana. `0` desactiva el límite |
+| `OTP_CREDENTIAL_RETENTION_SECONDS` | `2592000` (30 días) | Cuánto se conserva la credencial HOTP/TOTP de un destino sin actividad antes de que Mongo la borre |
+| `OTP_DAILY_SEND_LIMIT` | `0` (sin tope) | Tope global de envíos en 24 horas, para no agotar la cuota del proveedor. Al llegar responde `503 DAILY_QUOTA_EXCEEDED` con un mensaje amable. Con el plan gratuito de Brevo (300 al día) usa `250` |
 | `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` | redes privadas y localhost | Expresión regular con las IP de los proxies de confianza. Solo de ellos se lee `X-Forwarded-For`. Ver [IP del cliente](#ip-del-cliente) |
 | `PORT` | `8080` | Puerto HTTP. Las plataformas como Render lo definen solas |
 | `SESSION_COOKIE_SECURE` | `false` | Si es `true`, la cookie de sesión solo viaja por HTTPS. Actívalo al publicar |
@@ -469,13 +486,15 @@ La estrategia anterior (`framework`) tomaba el primer valor de la cabecera, que 
 
 ```bash
 # Linux, macOS o Git Bash
-export OTP_HASH_SECRET="una-clave-larga-y-aleatoria"
+export OTP_HASH_SECRET="$(openssl rand -hex 32)"
+export OTP_SECRET_ENCRYPTION_KEY="$(openssl rand -base64 32)"
 ./mvnw spring-boot:run
 ```
 
 ```powershell
 # PowerShell
 $env:OTP_HASH_SECRET = "una-clave-larga-y-aleatoria"
+$env:OTP_SECRET_ENCRYPTION_KEY = "<la salida de: openssl rand -base64 32>"
 .\mvnw.cmd spring-boot:run
 ```
 
@@ -506,6 +525,7 @@ La aplicación se despliega como un **Web Service con Docker** usando el `Docker
 | `OTP_SECRET_ENCRYPTION_KEY` | La salida de `openssl rand -base64 32`. No la cambies después: los secretos guardados de HOTP y TOTP dejarían de servir |
 | `SESSION_COOKIE_SECURE` | `true` |
 | `OTP_LOCAL_API_ENABLED` | `false` |
+| `OTP_DAILY_SEND_LIMIT` | `250` si usas Brevo gratis (su tope es 300 al día). Sin esto, un pico de visitas agota los correos del día |
 
 Para que el canal de correo envíe correos reales, agrega también estas variables (ver [CORREO.md](./docs/CORREO.md)); sin ellas el correo se escribe solo en el log:
 
@@ -536,6 +556,10 @@ En el plan gratuito de Render el servicio se suspende tras un rato sin tráfico 
 ./mvnw clean compile                # Compila
 ./mvnw clean package                # Genera el JAR en target/
 java -jar target/otp-service-0.0.1-SNAPSHOT.jar
+
+# Pruebas
+./mvnw test                         # Toda la suite. Las pruebas de MongoDB usan Testcontainers: con Docker en marcha corren
+                                    # contra una MongoDB real (mongo:7); sin Docker se omiten
 
 # Docker
 docker compose up --build           # Levanta MongoDB y la aplicación (perfil mongo)

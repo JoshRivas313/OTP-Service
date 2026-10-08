@@ -123,8 +123,11 @@ Colección `hmac_credentials`: un secreto por destino, tipo (HOTP o TOTP) y prop
 | `failedAttempts` | int | Fallos seguidos; vuelve a 0 al acertar o al bloquear. Emitir un código no lo reinicia |
 | `lockedUntil` | Date | Fin del bloqueo (`OTP_LOCK_SECONDS` después del tercer fallo), o ausente. Emitir un código no lo borra: mientras dura, enviar también responde `423` |
 | `createdAt` | Date | |
+| `purgeAt` | Date | Fin de la retención: `OTP_CREDENTIAL_RETENTION_SECONDS` (30 días) después de la última emisión o verificación. MongoDB borra la credencial al llegar a este instante: guarda el correo o celular del destino, así que no se conserva para siempre |
 
-**Índice:** `credential_destination_type_purpose_idx`, único sobre `{ destination: 1, type: 1, purpose: 1 }`.
+**Índices:** `credential_destination_type_purpose_idx`, único sobre `{ destination: 1, type: 1, purpose: 1 }`, y `credential_purge_ttl_idx`, TTL sobre `purgeAt` (`expireAfterSeconds: 0`).
+
+**Credenciales anteriores a la retención:** las que se crearon antes no tienen `purgeAt` y el índice TTL no las borra. Se renuevan solas (reciben la fecha) en cuanto su destino emite o verifica un código; las que nadie vuelva a usar se pueden limpiar a mano: `db.hmac_credentials.deleteMany({ purgeAt: { $exists: false }, createdAt: { $lt: new Date(Date.now() - 30*24*3600*1000) } })`.
 
 **Migración desde la versión sin propósito:** una base creada antes tiene el índice único `credential_destination_type_idx` sobre `{ destination: 1, type: 1 }`, que impide crear una segunda credencial del mismo destino y tipo con otro propósito. Hay que borrarlo una vez; la aplicación crea el nuevo al arrancar. Los documentos viejos sin `purpose` quedan sin uso (ninguna consulta los encuentra) y los códigos OTP viejos vencen solos.
 
@@ -154,7 +157,7 @@ Sin el perfil `mongo`, `InMemoryOtpPersistenceAdapter` implementa el mismo puert
 ## Datos que se guardan
 
 - El código nunca se guarda, solo su hash con clave (HMAC-SHA256 con `OTP_HASH_SECRET`).
-- El destino (celular o correo) se guarda en claro. Es un dato personal. Es un dato personal: la retención por defecto es de 24 horas después de la expiración, siempre que el índice TTL esté activo (perfil `mongo`). En memoria desaparece al reiniciar o cuando lo purga la aplicación.
+- El destino (celular o correo) se guarda en claro. Es un dato personal. Es un dato personal: la retención por defecto es de 24 horas después de la expiración, siempre que el índice TTL esté activo (perfil `mongo`). En memoria desaparece al reiniciar o cuando lo purga la aplicación. Con el almacenamiento en memoria, al llegar a `OTP_MEMORY_MAX_ENTRIES` se descarta la credencial menos usada, no la más antigua.
 - El secreto de HOTP y TOTP de cada destino se guarda cifrado con AES-256-GCM. Sin `OTP_SECRET_ENCRYPTION_KEY` no se puede descifrar; si esa clave se pierde o se cambia, los secretos guardados dejan de servir.
 - Las credenciales de Twilio no se guardan en la base de datos: viven en la sesión HTTP (ver [PROVEEDORES_SMS.md](./PROVEEDORES_SMS.md)).
 - Un código de 6 dígitos tiene un millón de combinaciones. Si alguien obtiene la base de datos y la clave `OTP_HASH_SECRET`, puede recuperar los códigos por fuerza bruta. Por eso hay que cambiar la clave por defecto (`dev-only-secret-change-me`); la aplicación lo avisa en el arranque.

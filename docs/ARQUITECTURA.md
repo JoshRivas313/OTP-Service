@@ -81,7 +81,7 @@ src/main/java/com/otpservice/otp/
                                              SmsProvider, EmailProperties, EmailProvider,
                                              HmacProperties, HmacConfig, SendRateLimiter,
                                              VerifyRateLimiter, SlidingWindowLimiter,
-                                             DemoModeGuard, ProductionSecretsGuard, OpenApiConfig
+                                             ConnectRateLimiter, DailySendQuota, DemoModeGuard, RequiredSecretsGuard, OpenApiConfig
 ```
 
 Los recursos estáticos (interfaz web) están en `src/main/resources/static/`.
