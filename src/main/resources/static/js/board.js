@@ -237,10 +237,14 @@ async function askTotpAgain() {
   }
 }
 
+function paintClock(now) {
+  document.getElementById('clock').textContent = new Date(now).toLocaleTimeString('es-PE',
+    { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+}
+
 function tick() {
   const now = Date.now();
-  const clock = document.getElementById('clock');
-  clock.textContent = new Date(now).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  paintClock(now);
 
   const seconds = now / 1000;
   const left = TOTP_PERIOD - (seconds % TOTP_PERIOD);
@@ -288,6 +292,8 @@ document.querySelectorAll('.key[data-action="otro"]').forEach((key) => {
 });
 
 // --- Arranque -------------------------------------------------------------------
+
+paintClock(Date.now());
 
 async function start() {
   if (!window.crypto || !crypto.subtle) {

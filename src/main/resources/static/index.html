@@ -4,7 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Un Solo Uso</title>
-<meta name="description" content="OTP aleatorio, HOTP y TOTP en un mismo tablero: mira en vivo cómo cambia cada código de un solo uso y pruébalo por correo o SMS.">
+<meta name="description" content="Tres códigos. Tres reglas. Mira cómo cambia cada código de un solo uso y pruébalo de verdad por correo o SMS.">
+<meta name="theme-color" content="#0f3b28">
+<link rel="canonical" href="https://otp-service-78yu.onrender.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Un Solo Uso">
+<meta property="og:locale" content="es_PE">
+<meta property="og:url" content="https://otp-service-78yu.onrender.com/">
+<meta property="og:title" content="Un Solo Uso · OTP, HOTP y TOTP en vivo">
+<meta property="og:description" content="Tres códigos. Tres reglas. Mira cómo cambia cada código de un solo uso y pruébalo de verdad por correo o SMS.">
+<meta property="og:image" content="https://otp-service-78yu.onrender.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Tablero con tres códigos: OTP aleatorio, HOTP y TOTP">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Un Solo Uso · OTP, HOTP y TOTP en vivo">
+<meta name="twitter:description" content="Tres códigos. Tres reglas. Mira cómo cambia cada código de un solo uso y pruébalo de verdad por correo o SMS.">
+<meta name="twitter:image" content="https://otp-service-78yu.onrender.com/og-image.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='3' fill='%230e0e0d'/%3E%3Crect x='5' y='5' width='14' height='14' rx='1.5' fill='%23232321'/%3E%3Cpath d='M5 12h14' stroke='%230e0e0d' stroke-width='1.2'/%3E%3Cpath d='M12 7.5v9' stroke='%236db33f' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,7 +44,11 @@
   <main class="stage">
     <section class="intro" aria-labelledby="intro-title">
       <h1 id="intro-title">Tres códigos.<br>Tres reglas.</h1>
-      <p class="intro-lead">Mira cómo funciona: cada código cambia en vivo según su regla. Pulsa <span class="intro-key">Pedir otro</span> en cada fila y compara qué pasa.</p>
+      <p class="intro-lead">Un servicio de códigos de un solo uso: OTP aleatorio, HOTP y TOTP. Mira cómo cambia cada uno en vivo y pulsa <span class="intro-key">Pedir otro</span> en cada fila.</p>
+      <p class="hero-actions">
+        <a class="cta" href="/correo.html">Probar por correo <svg class="arrow" width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" aria-hidden="true"><path d="M1 7h18M13 1l6 6-6 6"/></svg></a>
+        <a class="cta-link" href="/sms.html">o por SMS</a>
+      </p>
     </section>
 
     <section id="tablero" class="board" aria-label="Tablero de códigos de un solo uso">
@@ -118,15 +138,9 @@
 
     <section id="puertas" class="gates" aria-labelledby="gates-title">
       <h2 id="gates-title" class="gates-title">Pruébalo de verdad</h2>
-      <p class="gates-flow" aria-label="El tipo de OTP define el código; el canal solo lo entrega">
-        <span class="flow-step"><span class="flow-label">Tipo de OTP</span>OTP aleatorio · HOTP · TOTP</span>
-        <span class="flow-arrow" aria-hidden="true">→</span>
-        <span class="flow-step"><span class="flow-label">Código</span>el servidor lo genera</span>
-        <span class="flow-arrow" aria-hidden="true">→</span>
-        <span class="flow-step"><span class="flow-label">Canal</span>correo o SMS</span>
-      </p>
+      <p class="gates-flow">Eliges el tipo de OTP, el servidor genera el código y el canal solo lo entrega.</p>
       <div class="gates-row">
-        <a class="gate" href="/correo.html">
+        <a class="gate gate-primary" href="/correo.html">
           <span class="gate-body">
             <span class="gate-name">Correo</span>
             <span class="gate-sub">Recíbelo por correo. Eliges OTP aleatorio, HOTP o TOTP en el siguiente paso.</span>
@@ -136,7 +150,8 @@
         <a class="gate" href="/sms.html">
           <span class="gate-body">
             <span class="gate-name">SMS</span>
-            <span class="gate-sub">Recíbelo por SMS. Mismos tres tipos. Usa tu cuenta de Twilio.</span>
+            <span class="gate-sub">Recíbelo por SMS. Mismos tres tipos.</span>
+            <span class="gate-tag">Requiere tu cuenta de Twilio</span>
           </span>
           <span class="gate-arrow"><svg class="arrow" width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" aria-hidden="true"><path d="M1 7h18M13 1l6 6-6 6"/></svg></span>
         </a>
@@ -174,13 +189,7 @@
               <td role="cell" data-label="HOTP">De un secreto que guarda el servidor y del contador</td>
               <td role="cell" data-label="TOTP">De un secreto que guarda el servidor y de la hora</td>
             </tr>
-            <tr role="row">
-              <th scope="row" role="rowheader">Qué guarda el servidor</th>
-              <td role="cell" data-label="OTP aleatorio">Solo una &laquo;huella&raquo; del código, nunca el código</td>
-              <td role="cell" data-label="HOTP">El secreto, guardado bajo llave, y por dónde va el contador</td>
-              <td role="cell" data-label="TOTP">El secreto, guardado bajo llave, y la última ventana usada</td>
-            </tr>
-            <tr role="row">
+                        <tr role="row">
               <th scope="row" role="rowheader">Cómo comprueba el tuyo</th>
               <td role="cell" data-label="OTP aleatorio">Calcula la huella de lo que escribiste y la compara con la guardada</td>
               <td role="cell" data-label="HOTP">Recalcula los códigos que te envió y aún no usaste, y mira si el tuyo coincide</td>

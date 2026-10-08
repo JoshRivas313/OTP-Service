@@ -4,6 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Un Solo Uso · Código por correo</title>
+<meta name="description" content="Elige OTP aleatorio, HOTP o TOTP y recíbelo en tu correo. Sin cuenta.">
+<meta name="theme-color" content="#0f3b28">
+<link rel="canonical" href="https://otp-service-78yu.onrender.com/correo.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Un Solo Uso">
+<meta property="og:locale" content="es_PE">
+<meta property="og:url" content="https://otp-service-78yu.onrender.com/correo.html">
+<meta property="og:title" content="Un Solo Uso · Recibe un código por correo">
+<meta property="og:description" content="Elige OTP aleatorio, HOTP o TOTP y recíbelo en tu correo. Sin cuenta.">
+<meta property="og:image" content="https://otp-service-78yu.onrender.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Tablero con tres códigos: OTP aleatorio, HOTP y TOTP">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Un Solo Uso · Recibe un código por correo">
+<meta name="twitter:description" content="Elige OTP aleatorio, HOTP o TOTP y recíbelo en tu correo. Sin cuenta.">
+<meta name="twitter:image" content="https://otp-service-78yu.onrender.com/og-image.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='3' fill='%230e0e0d'/%3E%3Crect x='5' y='5' width='14' height='14' rx='1.5' fill='%23232321'/%3E%3Cpath d='M5 12h14' stroke='%230e0e0d' stroke-width='1.2'/%3E%3Cpath d='M12 7.5v9' stroke='%236db33f' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,6 +29,7 @@
 <link rel="stylesheet" href="/style.css">
 </head>
 <body class="board-page">
+  <a class="skip-link" href="#contenido">Saltar al formulario</a>
   <header class="station">
     <div class="station-inner">
       <a class="station-brand" href="/" data-brand>Un Solo Uso</a>
@@ -22,11 +40,10 @@
     </div>
   </header>
 
-  <main class="stage page">
+  <main class="stage page" id="contenido" tabindex="-1">
     <div class="page-intro">
       <a class="back-link" href="/"><svg width="18" height="12" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" aria-hidden="true"><path d="M21 7H3M9 1L3 7l6 6"/></svg>Elegir otro canal</a>
       <h1>Código por correo</h1>
-      <p class="page-lead">Elige el tipo de OTP, pide el código y verifícalo. El OTP aleatorio se sortea, HOTP cuenta y TOTP mira el reloj.</p>
     </div>
 
     <div class="page-grid">
@@ -65,10 +82,15 @@
           <div class="otp-step" id="otp-step-1" data-step="1">
             <div class="step-header">
               <h2>Generar código</h2>
-              <p>Solicita un código de verificación por correo</p>
+              <p>Elige un tipo de OTP y recíbelo por correo.</p>
             </div>
 
             <div class="form-section">
+              <div class="field" id="field-email">
+                <label for="gen-email">Correo electrónico</label>
+                <input id="gen-email" type="email" inputmode="email" placeholder="tu@correo.com" maxlength="254" autocomplete="email">
+              </div>
+
               <div class="field">
                 <span class="field-legend" id="type-legend">Tipo de OTP</span>
                 <div class="purpose-grid type-grid" role="radiogroup" aria-labelledby="type-legend" aria-describedby="type-help">
@@ -92,80 +114,80 @@
                 <p id="totp-channel-note" class="field-help totp-note" hidden>En esta demo enviamos el TOTP por correo o SMS para compararlo con los otros tipos. Normalmente TOTP se utiliza con una app autenticadora.</p>
               </div>
 
-              <div class="field">
-                <span class="field-legend" id="purpose-legend">¿Para qué es este código?</span>
-                <div class="purpose-grid" role="radiogroup" aria-labelledby="purpose-legend">
-                  <label class="purpose-option">
-                    <input type="radio" name="purpose" value="login" checked>
-                    <span class="purpose-body"><span class="purpose-name">Iniciar sesión</span><span class="purpose-sub">Entrar a tu cuenta</span></span>
-                  </label>
-                  <label class="purpose-option">
-                    <input type="radio" name="purpose" value="signup">
-                    <span class="purpose-body"><span class="purpose-name">Registrarme</span><span class="purpose-sub">Crear una cuenta</span></span>
-                  </label>
-                  <label class="purpose-option">
-                    <input type="radio" name="purpose" value="reset">
-                    <span class="purpose-body"><span class="purpose-name">Recuperar acceso</span><span class="purpose-sub">Olvidé mi contraseña</span></span>
-                  </label>
-                  <label class="purpose-option">
-                    <input type="radio" name="purpose" value="payment">
-                    <span class="purpose-body"><span class="purpose-name">Confirmar un pago</span><span class="purpose-sub">Autorizar una operación</span></span>
-                  </label>
+              <details class="options" id="advanced-options">
+                <summary>
+                  <span class="options-title">Opciones</span>
+                  <span class="options-summary" id="options-summary"></span>
+                </summary>
+                <div class="options-body">
+                  <div class="field">
+                    <span class="field-legend" id="purpose-legend">¿Para qué es este código?</span>
+                    <div class="purpose-grid" role="radiogroup" aria-labelledby="purpose-legend">
+                      <label class="purpose-option">
+                        <input type="radio" name="purpose" value="login" checked>
+                        <span class="purpose-body"><span class="purpose-name">Iniciar sesión</span><span class="purpose-sub">Entrar a tu cuenta</span></span>
+                      </label>
+                      <label class="purpose-option">
+                        <input type="radio" name="purpose" value="signup">
+                        <span class="purpose-body"><span class="purpose-name">Registrarme</span><span class="purpose-sub">Crear una cuenta</span></span>
+                      </label>
+                      <label class="purpose-option">
+                        <input type="radio" name="purpose" value="reset">
+                        <span class="purpose-body"><span class="purpose-name">Recuperar acceso</span><span class="purpose-sub">Olvidé mi contraseña</span></span>
+                      </label>
+                      <label class="purpose-option">
+                        <input type="radio" name="purpose" value="payment">
+                        <span class="purpose-body"><span class="purpose-name">Confirmar un pago</span><span class="purpose-sub">Autorizar una operación</span></span>
+                      </label>
+                    </div>
+                  </div>
+                  <div class="field-row">
+                    <div class="field">
+                      <label for="gen-digits">Dígitos</label>
+                      <select id="gen-digits">
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6" selected>6</option>
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                        <option value="9">9</option>
+                        <option value="10">10</option>
+                      </select>
+                    </div>
+                    <div class="field" id="field-expiration">
+                      <label for="gen-expiration" id="gen-expiration-label">Expira en</label>
+                      <select id="gen-expiration">
+                        <option value="30" selected>30 segundos</option>
+                        <option value="60">60 segundos</option>
+                        <option value="120">2 minutos</option>
+                        <option value="300">5 minutos</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="field-row-help time-help">
+                    <p id="expiration-help" class="field-help"></p>
+                    <p id="expiration-example" class="time-example"></p>
+                  </div>
+                  <div class="field">
+                    <label class="check-row" id="custom-toggle-row" for="gen-custom-toggle" hidden>
+                      <input id="gen-custom-toggle" type="checkbox">
+                      <span>Escribir mi propio mensaje</span>
+                    </label>
+                    <div id="gen-message-box" class="message-box" hidden>
+                      <textarea id="gen-message" rows="3" maxlength="300" aria-label="Mensaje del correo"></textarea>
+                      <p class="field-help">Usa <code>{code}</code> donde va el código (obligatorio) y <code>{seconds}</code> para los segundos de vigencia.</p>
+                    </div>
+                    <p id="gen-message-default" class="field-help">Se enviará: <span id="gen-message-preview"></span></p>
+                  </div>
                 </div>
-              </div>
-
-              <div class="field" id="field-email">
-                <label for="gen-email">Correo electrónico</label>
-                <input id="gen-email" type="email" inputmode="email" placeholder="tu@correo.com" maxlength="254" autocomplete="email">
-              </div>
-
-              <div class="field-row">
-                <div class="field">
-                  <label for="gen-digits">Dígitos</label>
-                  <select id="gen-digits">
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                    <option value="6" selected>6</option>
-                    <option value="7">7</option>
-                    <option value="8">8</option>
-                    <option value="9">9</option>
-                    <option value="10">10</option>
-                  </select>
-                </div>
-                <div class="field" id="field-expiration">
-                  <label for="gen-expiration" id="gen-expiration-label">Expira en</label>
-                  <select id="gen-expiration">
-                    <option value="30" selected>30 segundos</option>
-                    <option value="60">60 segundos</option>
-                    <option value="120">2 minutos</option>
-                    <option value="300">5 minutos</option>
-                  </select>
-                </div>
-              </div>
-              <div class="field-row-help time-help">
-                <p id="expiration-help" class="field-help"></p>
-                <p id="expiration-example" class="time-example"></p>
-              </div>
-
-              <div class="field">
-                <label class="check-row" for="gen-custom-toggle">
-                  <input id="gen-custom-toggle" type="checkbox">
-                  <span>Escribir mi propio mensaje</span>
-                </label>
-                <div id="gen-message-box" class="message-box" hidden>
-                  <textarea id="gen-message" rows="3" maxlength="300" aria-label="Mensaje del correo"></textarea>
-                  <p class="field-help">Usa <code>{code}</code> donde va el código (obligatorio) y <code>{seconds}</code> para los segundos de vigencia.</p>
-                </div>
-                <p id="gen-message-default" class="field-help">Se enviará: <span id="gen-message-preview"></span></p>
-              </div>
-
-              <p class="field-help">El código llega a tu correo real. Si no lo ves, revisa la carpeta de spam.</p>
+              </details>
             </div>
 
-            <button id="gen-btn" onclick="generateOtp()" class="btn-primary">
+            <button id="gen-btn" class="btn-primary sticky-action">
               <span class="spinner"></span>
               <span class="btn-label">Enviar código</span>
             </button>
+            <p class="field-help delivery-note">El código llega a tu correo real. Si no lo ves, revisa la carpeta de spam.</p>
             <div id="gen-result" class="result" role="status" aria-live="polite"></div>
             <div id="gen-success" class="gen-success-indicator" style="display:none;" role="status" aria-live="polite">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -190,7 +212,11 @@
               </div>
 
               <div class="field">
-                <div id="demo-code-box" class="demo-code" hidden>Modo demostración: el código no se envía. Tu código es&nbsp;<strong id="demo-code-value"></strong></div>
+                <div id="demo-code-box" class="demo-code" hidden>
+                  <span>Modo demostración: el código no se envía. Tu código es</span>
+                  <strong id="demo-code-value"></strong>
+                  <button type="button" id="demo-fill" class="btn-ghost btn-inline">Usar este código</button>
+                </div>
                 <p id="type-chip" class="type-chip" hidden></p>
                 <div class="code-head">
                   <span class="field-legend" id="code-legend">Código</span>
@@ -214,18 +240,18 @@
                 <p id="clock-note" class="field-help clock-note"></p>
                 <div class="otp-expired" id="otp-expired" role="alert">
                   <span id="otp-expired-text">El código expiró.</span>
-                  <button type="button" class="btn-ghost btn-inline" onclick="resetOtpFlow(true)">Enviar código nuevo</button>
+                  <button type="button" class="btn-ghost btn-inline" data-action="reset-keep">Enviar código nuevo</button>
                 </div>
               </div>
             </div>
 
             <div class="step-actions">
-              <button id="ver-btn" onclick="verifyOtp()" class="btn-primary" disabled>
+              <button id="ver-btn" class="btn-primary sticky-action" disabled>
                 <span class="spinner"></span>
                 <span class="btn-label">Verificar</span>
               </button>
               <div class="step-actions-row">
-                <button type="button" onclick="resetOtpFlow(true)" id="ver-back-btn" class="btn-ghost">Cambiar correo</button>
+                <button type="button" data-action="reset-keep" id="ver-back-btn" class="btn-ghost">Cambiar correo</button>
                 <button type="button" id="resend-btn" class="btn-ghost">
                   <span class="spinner"></span>
                   <span class="btn-label">Pedir otro código</span>
@@ -260,7 +286,7 @@
             </dl>
             <p class="demo-note">Demo: la acción es simulada. Lo real es la verificación del código.</p>
 
-            <button onclick="resetOtpFlow()" class="btn-primary btn-full">
+            <button data-action="reset" class="btn-primary btn-full">
               Probar otro caso
             </button>
           </div>

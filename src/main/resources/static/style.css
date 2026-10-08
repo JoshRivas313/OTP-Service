@@ -148,19 +148,11 @@ button { font: inherit; }
   color: var(--ink);
   font-weight: 600;
 }
-.otp-progress-dot.current {
-  color: var(--accent);
-  text-shadow: 0 0 10px rgba(109, 179, 63, 0.7);
-  box-shadow: 0 0 0 2px var(--accent), 0 0 18px 2px rgba(109, 179, 63, 0.45);
-  animation: step-glow 1.8s ease-in-out infinite;
-}
-.otp-progress-dot.current.done { color: var(--accent-ink); text-shadow: none; animation: none; }
-@keyframes step-glow {
-  50% { box-shadow: 0 0 0 2px var(--accent), 0 0 26px 5px rgba(109, 179, 63, 0.6); }
-}
+/* El paso actual se marca como la lámpara plana del tablero: un anillo, sin brillo */
+.otp-progress-dot.current { color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.otp-progress-dot.current.done { color: var(--accent-ink); }
 @media (prefers-reduced-motion: reduce) {
   .otp-progress-dot, .otp-progress-step { transition: none; }
-  .otp-progress-dot.current { animation: none; }
 }
 
 /* ¿Sabías que…? */
@@ -218,12 +210,12 @@ button { font: inherit; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .field-row-help { margin-top: -12px; }
 .time-help { display: grid; gap: 6px; }
-.totp-note { margin-top: 8px; padding-left: 10px; border-left: 2px solid var(--rule); }
+.totp-note { margin-top: 8px; }
 .time-example {
   margin: 0;
   padding: 8px 12px;
-  border-left: 2px solid var(--accent);
-  background: rgba(109, 179, 63, 0.08);
+  border-radius: 3px;
+  background: rgba(109, 179, 63, 0.1);
   color: var(--ink-dim);
   font-family: var(--font-mono);
   font-size: 13px;
@@ -547,12 +539,63 @@ button { font: inherit; }
   .type-grid { grid-template-columns: repeat(3, 1fr); }
   .field .code-box { height: 60px; font-size: 36px; }
   .code-boxes-wrapper { gap: 4px; }
+  /* Con 7 u 8 digitos, dos filas: cada casilla pasa de 33 a 56 px de ancho */
+  .code-boxes-wrapper.long { grid-template-columns: repeat(4, minmax(0, 64px)); gap: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .otp-timer-bar, .totp-window-bar { transition: none; }
+  .btn-primary .spinner { animation-duration: 2s; }
 }
 
 /* El error del celular va debajo del campo, no a su lado */
 .field-wrap { flex-wrap: wrap; }
 .field-wrap .field-error { flex-basis: 100%; }
+
+
+/* Opciones plegadas: el paso 1 pide solo lo que hace falta (destino y tipo); el resto ya trae un valor razonable */
+.options { border: 1px solid var(--rule); border-radius: 4px; }
+.options > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 10px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+.options > summary::-webkit-details-marker { display: none; }
+.options > summary::after {
+  content: '';
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-left: 4px;
+  border-right: 2px solid var(--ink-dim);
+  border-bottom: 2px solid var(--ink-dim);
+  transform: rotate(45deg);
+}
+.options[open] > summary::after { transform: rotate(-135deg); }
+.options > summary:hover .options-title { color: var(--ink); }
+.options-title {
+  color: var(--ink-dim);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.options-summary { margin-left: auto; color: var(--ink-faint); font-size: 14px; text-align: right; }
+.options[open] > summary { border-bottom: 1px solid var(--rule); }
+.options-body { display: grid; gap: 20px; padding: 16px 14px 18px; }
+
+/* Con el paso 2 o 3 abierto la introducción sobra: el contenido útil sube */
+body[data-step="2"] .page-lead, body[data-step="3"] .page-lead { display: none; }
+
+/* Modo demo: el codigo que muestra la pantalla se puede usar con un toque */
+.demo-code .btn-inline { margin-left: auto; }
+
+/* La accion principal queda a la vista aunque el panel sea mas alto que la pantalla */
+.sticky-action { position: sticky; bottom: 12px; z-index: 3; box-shadow: 0 -14px 16px -2px var(--panel); }
+
+.delivery-note { margin-top: 12px; }

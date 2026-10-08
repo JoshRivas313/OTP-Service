@@ -20,6 +20,28 @@
   line-height: 1.45;
   text-wrap: pretty;
 }
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  margin: 24px 0 0;
+}
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 12px 22px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 17px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.cta:hover { background: var(--accent-deep); }
+.cta-link { color: var(--accent-on-wall); font-size: 17px; font-weight: 600; text-underline-offset: 4px; }
 .intro-key {
   color: var(--accent-on-wall);
   font-weight: 600;
@@ -337,30 +359,23 @@
 }
 .gate:hover { border-color: var(--accent); }
 .gate-body { display: grid; gap: 4px; }
-
-/* Tipo de OTP → código → canal: el canal solo entrega lo que define el tipo */
-.gates-flow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 14px;
-  margin: 0 0 16px;
+/* Correo es el camino sin fricción: la puerta principal. SMS pide una cuenta y lo dice en una etiqueta. */
+.gate-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.gate-primary .gate-sub { color: #1f3a12; }
+.gate-primary:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
+.gate-tag {
+  justify-self: start;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
   color: var(--ink-dim);
-  font-size: 15px;
-}
-.flow-step { display: grid; gap: 2px; }
-.flow-label {
-  color: var(--ink-faint);
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
-.flow-arrow { color: var(--accent-on-wall); font-size: 20px; }
-@media (max-width: 520px) {
-  .gates-flow { flex-direction: column; align-items: flex-start; gap: 4px; }
-  .flow-arrow { transform: rotate(90deg); line-height: 1; }
-}
+
+/* El canal solo entrega lo que define el tipo de OTP */
+.gates-flow { max-width: 62ch; margin: 0 0 16px; color: var(--ink-dim); font-size: 16px; }
 .gate-name {
   font-family: var(--font-board);
   font-size: 28px;

@@ -78,7 +78,7 @@ async function connectTwilio() {
         phoneNumber: document.getElementById('tw-phone-number').value.trim()
       })
     });
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
     if (response.ok) {
       document.getElementById('tw-auth-token').value = '';
       await refreshTwilioStatus();
@@ -87,8 +87,8 @@ async function connectTwilio() {
       document.getElementById('gen-btn').focus();
       return;
     }
-    showResult('tw-connect-result', false,
-        'No pudimos validar estas credenciales.<span class="result-detail">' + (data.message || data.code) + '</span>');
+    showResult('tw-connect-result', false, 'No pudimos validar estas credenciales.',
+        data.message || data.code || unexpectedErrorMessage(response.status));
   } catch (error) {
     showResult('tw-connect-result', false, 'No se pudo conectar con el servidor');
   } finally {
@@ -107,6 +107,10 @@ async function changeTwilioConfig() {
   showTwilioConnect(true);
   document.getElementById('tw-account-sid').focus();
 }
+
+document.getElementById('twilio-disconnect-btn').addEventListener('click', changeTwilioConfig);
+document.getElementById('tw-connect-btn').addEventListener('click', connectTwilio);
+document.getElementById('tw-cancel-btn').addEventListener('click', cancelTwilioConnect);
 
 window.OTP_CHANNEL = {
   api: { generate: '/api/twilio/otps', verify: '/api/twilio/otps/verify', key: 'cellphone' },

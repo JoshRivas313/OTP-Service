@@ -3,6 +3,7 @@ const ICON_ERR = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><p
 
 const API = OTP_CHANNEL.api;
 
+// El error queda unido al campo (aria-describedby, aria-invalid) y se anuncia al aparecer (role="alert").
 function showFieldError(fieldId, message) {
   const input = document.getElementById(fieldId);
   const existingError = input.parentElement.querySelector('.field-error');
@@ -11,8 +12,12 @@ function showFieldError(fieldId, message) {
   if (message) {
     const errorEl = document.createElement('span');
     errorEl.className = 'field-error';
+    errorEl.id = fieldId + '-error';
+    errorEl.setAttribute('role', 'alert');
     errorEl.textContent = message;
     input.parentElement.appendChild(errorEl);
+    input.setAttribute('aria-invalid', 'true');
+    input.setAttribute('aria-describedby', errorEl.id);
   }
 }
 
@@ -21,12 +26,15 @@ function clearFieldError(fieldId) {
   const existingError = input.parentElement.querySelector('.field-error');
   if (existingError) existingError.remove();
   input.classList.remove('error');
+  input.removeAttribute('aria-invalid');
+  input.removeAttribute('aria-describedby');
 }
 
 const customToggle = document.getElementById('gen-custom-toggle');
 const messageInput = document.getElementById('gen-message');
 let messageEdited = false;
 
+// Solo para la vista previa: replica el texto que escribe el servidor (OtpMessage) segun el proposito.
 function purposeMessage() {
   const message = PURPOSES[selectedPurposeKey()].sms;
   const type = selectedType();
@@ -52,7 +60,10 @@ customToggle.addEventListener('change', () => {
   document.getElementById('gen-message-default').hidden = customToggle.checked;
   if (customToggle.checked) messageInput.focus();
 });
-document.querySelectorAll('input[name="purpose"]').forEach(radio => radio.addEventListener('change', refreshMessagePreview));
+document.querySelectorAll('input[name="purpose"]').forEach(radio => radio.addEventListener('change', () => {
+  refreshMessagePreview();
+  updateOptionsSummary();
+}));
 document.getElementById('gen-expiration').addEventListener('change', () => {
   renderTimeHelp();
   refreshMessagePreview();
@@ -231,8 +242,33 @@ fetch('/api/otp-policy')
   .then(loaded => {
     policy = loaded;
     renderTimeHelp();
+    applyCustomMessagePolicy();
   })
   .catch(() => {});
+
+// El texto del mensaje lo decide el servidor. La casilla para escribir uno propio solo aparece si el servidor lo permite
+// (modo demo o OTP_CUSTOM_MESSAGE_ENABLED); si la politica no llega, se queda oculta.
+let customMessageAllowed = false;
+
+function applyCustomMessagePolicy() {
+  customMessageAllowed = !!(policy && policy.customMessageEnabled);
+  document.getElementById('custom-toggle-row').hidden = !customMessageAllowed;
+  if (!customMessageAllowed) {
+    customToggle.checked = false;
+    document.getElementById('gen-message-box').hidden = true;
+    document.getElementById('gen-message-default').hidden = false;
+  }
+}
+
+// Lo que el visitante eligió dentro de "Opciones", visible sin abrirlas.
+function updateOptionsSummary() {
+  const type = selectedType();
+  const seconds = parseInt(document.getElementById('gen-expiration').value, 10);
+  const duration = type === 'HOTP' ? 'no vence' : (type === 'TOTP' ? 'ventana de ' + seconds + ' s' : 'vence en ' + seconds + ' s');
+  const digits = document.getElementById('gen-digits').value;
+  document.getElementById('options-summary').textContent =
+    PURPOSES[selectedPurposeKey()].action + ' · ' + digits + ' dígitos · ' + duration;
+}
 
 function clockTime(millis) {
   return new Date(millis).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
@@ -242,6 +278,7 @@ function clockTime(millis) {
 function renderTimeHelp() {
   const type = TYPES[selectedType()];
   const seconds = parseInt(document.getElementById('gen-expiration').value, 10);
+  updateOptionsSummary();
   document.getElementById('expiration-help').textContent = type.expirationHelp(seconds) + ' ' + type.digitsHelp;
   document.getElementById('expiration-example').textContent = type.example(seconds, Date.now());
 }
@@ -298,8 +335,9 @@ function buildCodeBoxes(count) {
     box.className = 'code-box';
     box.type = 'text';
     box.inputMode = 'numeric';
-    box.maxLength = 1;
-    box.autocomplete = 'off';
+    // La primera casilla recibe el codigo completo cuando el telefono lo autocompleta desde el SMS.
+    box.maxLength = i === 0 ? count : 1;
+    box.autocomplete = i === 0 ? 'one-time-code' : 'off';
     box.dataset.index = String(i);
     box.setAttribute('aria-label', 'Dígito ' + (i + 1));
     wrapper.appendChild(box);
@@ -307,11 +345,31 @@ function buildCodeBoxes(count) {
   attachCodeBoxListeners();
 }
 
+// Reparte varios digitos (pegado o autocompletado del SMS) desde una casilla, sin pasarse de la ultima.
+function fillFrom(boxes, start, digits) {
+  const list = digits.split('');
+  boxes.forEach((box, i) => {
+    if (i < start || i >= start + list.length) return;
+    box.value = list[i - start];
+    box.classList.add('filled');
+  });
+  if (list.length > 0) {
+    boxes[Math.min(start + list.length - 1, boxes.length - 1)].focus();
+  }
+  updateVerifyButtonState();
+}
+
 function attachCodeBoxListeners() {
   const boxes = document.querySelectorAll('.code-box');
   boxes.forEach((box, index) => {
+    box.addEventListener('focus', () => box.select());
     box.addEventListener('input', (e) => {
-      e.target.value = e.target.value.replace(/\D/g, '');
+      const digits = e.target.value.replace(/\D/g, '');
+      if (digits.length > 1) {
+        fillFrom(boxes, index, digits);
+        return;
+      }
+      e.target.value = digits;
       e.target.classList.toggle('filled', e.target.value !== '');
       if (e.target.value && index < boxes.length - 1) {
         boxes[index + 1].focus();
@@ -326,17 +384,7 @@ function attachCodeBoxListeners() {
     box.addEventListener('paste', (e) => {
       e.preventDefault();
       const paste = (e.clipboardData || window.clipboardData).getData('text');
-      const digits = paste.replace(/\D/g, '').split('');
-      digits.forEach((digit, i) => {
-        if (index + i < boxes.length) {
-          boxes[index + i].value = digit;
-          boxes[index + i].classList.add('filled');
-        }
-      });
-      if (digits.length > 0) {
-        boxes[Math.min(index + digits.length - 1, boxes.length - 1)].focus();
-      }
-      updateVerifyButtonState();
+      fillFrom(boxes, index, paste.replace(/\D/g, ''));
     });
   });
 }
@@ -473,12 +521,20 @@ function startTimer(durationSeconds, issuedAt) {
   timerInterval = setInterval(tick, 250);
 }
 
-function showOtpStep(stepNumber) {
+// moveFocus: al cambiar de paso el foco pasa al titulo del paso nuevo, para que un lector de pantalla sepa que cambio.
+function showOtpStep(stepNumber, moveFocus = false) {
   document.querySelectorAll('.otp-step').forEach(step => {
     step.style.display = 'none';
   });
   const step = document.getElementById('otp-step-' + stepNumber);
-  if (step) step.style.display = 'block';
+  if (!step) return;
+  document.body.dataset.step = String(stepNumber);
+  step.style.display = 'block';
+  const heading = step.querySelector('h2');
+  if (moveFocus && heading) {
+    heading.tabIndex = -1;
+    heading.focus();
+  }
 }
 
 function showMessageError(text) {
@@ -528,8 +584,9 @@ async function generateOtp() {
   const type = selectedType();
   const digits = parseInt(document.getElementById('gen-digits').value, 10);
   const durationSeconds = type === 'HOTP' ? null : parseInt(document.getElementById('gen-expiration').value, 10);
-  const message = customToggle.checked ? messageInput.value.trim() : purposeMessage();
-  if (!message.includes('{code}')) {
+  const useCustomMessage = customMessageAllowed && customToggle.checked;
+  const message = useCustomMessage ? messageInput.value.trim() : null;
+  if (useCustomMessage && !message.includes('{code}')) {
     messageInput.classList.add('error');
     showMessageError('El mensaje debe incluir {code}');
     return;
@@ -647,7 +704,7 @@ async function verifyOtp() {
     showStepsAt(3, true);
     renderVerifiedResult();
     setTimeout(() => {
-      showOtpStep(3);
+      showOtpStep(3, true);
     }, 300);
   } else {
     if (otpExpired) {
@@ -685,7 +742,7 @@ async function submit(buttonId, resultId, url, body, options = {}) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
     ok = response.ok;
     if (url === API.generate && ok) {
       lastDemoCode = data.demoCode || null;
@@ -697,7 +754,7 @@ async function submit(buttonId, resultId, url, body, options = {}) {
       document.getElementById(resultId).innerHTML = '';
       return ok;
     }
-    showResult(resultId, ok, data.message || data.code);
+    showResult(resultId, ok, data.message || data.code || unexpectedErrorMessage(response.status));
   } catch (error) {
     showResult(resultId, false, 'No se pudo conectar con el servidor');
   } finally {
@@ -708,11 +765,39 @@ async function submit(buttonId, resultId, url, body, options = {}) {
   return ok;
 }
 
-function showResult(elementId, ok, message) {
+// El texto va como texto, no como HTML: lo que llegue del servidor nunca se interpreta como marcado.
+function showResult(elementId, ok, message, detail) {
   const el = document.getElementById(elementId);
-  el.innerHTML = (ok ? ICON_OK : ICON_ERR) + '<span>' + message + '</span>';
+  el.innerHTML = ok ? ICON_OK : ICON_ERR;
+  const text = document.createElement('span');
+  text.textContent = message;
+  if (detail) {
+    const extra = document.createElement('span');
+    extra.className = 'result-detail';
+    extra.textContent = detail;
+    text.appendChild(extra);
+  }
+  el.appendChild(text);
+  el.setAttribute('aria-live', ok ? 'polite' : 'assertive');
   el.className = 'result show ' + (ok ? 'ok' : 'err');
 }
+
+// Un error que no trae {code, message} (un proxy, un corte) igual se explica.
+function unexpectedErrorMessage(status) {
+  return 'El servidor respondió con un error (' + status + '). Intenta de nuevo en un momento.';
+}
+
+// Sin JavaScript en linea en el HTML (la politica de seguridad solo permite scripts de este origen).
+document.getElementById('gen-btn').addEventListener('click', generateOtp);
+// Modo demo: la pantalla ya muestra el código; con un toque se rellena y el foco queda en Verificar.
+document.getElementById('demo-fill').addEventListener('click', () => {
+  if (!lastDemoCode) return;
+  fillFrom(Array.from(document.querySelectorAll('.code-box')), 0, lastDemoCode);
+  document.getElementById('ver-btn').focus();
+});
+document.getElementById('ver-btn').addEventListener('click', verifyOtp);
+document.querySelectorAll('[data-action="reset-keep"]').forEach(button => button.addEventListener('click', () => resetOtpFlow(true)));
+document.querySelectorAll('[data-action="reset"]').forEach(button => button.addEventListener('click', () => resetOtpFlow()));
 
 applyType();
 OTP_CHANNEL.start();
