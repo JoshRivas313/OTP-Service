@@ -60,10 +60,12 @@ public class BrevoEmailSender implements EmailSender {
             log.info("Correo entregado a Brevo para={}", destination.masked());
         } catch (RestClientResponseException exception) {
             log.warn("Brevo rechazo el envio para={} estado={}: {}",
-                    destination.masked(), exception.getStatusCode().value(), exception.getResponseBodyAsString());
+                    destination.masked(), exception.getStatusCode().value(),
+                    exception.getResponseBodyAsString().replace(destination.getValue(), destination.masked()));
             throw new EmailDeliveryFailedException();
         } catch (RestClientException exception) {
-            log.warn("No se pudo contactar a Brevo para={}: {}", destination.masked(), exception.getMessage());
+            log.warn("No se pudo contactar a Brevo para={}: {}", destination.masked(),
+                    String.valueOf(exception.getMessage()).replace(destination.getValue(), destination.masked()));
             throw new EmailDeliveryFailedException();
         }
     }

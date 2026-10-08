@@ -14,6 +14,11 @@ public record SmsProperties(
             @DefaultValue("") String authToken,
             @DefaultValue("") String phoneNumber
     ) {
+        @Override
+        public String toString() {
+            return "Twilio[accountSid=" + (accountSid.isBlank() ? "vacio" : "oculto") + ", authToken=oculto, phoneNumber="
+                    + phoneNumber + "]";
+        }
     }
 
     public record Infobip(
@@ -21,5 +26,9 @@ public record SmsProperties(
             @DefaultValue("") String apiKey,
             @DefaultValue("") String sender
     ) {
+        @Override
+        public String toString() {
+            return "Infobip[baseUrl=" + baseUrl + ", apiKey=oculta, sender=" + sender + "]";
+        }
     }
 }

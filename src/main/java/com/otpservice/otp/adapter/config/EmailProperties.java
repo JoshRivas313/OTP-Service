@@ -14,5 +14,9 @@ public record EmailProperties(
             @DefaultValue("") String apiKey,
             @DefaultValue("https://api.brevo.com") String baseUrl
     ) {
+        @Override
+        public String toString() {
+            return "Brevo[apiKey=" + (apiKey.isBlank() ? "vacia" : "oculta") + ", baseUrl=" + baseUrl + "]";
+        }
     }
 }

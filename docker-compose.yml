@@ -1,21 +1,24 @@
-version: '3.8'
-
+# Desarrollo local con MongoDB. Los secretos NO estan en este archivo: salen de un .env (ignorado por git).
+# Para crearlo, desde la raiz del repositorio:
+#   printf "MONGO_PASSWORD=%s\nOTP_HASH_SECRET=%s\nOTP_SECRET_ENCRYPTION_KEY=%s\n" \
+#     "$(openssl rand -hex 16)" "$(openssl rand -hex 32)" "$(openssl rand -base64 32)" > .env
 services:
   mongodb:
-    image: mongo:latest
+    image: mongo:7
     container_name: otp-mongo
+    # Solo accesible desde esta maquina: no se publica el puerto en la red.
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: otpadmin
-      MONGO_INITDB_ROOT_PASSWORD: otppassword
+      MONGO_INITDB_ROOT_PASSWORD: "${MONGO_PASSWORD:?Falta MONGO_PASSWORD, crea el archivo .env (ver el comienzo de docker-compose.yml)}"
       MONGO_INITDB_DATABASE: otp_service
     volumes:
       - mongo_data:/data/db
     networks:
       - otp-network
     healthcheck:
-      test: echo 'db.adminCommand("ping")' | mongosh -u otpadmin -p otppassword --authenticationDatabase admin
+      test: ["CMD-SHELL", "echo 'db.adminCommand(\"ping\")' | mongosh -u otpadmin -p \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --quiet"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,8 +30,11 @@ services:
       - "8080:8080"
     environment:
       SPRING_PROFILES_ACTIVE: mongo
-      MONGODB_URI: mongodb://otpadmin:otppassword@mongodb:27017/otp_service?authSource=admin
-      OTP_HASH_SECRET: tu-clave-secreta-minimo-32-caracteres-para-desarrollo
+      MONGODB_URI: "mongodb://otpadmin:${MONGO_PASSWORD:?Falta MONGO_PASSWORD}@mongodb:27017/otp_service?authSource=admin"
+      OTP_HASH_SECRET: "${OTP_HASH_SECRET:?Falta OTP_HASH_SECRET, crea el archivo .env (ver el comienzo de docker-compose.yml)}"
+      OTP_SECRET_ENCRYPTION_KEY: "${OTP_SECRET_ENCRYPTION_KEY:?Falta OTP_SECRET_ENCRYPTION_KEY, crea el archivo .env}"
+      # Con el proveedor console el codigo solo se ve en el log si se pide expresamente.
+      OTP_LOG_CODES: "true"
       SMS_PROVIDER: console
       OTP_DEMO_MODE: "false"
       PORT: 8080
@@ -38,8 +44,6 @@ services:
         condition: service_healthy
     networks:
       - otp-network
-    stdin_open: true
-    tty: true
 
 volumes:
   mongo_data:

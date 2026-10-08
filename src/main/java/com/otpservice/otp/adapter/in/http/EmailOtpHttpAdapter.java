@@ -1,6 +1,7 @@
 package com.otpservice.otp.adapter.in.http;
 
 import com.otpservice.otp.adapter.config.SendRateLimiter;
+import com.otpservice.otp.adapter.exception.EmailDeliveryFailedException;
 import com.otpservice.otp.adapter.config.VerifyRateLimiter;
 import com.otpservice.otp.adapter.in.http.dto.request.EmailOtpGenerateRequest;
 import com.otpservice.otp.adapter.in.http.dto.request.EmailOtpVerifyRequest;
@@ -49,10 +50,16 @@ public class EmailOtpHttpAdapter {
       request.getDurationSeconds(),
       request.getMessage()
     );
-    GenerateOtpResult result = generateUseCase.generate(
-      command,
-      (destination, message) -> emailSender.send(request.getEmail(), message)
-    );
+    GenerateOtpResult result;
+    try {
+      result = generateUseCase.generate(
+        command,
+        (destination, message) -> emailSender.send(request.getEmail(), message)
+      );
+    } catch (EmailDeliveryFailedException exception) {
+      rateLimiter.refund(request.getEmail().getValue(), http.getRemoteAddr());
+      throw exception;
+    }
     return ResponseEntity.status(HttpStatus.CREATED).body(OtpGenerateResponse.from(result));
   }
 

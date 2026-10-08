@@ -1,6 +1,7 @@
 package com.otpservice.otp.adapter.out.persistence;
 
 import com.otpservice.otp.adapter.out.persistence.document.HmacCredentialDocument;
+import com.otpservice.otp.adapter.config.OtpProperties;
 import com.otpservice.otp.application.port.out.CredentialPersistencePort;
 import com.otpservice.otp.domain.model.HmacCredential;
 import com.otpservice.otp.domain.valueobject.EncryptedSecret;
@@ -15,6 +16,7 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Repository;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
 
@@ -37,8 +39,15 @@ public class CredentialPersistenceAdapter implements CredentialPersistencePort {
   private static final String FIELD_SECRET_CIPHERTEXT = "secretCiphertext";
   private static final String FIELD_SECRET_NONCE = "secretNonce";
   private static final String FIELD_CREATED_AT = "createdAt";
+  private static final String FIELD_PURGE_AT = "purgeAt";
 
   private final MongoTemplate mongoTemplate;
+  private final OtpProperties properties;
+  private final Clock clock;
+
+  private Instant purgeAt() {
+    return clock.instant().plusSeconds(properties.credentialRetentionSeconds());
+  }
 
   @Override
   public HmacCredential createIfAbsent(HmacCredential credential) {
@@ -52,7 +61,8 @@ public class CredentialPersistenceAdapter implements CredentialPersistencePort {
       .setOnInsert(FIELD_ISSUED_COUNTER, doc.getIssuedCounter())
       .setOnInsert(FIELD_LAST_USED_TIME_STEP, doc.getLastUsedTimeStep())
       .setOnInsert(FIELD_FAILED_ATTEMPTS, doc.getFailedAttempts())
-      .setOnInsert(FIELD_CREATED_AT, doc.getCreatedAt());
+      .setOnInsert(FIELD_CREATED_AT, doc.getCreatedAt())
+      .setOnInsert(FIELD_PURGE_AT, purgeAt());
     return toDomain(mongoTemplate.findAndModify(
       byKey(credential.getDestination(), credential.getType(), credential.getPurpose()),
       update,
@@ -70,7 +80,8 @@ public class CredentialPersistenceAdapter implements CredentialPersistencePort {
   public HmacCredential issue(String id, int digits, int periodSeconds, boolean advanceCounter) {
     Update update = new Update()
       .set(FIELD_DIGITS, digits)
-      .set(FIELD_PERIOD_SECONDS, periodSeconds);
+      .set(FIELD_PERIOD_SECONDS, periodSeconds)
+      .set(FIELD_PURGE_AT, purgeAt());
     if (advanceCounter) {
       update.inc(FIELD_ISSUED_COUNTER, 1L);
     }
@@ -112,7 +123,7 @@ public class CredentialPersistenceAdapter implements CredentialPersistencePort {
   }
 
   private boolean claim(Query query, Update update) {
-    update.set(FIELD_FAILED_ATTEMPTS, 0).unset(FIELD_LOCKED_UNTIL);
+    update.set(FIELD_FAILED_ATTEMPTS, 0).unset(FIELD_LOCKED_UNTIL).set(FIELD_PURGE_AT, purgeAt());
     return mongoTemplate.updateFirst(query, update, HmacCredentialDocument.class).getModifiedCount() == 1;
   }
 
@@ -125,7 +136,7 @@ public class CredentialPersistenceAdapter implements CredentialPersistencePort {
       c.getId(), c.getDestination(), c.getType(), c.getPurpose(),
       c.getSecret().ciphertext(), c.getSecret().nonce(),
       c.getDigits(), c.getPeriodSeconds(), c.getCounter(), c.getIssuedCounter(), c.getLastUsedTimeStep(),
-      c.getFailedAttempts(), c.getLockedUntil(), c.getCreatedAt());
+      c.getFailedAttempts(), c.getLockedUntil(), c.getCreatedAt(), null);
   }
 
   private static HmacCredential toDomain(HmacCredentialDocument d) {

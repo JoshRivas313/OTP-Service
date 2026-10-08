@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
@@ -33,4 +34,8 @@ public class HmacCredentialDocument {
     private int failedAttempts;
     private Instant lockedUntil;
     private Instant createdAt;
+
+    // Fin de la retencion: se renueva con cada emision y verificacion. MongoDB borra el documento al llegar a este instante.
+    @Indexed(name = "credential_purge_ttl_idx", expireAfterSeconds = 0)
+    private Instant purgeAt;
 }

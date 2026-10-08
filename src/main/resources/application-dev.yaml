@@ -1,0 +1,11 @@
+# Solo para desarrollo local: SPRING_PROFILES_ACTIVE=dev
+# Trae claves de ejemplo PUBLICAS (estan en el repositorio). Nunca las uses en un servidor: RequiredSecretsGuard no deja
+# combinar este perfil con prod, y sin este perfil la aplicacion exige OTP_HASH_SECRET y OTP_SECRET_ENCRYPTION_KEY propios.
+# Una variable de entorno con el mismo nombre tiene prioridad sobre estos valores.
+otp:
+  hash-secret: ${OTP_HASH_SECRET:dev-only-secret-change-me}
+  log-codes: ${OTP_LOG_CODES:true}
+  custom-message-enabled: ${OTP_CUSTOM_MESSAGE_ENABLED:true}
+
+hmac:
+  encryption-key: ${OTP_SECRET_ENCRYPTION_KEY:ZGV2LW9ubHktZW5jcnlwdGlvbi1rZXktY2hhbmdlbWU=}

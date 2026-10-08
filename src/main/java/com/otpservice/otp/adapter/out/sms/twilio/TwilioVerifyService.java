@@ -36,7 +36,7 @@ public class TwilioVerifyService {
             }
             return new TwilioAccountInfo(trial || !verified.isEmpty(), Set.copyOf(verified));
         } catch (ApiException exception) {
-            log.warn("No se pudo consultar los numeros verificados de la cuenta de Twilio: {}", exception.getMessage());
+            log.warn("No se pudo consultar los numeros verificados de la cuenta de Twilio (codigo {})", exception.getCode());
             return TwilioAccountInfo.unrestricted();
         }
     }

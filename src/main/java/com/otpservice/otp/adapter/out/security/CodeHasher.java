@@ -5,6 +5,7 @@ import com.otpservice.otp.application.port.out.CodeHasherPort;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.Mac;
@@ -15,6 +16,7 @@ import java.util.HexFormat;
 
 @Slf4j
 @Component
+@DependsOn("requiredSecretsGuard")
 @RequiredArgsConstructor
 public class CodeHasher implements CodeHasherPort {
 

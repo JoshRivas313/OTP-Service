@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -34,6 +35,7 @@ class ClientIpHttpTest {
 
     // Conexion directa de un cliente que no es un proxy de confianza: X-Forwarded-For se ignora por completo.
     @Nested
+    @ActiveProfiles("dev")
     @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
             "otp.demo-mode=true", LIMITS, "otp.verify-rate-limit-per-destination=0",
             "server.tomcat.remoteip.internal-proxies=10\\.255\\.255\\.254"
@@ -56,6 +58,7 @@ class ClientIpHttpTest {
 
     // Detras de un proxy de confianza (como el de Render): el proxy agrega la IP real al final y esa es la que cuenta.
     @Nested
+    @ActiveProfiles("dev")
     @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
             "otp.demo-mode=true", LIMITS, "otp.verify-rate-limit-per-destination=0",
             "server.tomcat.remoteip.internal-proxies=127\\.0\\.0\\.1|0:0:0:0:0:0:0:1"
@@ -87,6 +90,7 @@ class ClientIpHttpTest {
 
     // Control: con la estrategia anterior (framework) la IP la elegia el cliente y el limite no frenaba nada.
     @Nested
+    @ActiveProfiles("dev")
     @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
             "otp.demo-mode=true", LIMITS, "otp.verify-rate-limit-per-destination=0",
             "server.forward-headers-strategy=framework"

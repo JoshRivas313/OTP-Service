@@ -17,18 +17,23 @@ public class TwilioSessionService {
         session.setAttribute(ACCOUNT_INFO_KEY, accountInfo);
     }
 
+    // La sesion puede no existir: leer o desconectar no debe crear una.
     public void disconnect(HttpSession session) {
-        session.removeAttribute(SESSION_KEY);
-        session.removeAttribute(ACCOUNT_INFO_KEY);
+        if (session != null) {
+            session.removeAttribute(SESSION_KEY);
+            session.removeAttribute(ACCOUNT_INFO_KEY);
+        }
     }
 
     public TwilioAccountInfo accountInfo(HttpSession session) {
-        return Optional.ofNullable((TwilioAccountInfo) session.getAttribute(ACCOUNT_INFO_KEY))
+        return Optional.ofNullable(session)
+                .map(current -> (TwilioAccountInfo) current.getAttribute(ACCOUNT_INFO_KEY))
                 .orElseGet(TwilioAccountInfo::unrestricted);
     }
 
     public Optional<TwilioCredentials> get(HttpSession session) {
-        return Optional.ofNullable((TwilioCredentials) session.getAttribute(SESSION_KEY));
+        return Optional.ofNullable(session)
+                .map(current -> (TwilioCredentials) current.getAttribute(SESSION_KEY));
     }
 
 }

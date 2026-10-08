@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+import java.time.Duration;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -31,7 +33,11 @@ public class InfobipSmsSender implements SmsSender {
             throw new IllegalStateException("sms.provider=infobip requiere INFOBIP_BASE_URL, "
                     + "INFOBIP_API_KEY e INFOBIP_SENDER");
         }
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Duration.ofSeconds(10));
+        requestFactory.setReadTimeout(Duration.ofSeconds(15));
         this.restClient = RestClient.builder()
+                .requestFactory(requestFactory)
                 .baseUrl(infobip.baseUrl())
                 .defaultHeader("Authorization", "App " + infobip.apiKey())
                 .defaultHeader("Content-Type", "application/json")
@@ -50,6 +56,7 @@ public class InfobipSmsSender implements SmsSender {
 
             log.info("SMS entregado a Infobip para={}", destination.masked());
         } catch (RestClientException exception) {
+            log.warn("No se pudo entregar el SMS a Infobip para={}", destination.masked());
             throw new SmsDeliveryFailedException();
         }
     }

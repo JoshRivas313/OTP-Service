@@ -1,6 +1,7 @@
 package com.otpservice.otp.adapter.in.http;
 
 import com.otpservice.otp.adapter.config.SendRateLimiter;
+import com.otpservice.otp.adapter.exception.SmsDeliveryFailedException;
 import com.otpservice.otp.adapter.config.VerifyRateLimiter;
 import com.otpservice.otp.adapter.exception.DestinationNotVerifiedException;
 import com.otpservice.otp.adapter.exception.TwilioNotConnectedException;
@@ -44,9 +45,9 @@ public class TwilioOtpHttpAdapter {
   @PostMapping
   public ResponseEntity<OtpGenerateResponse> generateOtp(
     @Valid @RequestBody TwilioOtpGenerateRequest request,
-    HttpSession session,
     HttpServletRequest http
   ) {
+    HttpSession session = http.getSession(false);
     TwilioCredentials credentials = requireConnected(session);
     rateLimiter.check(request.getCellphone().getValue(), http.getRemoteAddr());
     if (!sessionService.accountInfo(session).allows(request.getCellphone())) {
@@ -60,20 +61,25 @@ public class TwilioOtpHttpAdapter {
       request.getDurationSeconds(),
       request.getMessage()
     );
-    GenerateOtpResult result = generateUseCase.generate(
-      command,
-      (destination, message) -> sessionSmsSender.send(credentials, request.getCellphone(), message)
-    );
+    GenerateOtpResult result;
+    try {
+      result = generateUseCase.generate(
+        command,
+        (destination, message) -> sessionSmsSender.send(credentials, request.getCellphone(), message)
+      );
+    } catch (SmsDeliveryFailedException exception) {
+      rateLimiter.refund(request.getCellphone().getValue(), http.getRemoteAddr());
+      throw exception;
+    }
     return ResponseEntity.status(HttpStatus.CREATED).body(OtpGenerateResponse.from(result));
   }
 
   @PostMapping("/verify")
   public ResponseEntity<OtpVerifyResponse> verifyOtp(
     @Valid @RequestBody TwilioOtpVerifyRequest request,
-    HttpSession session,
     HttpServletRequest http
   ) {
-    requireConnected(session);
+    requireConnected(http.getSession(false));
     verifyRateLimiter.check(request.getCellphone().getValue(), http.getRemoteAddr());
     OtpCode code = OtpCode.parse(request.getCode());
     var command = new VerifyOtpUseCase.VerifyOtpCommand(

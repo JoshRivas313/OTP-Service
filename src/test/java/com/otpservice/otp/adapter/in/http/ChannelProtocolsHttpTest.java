@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
@@ -17,6 +18,7 @@ import java.util.UUID;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@ActiveProfiles("dev")
 @SpringBootTest(properties = {
         "otp.demo-mode=true",
         "otp.rate-limit-per-destination=0",
@@ -120,6 +122,7 @@ class ChannelProtocolsHttpTest {
                 .andExpect(jsonPath("$.totpToleranceSteps").value(1))
                 .andExpect(jsonPath("$.hotpLookAhead").value(10))
                 .andExpect(jsonPath("$.maxAttempts").value(3))
-                .andExpect(jsonPath("$.lockSeconds").value(600));
+                .andExpect(jsonPath("$.lockSeconds").value(600))
+                .andExpect(jsonPath("$.customMessageEnabled").value(true));
     }
 }

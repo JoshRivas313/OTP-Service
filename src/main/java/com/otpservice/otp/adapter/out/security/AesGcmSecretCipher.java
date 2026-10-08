@@ -5,6 +5,7 @@ import com.otpservice.otp.application.port.out.SecretCipherPort;
 import com.otpservice.otp.domain.valueobject.HmacSecret;
 import com.otpservice.otp.domain.valueobject.EncryptedSecret;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.Cipher;
@@ -18,6 +19,7 @@ import java.util.Base64;
 // Se cifra y no se hashea: hay que recuperar el secreto para recalcular el codigo.
 @Slf4j
 @Component
+@DependsOn("requiredSecretsGuard")
 public class AesGcmSecretCipher implements SecretCipherPort {
 
     private static final String TRANSFORMATION = "AES/GCM/NoPadding";

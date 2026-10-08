@@ -28,8 +28,9 @@ public final class TwilioGateway {
             log.info("SMS entregado a Twilio ({}) para={} sid={}", origin, destination.masked(), sent.getSid());
         } catch (TwilioException exception) {
             Integer code = TwilioErrorMessages.codeOf(exception);
-            log.warn("Twilio rechazo el envio ({}) para={} codigo={}: {}",
-                    origin, destination.masked(), code, exception.getMessage());
+            // El mensaje de Twilio suele repetir el numero completo: se enmascara antes de escribirlo.
+            log.warn("Twilio rechazo el envio ({}) para={} codigo={}: {}", origin, destination.masked(), code,
+                    String.valueOf(exception.getMessage()).replace(destination.getValue(), destination.masked()));
             throw new SmsDeliveryFailedException(TwilioErrorMessages.describe(code));
         }
     }

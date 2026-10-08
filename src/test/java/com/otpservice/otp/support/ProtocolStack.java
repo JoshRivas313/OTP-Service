@@ -42,7 +42,10 @@ public final class ProtocolStack {
     private String lastMessage;
 
     public ProtocolStack() {
-        OtpProperties otp = properties();
+        this(properties());
+    }
+
+    public ProtocolStack(OtpProperties otp) {
         HmacSettings settings = new HmacSettings(1, 10);
         OtpSettings otpSettings = otp.settings();
         otpStore = new InMemoryOtpPersistenceAdapter(clock, otp);
@@ -57,14 +60,18 @@ public final class ProtocolStack {
     }
 
     public static OtpProperties properties() {
-        return new OtpProperties(6, 30, MAX_ATTEMPTS, 86400,
-                "Tu código de verificación es %s. Vence en %d segundos.", "secreto", true, 10000,
-                0, 0, 600, LOCK_SECONDS, 0, 0, true);
+        return TestOtpProperties.otp().build();
     }
 
     public GenerateOtpResult send(Destination to, OtpProtocol protocol, Purpose purpose, Integer digits,
                                   Integer duration) {
         return generate.generate(new GenerateOtpCommand(to, protocol, purpose, digits, duration, null),
+                (d, m) -> lastMessage = m);
+    }
+
+    // Con el texto que escribe quien pide el codigo (solo se acepta si la configuracion lo permite).
+    public GenerateOtpResult sendWithMessage(Destination to, OtpProtocol protocol, Purpose purpose, String message) {
+        return generate.generate(new GenerateOtpCommand(to, protocol, purpose, 6, 30, message),
                 (d, m) -> lastMessage = m);
     }
 

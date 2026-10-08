@@ -3,7 +3,7 @@ package com.otpservice.otp.adapter.in.http.dto.request;
 import com.otpservice.otp.domain.valueobject.OtpProtocol;
 import com.otpservice.otp.domain.valueobject.Purpose;
 import com.otpservice.otp.domain.valueobject.Cellphone;
-import com.otpservice.otp.domain.valueobject.OtpCode;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -21,6 +21,6 @@ public class OtpVerifyRequest {
 
     private Purpose purpose;
 
-    @NotNull(message = "El código es obligatorio")
-    private OtpCode code;
+    @NotBlank(message = "El código es obligatorio")
+    private String code;
 }

@@ -1,0 +1,11 @@
+.git
+.github
+.idea
+.vscode
+target
+docs
+*.md
+.env
+.env.*
+!.env.example
+docker-compose.yml

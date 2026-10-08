@@ -19,9 +19,10 @@ public class OtpPolicyHttpAdapter {
   @GetMapping("/api/otp-policy")
   public OtpPolicyResponse policy() {
     return new OtpPolicyResponse(hmacSettings.totpToleranceSteps(), hmacSettings.hotpLookAhead(),
-        otpSettings.maxAttempts(), otpSettings.lockSeconds());
+        otpSettings.maxAttempts(), otpSettings.lockSeconds(), otpSettings.customMessageAllowed());
   }
 
-  public record OtpPolicyResponse(int totpToleranceSteps, int hotpLookAhead, int maxAttempts, int lockSeconds) {
+  public record OtpPolicyResponse(int totpToleranceSteps, int hotpLookAhead, int maxAttempts, int lockSeconds,
+                                  boolean customMessageEnabled) {
   }
 }

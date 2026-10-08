@@ -42,6 +42,18 @@ final class SlidingWindowLimiter {
         return true;
     }
 
+    // Devuelve la plaza del ultimo intento: el envio que la gasto fallo por culpa del proveedor, no de quien lo pidio.
+    synchronized void release(String destination, String ip) {
+        removeLast(byDestination.get(destination));
+        removeLast(byIp.get(ip));
+    }
+
+    private static void removeLast(Deque<Instant> hits) {
+        if (hits != null && !hits.isEmpty()) {
+            hits.pollLast();
+        }
+    }
+
     private Deque<Instant> hitsFor(Map<String, Deque<Instant>> tracked, String key, Instant since) {
         if (tracked.size() > MAX_TRACKED_KEYS) {
             tracked.values().removeIf(hits -> hits.isEmpty() || hits.peekLast().isBefore(since));

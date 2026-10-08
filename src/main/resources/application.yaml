@@ -2,6 +2,8 @@ server:
   port: ${PORT:8080}
   servlet:
     session:
+      # Sesiones solo para quien conecto Twilio; una sesion abandonada no debe quedar 30 minutos en memoria.
+      timeout: 15m
       cookie:
         secure: ${SESSION_COOKIE_SECURE:false}
         http-only: true
@@ -10,6 +12,8 @@ server:
   # (server.tomcat.remoteip.internal-proxies; por defecto, redes privadas y localhost) y toma el primer valor
   # empezando por la derecha que no sea un proxy. Lo que el cliente escriba a la izquierda se ignora.
   forward-headers-strategy: native
+  # Al apagarse (Render lo hace al redesplegar o dormir) termina las peticiones en curso antes de cerrar.
+  shutdown: graceful
 
 spring:
   application:
@@ -25,7 +29,10 @@ otp:
   duration-seconds: 30
   max-attempts: 3
   retention-seconds: 86400
-  hash-secret: ${OTP_HASH_SECRET:dev-only-secret-change-me}
+  # Una credencial HOTP/TOTP sin actividad se borra sola pasado este tiempo (30 dias). Es el TTL del indice en Mongo.
+  credential-retention-seconds: ${OTP_CREDENTIAL_RETENTION_SECONDS:2592000}
+  # Sin valor por defecto: RequiredSecretsGuard exige uno propio. Para desarrollo, perfil dev (application-dev.yaml).
+  hash-secret: ${OTP_HASH_SECRET:}
   demo-mode: ${OTP_DEMO_MODE:false}
   local-api-enabled: ${OTP_LOCAL_API_ENABLED:true}
   memory-max-entries: ${OTP_MEMORY_MAX_ENTRIES:10000}
@@ -34,14 +41,21 @@ otp:
   rate-limit-window-seconds: ${OTP_RATE_LIMIT_WINDOW_SECONDS:600}
   verify-rate-limit-per-destination: ${OTP_VERIFY_RATE_LIMIT_PER_DESTINATION:10}
   verify-rate-limit-per-ip: ${OTP_VERIFY_RATE_LIMIT_PER_IP:30}
+  # Conexiones de Twilio por IP en la misma ventana: cada una llama a Twilio con credenciales del visitante.
+  connect-rate-limit-per-ip: ${OTP_CONNECT_RATE_LIMIT_PER_IP:10}
+  # Tope global de envios por dia, para no agotar la cuota del proveedor (Brevo gratis: 300 al dia). 0 lo desactiva.
+  daily-send-limit: ${OTP_DAILY_SEND_LIMIT:0}
   # Duracion de un bloqueo por intentos fallidos (HOTP y TOTP). No es la retencion de datos.
   lock-seconds: ${OTP_LOCK_SECONDS:600}
-  # Escribir el codigo en el log con los proveedores de consola. El perfil prod lo apaga.
-  log-codes: ${OTP_LOG_CODES:true}
+  # Escribir el codigo en el log con los proveedores de consola. Apagado por defecto; el perfil dev lo enciende.
+  log-codes: ${OTP_LOG_CODES:false}
+  # Dejar que quien pide el codigo escriba el texto del mensaje. Apagado por defecto: el texto lo decide el servidor.
+  custom-message-enabled: ${OTP_CUSTOM_MESSAGE_ENABLED:false}
 
 hmac:
   # AES-256 en Base64 (openssl rand -base64 32). Si se pierde, los secretos guardados de HOTP y TOTP dejan de servir.
-  encryption-key: ${OTP_SECRET_ENCRYPTION_KEY:ZGV2LW9ubHktZW5jcnlwdGlvbi1rZXktY2hhbmdlbWU=}
+  # Sin valor por defecto: RequiredSecretsGuard exige uno propio. Para desarrollo, perfil dev.
+  encryption-key: ${OTP_SECRET_ENCRYPTION_KEY:}
   totp-tolerance-steps: 1
   hotp-look-ahead: 10
 
@@ -80,16 +94,6 @@ spring:
       - org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration
       - org.springframework.boot.data.mongodb.autoconfigure.DataMongoAutoConfiguration
       - org.springframework.boot.data.mongodb.autoconfigure.DataMongoRepositoriesAutoConfiguration
-
----
-# Produccion: no escribe codigos en el log y ProductionSecretsGuard exige OTP_HASH_SECRET y
-# OTP_SECRET_ENCRYPTION_KEY propios.
-spring:
-  config:
-    activate:
-      on-profile: prod
-otp:
-  log-codes: false
 
 ---
 spring:

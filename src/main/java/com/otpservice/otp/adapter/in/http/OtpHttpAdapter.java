@@ -1,6 +1,7 @@
 package com.otpservice.otp.adapter.in.http;
 
 import com.otpservice.otp.adapter.config.SendRateLimiter;
+import com.otpservice.otp.adapter.exception.SmsDeliveryFailedException;
 import com.otpservice.otp.adapter.config.VerifyRateLimiter;
 import com.otpservice.otp.application.dto.GenerateOtpResult;
 import com.otpservice.otp.application.dto.VerifyOtpResult;
@@ -11,6 +12,7 @@ import com.otpservice.otp.adapter.in.http.dto.request.OtpGenerateRequest;
 import com.otpservice.otp.adapter.in.http.dto.request.OtpVerifyRequest;
 import com.otpservice.otp.adapter.in.http.dto.response.OtpGenerateResponse;
 import com.otpservice.otp.adapter.in.http.dto.response.OtpVerifyResponse;
+import com.otpservice.otp.domain.valueobject.OtpCode;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
@@ -50,10 +52,16 @@ public class OtpHttpAdapter {
       request.getDurationSeconds(),
       null
     );
-    GenerateOtpResult result = generateUseCase.generate(
-      command,
-      (destination, message) -> smsSender.send(request.getCellphone(), message)
-    );
+    GenerateOtpResult result;
+    try {
+      result = generateUseCase.generate(
+        command,
+        (destination, message) -> smsSender.send(request.getCellphone(), message)
+      );
+    } catch (SmsDeliveryFailedException exception) {
+      rateLimiter.refund(request.getCellphone().getValue(), http.getRemoteAddr());
+      throw exception;
+    }
     return ResponseEntity.status(HttpStatus.CREATED).body(OtpGenerateResponse.from(result));
   }
 
@@ -67,7 +75,7 @@ public class OtpHttpAdapter {
       request.getCellphone(),
       request.getType(),
       request.getPurpose(),
-      request.getCode()
+      OtpCode.parse(request.getCode())
     );
     VerifyOtpResult result = verifyUseCase.verify(command);
     return ResponseEntity.ok(OtpVerifyResponse.from(result));

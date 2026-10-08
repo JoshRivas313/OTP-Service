@@ -17,12 +17,14 @@ import java.util.UUID;
 import java.util.function.UnaryOperator;
 
 // Un solo lock protege todo el estado, igual que InMemoryOtpPersistenceAdapter.
+// Al llegar al tope se expulsa la credencial menos usada (orden de acceso), no la mas antigua: una con codigos
+// pendientes de un usuario activo no debe perderse por que otros destinos se crearon despues.
 @Component
 @Profile("!mongo")
 public class InMemoryCredentialAdapter implements CredentialPersistencePort {
 
   private final int maxEntries;
-  private final Map<String, HmacCredential> byKey = new LinkedHashMap<>();
+  private final Map<String, HmacCredential> byKey = new LinkedHashMap<>(16, 0.75f, true);
 
   public InMemoryCredentialAdapter(OtpProperties properties) {
     this.maxEntries = properties.memoryMaxEntries();
@@ -94,6 +96,7 @@ public class InMemoryCredentialAdapter implements CredentialPersistencePort {
         HmacCredential updated = change.apply(entry.getValue());
         if (updated != null) {
           entry.setValue(updated);
+          byKey.get(entry.getKey());          // cuenta como uso; se sale del bucle justo despues
         }
         return Optional.ofNullable(updated);
       }

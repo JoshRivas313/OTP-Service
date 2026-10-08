@@ -8,6 +8,7 @@ import com.otpservice.otp.adapter.out.email.ConsoleEmailSender;
 import com.otpservice.otp.adapter.out.sms.ConsoleSmsSender;
 import com.otpservice.otp.domain.valueobject.Cellphone;
 import com.otpservice.otp.domain.valueobject.EmailAddress;
+import com.otpservice.otp.support.TestOtpProperties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
@@ -30,8 +31,7 @@ class ConsoleSendersLogTest {
     }
 
     private static OtpProperties properties(boolean logCodes) {
-        return new OtpProperties(6, 30, 3, 86400, "plantilla", "secreto", false, 10000, 5, 20, 600,
-                600, 10, 30, logCodes);
+        return TestOtpProperties.otp().demoMode(false).logCodes(logCodes).build();
     }
 
     private List<String> capture(Class<?> type) {
